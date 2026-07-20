@@ -1,4 +1,4 @@
-﻿import numpy as np
+import numpy as np
 import lumen_core
 
 a = np.array([1.0, 2.0, 3.0], dtype=np.float32)

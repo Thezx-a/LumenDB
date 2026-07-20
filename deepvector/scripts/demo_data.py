@@ -1,72 +1,72 @@
-﻿"""
-Demo data for AgenticDB 鈥?sample documents for testing.
+"""
+Demo data for AgenticDB — sample documents for testing.
 """
 
 SAMPLE_DOCUMENTS = [
     {
-        "text": "RAG (Retrieval-Augmented Generation) 鏄竴绉嶅皢妫€绱㈢郴缁熶笌澶ц瑷€妯″瀷缁撳悎鐨勬妧鏈灦鏋勩€傞€氳繃浠庡閮ㄧ煡璇嗗簱妫€绱㈢浉鍏虫枃妗ｏ紝LLM鑳藉鐢熸垚鏇村噯纭€佹洿鏈変緷鎹殑鍥炵瓟銆俁AG鐨勬牳蹇冩祦绋嬪寘鎷細鏌ヨ鐞嗚В銆佹枃妗ｆ绱€佷笂涓嬫枃缁勮鍜岀瓟妗堢敓鎴愩€?,
+        "text": "RAG (Retrieval-Augmented Generation) 是一种将检索系统与大语言模型结合的技术架构。通过从外部知识库检索相关文档，LLM能够生成更准确、更有依据的回答。RAG的核心流程包括：查询理解、文档检索、上下文组装和答案生成。",
         "tags": "topic:RAG,type:overview,lang:zh",
     },
     {
-        "text": "HNSW (Hierarchical Navigable Small World) 鏄竴绉嶉珮鏁堢殑杩戜技鏈€杩戦偦鎼滅储绠楁硶銆傚畠閫氳繃鏋勫缓澶氬眰鍥剧粨鏋勫疄鐜板揩閫熸悳绱細椤跺眰鍖呭惈灏戦噺鑺傜偣鐢ㄤ簬绮楃矑搴﹀鑸紝搴曞眰鍖呭惈鎵€鏈夎妭鐐圭敤浜庣簿纭悳绱€侶NSW鐨勬悳绱㈡椂闂村鏉傚害涓篛(log n)銆?,
+        "text": "HNSW (Hierarchical Navigable Small World) 是一种高效的近似最近邻搜索算法。它通过构建多层图结构实现快速搜索：顶层包含少量节点用于粗粒度导航，底层包含所有节点用于精确搜索。HNSW的搜索时间复杂度为O(log n)。",
         "tags": "topic:HNSW,type:theory,lang:zh",
     },
     {
-        "text": "Product Quantization (PQ) 鏄竴绉嶅悜閲忓帇缂╂妧鏈紝閫氳繃灏嗛珮缁村悜閲忓垎鍓叉垚澶氫釜瀛愮┖闂村苟瀵规瘡涓瓙绌洪棿杩涜鑱氱被閲忓寲锛屽疄鐜板ぇ骞呭帇缂┿€備緥濡傦紝涓€涓?68缁寸殑float32鍚戦噺鍙互閫氳繃PQ鍘嬬缉鍒?4瀛楄妭锛屽帇缂╂瘮杈惧埌48鍊嶃€?,
+        "text": "Product Quantization (PQ) 是一种向量压缩技术，通过将高维向量分割成多个子空间并对每个子空间进行聚类量化，实现大幅压缩。例如，一个768维的float32向量可以通过PQ压缩到64字节，压缩比达到48倍。",
         "tags": "topic:quantization,type:theory,lang:zh",
     },
     {
-        "text": "mmap (memory-mapped file) 鏄竴绉嶅皢鏂囦欢鏄犲皠鍒拌繘绋嬪湴鍧€绌洪棿鐨勬妧鏈€備娇鐢╩map鍙互瀹炵幇闆舵嫹璐濊鍙栵紝鍥犱负鎿嶄綔绯荤粺浼氭寜闇€灏嗘枃浠堕〉闈㈠姞杞藉埌鍐呭瓨涓€傝繖瀵逛簬鍚戦噺鏁版嵁搴撶殑瀛樺偍寮曟搸闈炲父鏈夌敤锛屽彲浠ラ伩鍏嶉澶栫殑鏁版嵁澶嶅埗銆?,
+        "text": "mmap (memory-mapped file) 是一种将文件映射到进程地址空间的技术。使用mmap可以实现零拷贝读取，因为操作系统会按需将文件页面加载到内存中。这对于向量数据库的存储引擎非常有用，可以避免额外的数据复制。",
         "tags": "topic:storage,type:theory,lang:zh",
     },
     {
-        "text": "鍚戦噺鏁版嵁搴撶殑鏍稿績鎬ц兘鎸囨爣鍖呮嫭锛氬彫鍥炵巼(Recall)銆佹煡璇㈠欢杩?Latency)鍜屽悶鍚愰噺(Throughput)銆傚湪鐧句竾绾ф暟鎹泦涓婏紝浼樼鐨勫悜閲忔暟鎹簱搴旇杈惧埌95%浠ヤ笂鐨勫彫鍥炵巼锛屽悓鏃朵繚鎸佹绉掔骇鐨勬煡璇㈠欢杩熴€?,
+        "text": "向量数据库的核心性能指标包括：召回率(Recall)、查询延迟(Latency)和吞吐量(Throughput)。在百万级数据集上，优秀的向量数据库应该达到95%以上的召回率，同时保持毫秒级的查询延迟。",
         "tags": "topic:performance,type:benchmark,lang:zh",
     },
     {
-        "text": "C++20 寮曞叆浜嗗崗绋?coroutine)鏀寔锛屼娇寰楀紓姝ョ紪绋嬫洿鍔犵畝娲併€俢o_await銆乧o_return鍜宑o_yield鏄笁涓牳蹇冨叧閿瓧銆傚崗绋嬪彲浠ュ疄鐜伴浂寮€閿€鐨勫紓姝ユ搷浣滐紝閬垮厤浜嗗洖璋冨湴鐙卞拰绾跨▼寮€閿€銆?,
+        "text": "C++20 引入了协程(coroutine)支持，使得异步编程更加简洁。co_await、co_return和co_yield是三个核心关键字。协程可以实现零开销的异步操作，避免了回调地狱和线程开销。",
         "tags": "topic:cpp,type:theory,lang:zh",
     },
     {
-        "text": "LSM-Tree (Log-Structured Merge-Tree) 鏄竴绉嶅啓浼樺寲鐨勫瓨鍌ㄥ紩鎿庛€傚畠灏嗗啓鎿嶄綔棣栧厛璁板綍鍒癢AL鍜孧emTable涓紝鐒跺悗瀹氭湡鍚堝苟鍒癝STable鏂囦欢涓€侺SM-Tree鐨勫啓鍏ュ悶鍚愰噺寰堥珮锛屼絾璇诲彇鏃堕渶瑕佹鏌ュ涓眰绾с€?,
+        "text": "LSM-Tree (Log-Structured Merge-Tree) 是一种写优化的存储引擎。它将写操作首先记录到WAL和MemTable中，然后定期合并到SSTable文件中。LSM-Tree的写入吞吐量很高，但读取时需要检查多个层级。",
         "tags": "topic:storage,type:theory,lang:zh",
     },
     {
-        "text": "鍏冩暟鎹繃婊ゆ槸鍚戦噺鎼滅储鐨勯噸瑕佸姛鑳姐€傜敤鎴峰彲浠ラ€氳繃鏍囩銆佹椂闂存埑銆佺被鍒瓑缁村害瀵规悳绱㈢粨鏋滆繘琛岃繃婊ゃ€備緥濡傦紝鍙悳绱㈢壒瀹氱被鍒笅鐨勬枃妗ｏ紝鎴栬€呭彧杩斿洖鏈€杩戞坊鍔犵殑缁撴灉銆傝繃婊ゅ彲浠ュ湪鎼滅储鍓?pre-filter)鎴栨悳绱㈠悗(post-filter)鎵ц銆?,
+        "text": "元数据过滤是向量搜索的重要功能。用户可以通过标签、时间戳、类别等维度对搜索结果进行过滤。例如，只搜索特定类别下的文档，或者只返回最近添加的结果。过滤可以在搜索前(pre-filter)或搜索后(post-filter)执行。",
         "tags": "topic:filtering,type:overview,lang:zh",
     },
     {
-        "text": "Pybind11 鏄竴涓交閲忕骇鐨凜++/Python缁戝畾搴擄紝鍙互杞绘澗鍦板皢C++鍑芥暟鍜岀被鏆撮湶缁橮ython銆傚畠浣跨敤绾ご鏂囦欢瀹炵幇锛屾敮鎸佺幇浠++鐗规€э紝鐢熸垚鐨凱ython妯″潡鎬ц兘鎺ヨ繎鍘熺敓C++浠ｇ爜銆?,
+        "text": "Pybind11 是一个轻量级的C++/Python绑定库，可以轻松地将C++函数和类暴露给Python。它使用纯头文件实现，支持现代C++特性，生成的Python模块性能接近原生C++代码。",
         "tags": "topic:python,type:theory,lang:zh",
     },
     {
-        "text": "MCP (Model Context Protocol) 鏄竴绉嶆爣鍑嗗寲鐨勫崗璁紝鐢ㄤ簬杩炴帴AI妯″瀷涓庡閮ㄥ伐鍏峰拰鏁版嵁婧愩€傞€氳繃MCP锛屼换浣旳I浠ｇ悊妗嗘灦閮藉彲浠ヤ互缁熶竴鐨勬柟寮忚皟鐢ㄥ閮ㄦ湇鍔★紝瀹炵幇宸ュ叿璋冪敤鍜屾暟鎹闂€?,
+        "text": "MCP (Model Context Protocol) 是一种标准化的协议，用于连接AI模型与外部工具和数据源。通过MCP，任何AI代理框架都可以以统一的方式调用外部服务，实现工具调用和数据访问。",
         "tags": "topic:MCP,type:overview,lang:zh",
     },
     {
-        "text": "鍚戦噺鎼滅储鐨勫簲鐢ㄥ満鏅寘鎷細璇箟鎼滅储銆佹帹鑽愮郴缁熴€佸浘鍍忔绱€佷唬鐮佹悳绱€佸紓甯告娴嬪拰闂瓟绯荤粺銆傚湪鐢熶骇鐜涓紝閫氬父闇€瑕佺粨鍚堝厓鏁版嵁杩囨护銆佸垎灞傜储寮曞拰缂撳瓨绛夋妧鏈潵婊¤冻涓嶅悓鐨勬€ц兘闇€姹傘€?,
+        "text": "向量搜索的应用场景包括：语义搜索、推荐系统、图像检索、代码搜索、异常检测和问答系统。在生产环境中，通常需要结合元数据过滤、分层索引和缓存等技术来满足不同的性能需求。",
         "tags": "topic:applications,type:overview,lang:zh",
     },
     {
-        "text": "Agent (鏅鸿兘浣? 鏄竴绉嶈兘澶熻嚜涓昏鍒掋€佹墽琛屼换鍔″苟鏍规嵁鍙嶉璋冩暣绛栫暐鐨凙I绯荤粺銆侫gentic AI鐨勬牳蹇冭兘鍔涘寘鎷細浠诲姟鍒嗚В銆佸伐鍏蜂娇鐢ㄣ€佽蹇嗙鐞嗗拰鑷垜鍙嶆€濄€俁eAct (Reasoning + Acting) 鏄渶缁忓吀鐨凙gent鑼冨紡涔嬩竴銆?,
+        "text": "Agent (智能体) 是一种能够自主规划、执行任务并根据反馈调整策略的AI系统。Agentic AI的核心能力包括：任务分解、工具使用、记忆管理和自我反思。ReAct (Reasoning + Acting) 是最经典的Agent范式之一。",
         "tags": "topic:agent,type:overview,lang:zh",
     },
     {
-        "text": "Inner Product (鍐呯Н) 鍜?Cosine Similarity (浣欏鸡鐩镐技搴? 鏄袱绉嶅父鐢ㄧ殑鍚戦噺鐩镐技搴﹀害閲忋€傚唴绉绠椾袱涓悜閲忕殑鐐圭Н锛岃€屼綑寮︾浉浼煎害璁＄畻涓や釜鍚戦噺澶硅鐨勪綑寮﹀€笺€傚綋鍚戦噺宸插綊涓€鍖栨椂锛屼袱鑰呯瓑浠枫€?,
+        "text": "Inner Product (内积) 和 Cosine Similarity (余弦相似度) 是两种常用的向量相似度度量。内积计算两个向量的点积，而余弦相似度计算两个向量夹角的余弦值。当向量已归一化时，两者等价。",
         "tags": "topic:distance,type:theory,lang:zh",
     },
     {
-        "text": "AVX2 (Advanced Vector Extensions 2) 鏄疘ntel/AMD澶勭悊鍣ㄧ殑SIMD鎸囦护闆嗭紝鍙互鍚屾椂澶勭悊8涓?2浣嶆诞鐐规暟銆傚埄鐢ˋVX2鍙互灏嗗悜閲忚窛绂昏绠楃殑鎬ц兘鎻愬崌4-8鍊嶃€傚悜閲忔暟鎹簱鐨勬€ц兘浼樺寲閫氬父浠嶴IMD鎸囦护闆嗗紑濮嬨€?,
+        "text": "AVX2 (Advanced Vector Extensions 2) 是Intel/AMD处理器的SIMD指令集，可以同时处理8个32位浮点数。利用AVX2可以将向量距离计算的性能提升4-8倍。向量数据库的性能优化通常从SIMD指令集开始。",
         "tags": "topic:SIMD,type:optimization,lang:zh",
     },
     {
-        "text": "澶氳疆妫€绱?Multi-round Retrieval)鏄竴绉嶈凯浠ｅ紡鐨勬悳绱㈢瓥鐣ャ€傜涓€杞繘琛屽垵姝ユ悳绱紝鐒跺悗璇勪及缁撴灉璐ㄩ噺銆傚鏋滅粨鏋滀笉澶熷ソ锛岀郴缁熶細鑷姩鐢熸垚鏀硅繘鐨勬煡璇㈣繘琛岀浜岃疆鎼滅储锛岀洿鍒扮粨鏋滄弧瓒宠川閲忚姹傘€?,
+        "text": "多轮检索(Multi-round Retrieval)是一种迭代式的搜索策略。第一轮进行初步搜索，然后评估结果质量。如果结果不够好，系统会自动生成改进的查询进行第二轮搜索，直到结果满足质量要求。",
         "tags": "topic:retrieval,type:advanced,lang:zh",
     },
 ]
 
 
-async def insert_demo_data(lumendb_url: str = "http://localhost:8080"):
+async def insert_demo_data(deepvector_url: str = "http://localhost:8080"):
     """Insert sample documents into DeepVector."""
     import httpx
 
@@ -77,7 +77,7 @@ async def insert_demo_data(lumendb_url: str = "http://localhost:8080"):
             try:
                 # First embed the text
                 embed_resp = await client.post(
-                    f"{lumendb_url}/embed",
+                    f"{deepvector_url}/embed",
                     json={"text": doc["text"]},
                 )
                 if embed_resp.status_code == 200:
@@ -89,7 +89,7 @@ async def insert_demo_data(lumendb_url: str = "http://localhost:8080"):
 
                 # Then insert
                 insert_resp = await client.post(
-                    f"{lumendb_url}/insert",
+                    f"{deepvector_url}/insert",
                     json={"vector": vector},
                 )
                 if insert_resp.status_code == 200:

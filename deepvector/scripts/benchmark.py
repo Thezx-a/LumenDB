@@ -1,4 +1,4 @@
-﻿"""
+"""
 Performance benchmark for AgenticDB.
 
 Measures query latency, multi-round efficiency, and result quality.
@@ -16,8 +16,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 class Benchmark:
     """Simple benchmark for AgenticDB performance metrics."""
 
-    def __init__(self, lumendb_url: str = "http://localhost:8080"):
-        self.lumendb_url = lumendb_url
+    def __init__(self, deepvector_url: str = "http://localhost:8080"):
+        self.deepvector_url = deepvector_url
         self.results = []
 
     async def run(self):
@@ -47,7 +47,7 @@ class Benchmark:
             for _ in range(100):
                 vec = list(np.random.randn(768).astype(float))
                 resp = await client.post(
-                    f"{self.lumendb_url}/insert",
+                    f"{self.deepvector_url}/insert",
                     json={"vector": vec},
                 )
                 if resp.status_code == 200:
@@ -75,7 +75,7 @@ class Benchmark:
         print("  - Multi-round retrieval quality vs rounds")
         print("  - Query planning accuracy (% correct strategy)")
         print("  - LLM token cost per query")
-        print("  - End-to-end latency (question 鈫?answer)")
+        print("  - End-to-end latency (question → answer)")
 
 
 async def main():

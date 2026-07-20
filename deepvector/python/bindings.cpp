@@ -1,13 +1,13 @@
-﻿#include <pybind11/pybind11.h>
+#include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
-#include "dv/collection.h"
-#include "dv/filter.h"
+#include "lumendb/collection.h"
+#include "lumendb/filter.h"
 
 namespace py = pybind11;
 using namespace lumendb;
 
-PYBIND11_MODULE(_deepvector, m) {
+PYBIND11_MODULE(_lumendb, m) {
     m.doc() = "DeepVector - C++ Zero-Copy Vector Database for RAG";
 
     py::enum_<DistanceMetric>(m, "DistanceMetric")

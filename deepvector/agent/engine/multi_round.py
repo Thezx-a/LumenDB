@@ -1,30 +1,36 @@
-﻿"""
-澶氳疆妫€绱㈠紩鎿?/ Multi-Round Retrieval Engine 鈥?AgenticDB 鐨勬牳蹇冪紪鎺掑櫒銆?
-鏍稿績娴佺▼ / Core Pipeline:
-  1. QueryPlanner 鈫?RetrievalPlan (绛栫暐閫夋嫨)
-  2. 鎵ц鎼滅储姝ラ (宓屽叆 + DeepVector 鎼滅储)
-  3. ResultEvaluator 鈫?璐ㄩ噺璇勫垎
-  4. 濡傛灉璐ㄩ噺涓嶈冻: QueryReformulator 鈫?鏂版煡璇?鈫?鍥炲埌姝ラ2
-  5. 濡傛灉璐ㄩ噺杈炬爣: AnswerGenerator 鈫?鏈€缁堢瓟妗?
-鏁版嵁娴?/ Data Flow:
-  User Question
-    鈫?  [QueryPlanner]
-    鈫?RetrievalPlan
-  [MultiRoundEngine.Round 1]
-    鈹溾攢鈹€ embed question
-    鈹溾攢鈹€ search DeepVector
-    鈹斺攢鈹€ collect results
-    鈫?  [ResultEvaluator] 鈫?LLM
-    鈹溾攢鈹€ score 鈮?0.7 鈫?[AnswerGenerator] 鈫?Final Answer
-    鈹斺攢鈹€ score < 0.7
-         鈫?  [QueryReformulator] 鈫?LLM
-    鈫?new_queries
-  [MultiRoundEngine.Round 2] ...寰幆
+"""
+多轮检索引擎 / Multi-Round Retrieval Engine — AgenticDB 的核心编排器。
 
-璁捐鍘熷垯 / Design Principles:
-  - 寮傛鍏ㄩ摼璺? 鎵€鏈?IO 閮芥槸 async (LLM 璋冪敤 + 鏁版嵁搴撴煡璇?
-  - 瀹归敊璁捐: 姣忚疆鎼滅储澶辫触涓嶉樆鏂暣浣撴祦绋?  - 璐ㄩ噺椹鹃┒: 缁撴灉璐ㄩ噺鍐冲畾鏄惁缁х画妫€绱? 鑰岄潪鍥哄畾杞暟
-  - 璧勬簮淇濇姢: max_rounds 闃叉鏃犻檺寰幆
+核心流程 / Core Pipeline:
+  1. QueryPlanner → RetrievalPlan (策略选择)
+  2. 执行搜索步骤 (嵌入 + DeepVector 搜索)
+  3. ResultEvaluator → 质量评分
+  4. 如果质量不足: QueryReformulator → 新查询 → 回到步骤2
+  5. 如果质量达标: AnswerGenerator → 最终答案
+
+数据流 / Data Flow:
+  User Question
+    ↓
+  [QueryPlanner]
+    ↓ RetrievalPlan
+  [MultiRoundEngine.Round 1]
+    ├── embed question
+    ├── search DeepVector
+    └── collect results
+    ↓
+  [ResultEvaluator] ← LLM
+    ├── score ≥ 0.7 → [AnswerGenerator] → Final Answer
+    └── score < 0.7
+         ↓
+  [QueryReformulator] ← LLM
+    ↓ new_queries
+  [MultiRoundEngine.Round 2] ...循环
+
+设计原则 / Design Principles:
+  - 异步全链路: 所有 IO 都是 async (LLM 调用 + 数据库查询)
+  - 容错设计: 每轮搜索失败不阻断整体流程
+  - 质量驾驶: 结果质量决定是否继续检索, 而非固定轮数
+  - 资源保护: max_rounds 防止无限循环
 """
 
 import json
@@ -46,12 +52,19 @@ logger = logging.getLogger(__name__)
 
 class RetrievalResult:
     """
-    瀹屾暣妫€绱㈢粨鏋?/ Complete retrieval result.
+    完整检索结果 / Complete retrieval result.
 
-    鍖呭惈鏈€缁堢瓟妗堛€佹绱㈠埌鐨勬枃妗ｃ€佷娇鐢ㄧ殑璁″垝銆佽疆娆′俊鎭拰璐ㄩ噺璇勫垎銆?    鎵€鏈夊瓧娈靛彲搴忓垪鍖栦负 JSON 鐢ㄤ簬 API 鍝嶅簲銆?
+    包含最终答案、检索到的文档、使用的计划、轮次信息和质量评分。
+    所有字段可序列化为 JSON 用于 API 响应。
+
     Attributes:
-        answer: LLM 鐢熸垚鐨勬渶缁堢瓟妗堟枃鏈?        documents: 妫€绱㈠埌鐨勬枃妗ｅ垪琛?        plan: 浣跨敤鐨勬绱㈣鍒?        rounds: 瀹為檯鎵ц鐨勮疆娆℃暟
-        quality_score: 鏈€缁堣川閲忚瘎鍒?        all_queries_tried: 鎵€鏈夊皾璇曡繃鐨勬煡璇?    """
+        answer: LLM 生成的最终答案文本
+        documents: 检索到的文档列表
+        plan: 使用的检索计划
+        rounds: 实际执行的轮次数
+        quality_score: 最终质量评分
+        all_queries_tried: 所有尝试过的查询
+    """
 
     def __init__(
         self,
@@ -71,11 +84,12 @@ class RetrievalResult:
 
     def to_dict(self) -> Dict[str, Any]:
         """
-        搴忓垪鍖栦负瀛楀吀 / Serialize to dictionary.
+        序列化为字典 / Serialize to dictionary.
 
-        鐢ㄤ簬 JSON 搴忓垪鍖?(API 鍝嶅簲鍜屾棩蹇?銆?
+        用于 JSON 序列化 (API 响应和日志)。
+
         Returns:
-            鍖呭惈鎵€鏈夊瓧娈电殑瀛楀吀
+            包含所有字段的字典
         """
         return {
             "answer": self.answer,
@@ -90,11 +104,13 @@ class RetrievalResult:
 
 class MultiRoundEngine:
     """
-    澶氳疆妫€绱㈠紩鎿?/ Multi-Round Retrieval Engine.
+    多轮检索引擎 / Multi-Round Retrieval Engine.
 
-    缂栨帓瀹屾暣鐨勬绱㈡祦绋? 瑙勫垝 鈫?鎵ц 鈫?璇勪及 鈫?閲嶆瀯(濡傛湁闇€瑕? 鈫?鍥炵瓟銆?
-    杩欐槸 AgenticDB 鐨勬牳蹇冪被, 涓茶仈浜嗘墍鏈夌粍浠躲€?
-    鐢ㄦ硶 / Usage:
+    编排完整的检索流程: 规划 → 执行 → 评估 → 重构(如有需要) → 回答。
+
+    这是 AgenticDB 的核心类, 串联了所有组件。
+
+    用法 / Usage:
         engine = MultiRoundEngine(config, llm)
         result = await engine.retrieve("What is RAG and how does it work?")
         print(result.answer)
@@ -104,11 +120,12 @@ class MultiRoundEngine:
 
     def __init__(self, config: AgenticDBConfig, llm: LLMRouter):
         """
-        鍒濆鍖栧杞绱㈠紩鎿?/ Initialize multi-round engine.
+        初始化多轮检索引擎 / Initialize multi-round engine.
 
         Args:
-            config: AgenticDB 鍏ㄥ眬閰嶇疆
-            llm: LLM 璺敱鍣ㄥ疄渚?        """
+            config: AgenticDB 全局配置
+            llm: LLM 路由器实例
+        """
         self.config = config
         self.llm = llm
         self.planner = QueryPlanner(llm, config.default_collection)
@@ -117,7 +134,7 @@ class MultiRoundEngine:
         self._client: Optional[httpx.AsyncClient] = None
 
     async def _ensure_client(self):
-        """纭繚 DeepVector HTTP 瀹㈡埛绔凡鍒濆鍖?/ Ensure HTTP client initialized."""
+        """确保 DeepVector HTTP 客户端已初始化 / Ensure HTTP client initialized."""
         if self._client is None or self._client.is_closed:
             self._client = httpx.AsyncClient(timeout=30.0)
 
@@ -125,47 +142,51 @@ class MultiRoundEngine:
         self, question: str, collection: Optional[str] = None
     ) -> RetrievalResult:
         """
-        鎵ц澶氳疆妫€绱?/ Execute multi-round retrieval.
+        执行多轮检索 / Execute multi-round retrieval.
 
-        瀹屾暣娴佺▼:
-          1. QueryPlanner 鐢熸垚妫€绱㈣鍒?          2. 鎵ц绗竴杞悳绱?(鎸夎鍒掔殑 steps)
-          3. ResultEvaluator 璇勪及缁撴灉璐ㄩ噺
-          4. 璐ㄩ噺涓嶈冻 鈫?QueryReformulator 鈫?鎵ц鏂拌疆娆?          5. 璐ㄩ噺杈炬爣鎴栬秴杞 鈫?鐢熸垚鏈€缁堢瓟妗?
+        完整流程:
+          1. QueryPlanner 生成检索计划
+          2. 执行第一轮搜索 (按计划的 steps)
+          3. ResultEvaluator 评估结果质量
+          4. 质量不足 → QueryReformulator → 执行新轮次
+          5. 质量达标或超轮次 → 生成最终答案
+
         Args:
-            question: 鐢ㄦ埛鐨勮嚜鐒惰瑷€闂
-            collection: 闆嗗悎鍚嶇О (鍙€?
+            question: 用户的自然语言问题
+            collection: 集合名称 (可选)
 
         Returns:
-            RetrievalResult 鍖呭惈绛旀銆佹枃妗ｅ拰鍏冧俊鎭?        """
+            RetrievalResult 包含答案、文档和元信息
+        """
         await self._ensure_client()
         coll = collection or self.config.default_collection
 
-        # Step 1: 鏌ヨ瑙勫垝 / Generate retrieval plan
+        # Step 1: 查询规划 / Generate retrieval plan
         plan = await self.planner.plan(question, coll)
         logger.info("Plan: %s", plan.summary())
 
-        # 鐘舵€佽拷韪?/ State tracking
+        # 状态追踪 / State tracking
         all_results: List[Dict[str, Any]] = []
         all_queries: List[str] = []
         all_seen_ids = set()
         quality_score = 0.0
 
-        # Step 2: 鎵ц鎼滅储璁″垝 / Execute initial search plan
+        # Step 2: 执行搜索计划 / Execute initial search plan
         current_queries = [step.query for step in plan.steps]
 
-        # Step 3-5: 澶氳疆寰幆 / Multi-round loop
+        # Step 3-5: 多轮循环 / Multi-round loop
         for round_num in range(1, self.config.max_rounds + 1):
             logger.info("=== Round %d/%d ===", round_num, self.config.max_rounds)
 
-            # --- 鎵ц鎼滅储 / Execute searches ---
+            # --- 执行搜索 / Execute searches ---
             round_results = []
             for query in current_queries:
                 if query in all_queries:
-                    continue  # 璺宠繃宸插皾璇曠殑鏌ヨ / Skip duplicate queries
+                    continue  # 跳过已尝试的查询 / Skip duplicate queries
                 all_queries.append(query)
 
                 results = await self._execute_search(query, coll)
-                # 鍘婚噸 / Deduplicate
+                # 去重 / Deduplicate
                 for r in results:
                     if r["id"] not in all_seen_ids:
                         all_seen_ids.add(r["id"])
@@ -176,24 +197,24 @@ class MultiRoundEngine:
                 logger.info("No new results in round %d", round_num)
                 break
 
-            # --- 璐ㄩ噺璇勪及 / Evaluate quality ---
+            # --- 质量评估 / Evaluate quality ---
             eval_result = await self.evaluator.evaluate(
                 question, all_results, round_num, self.config.max_rounds
             )
             quality_score = eval_result.score
             logger.info("Quality: %s", eval_result)
 
-            # 璐ㄩ噺杈炬爣鍒欏仠姝?/ Stop if quality is sufficient
+            # 质量达标则停止 / Stop if quality is sufficient
             if not eval_result.should_continue:
                 logger.info("Quality threshold met, stopping")
                 break
 
-            # 杈惧埌鏈€澶ц疆娆″垯鍋滄 / Stop if max rounds reached
+            # 达到最大轮次则停止 / Stop if max rounds reached
             if round_num >= self.config.max_rounds:
                 logger.info("Max rounds reached")
                 break
 
-            # --- 鏌ヨ閲嶆瀯 / Reformulate queries for next round ---
+            # --- 查询重构 / Reformulate queries for next round ---
             new_queries = await self.reformulator.reformulate(
                 question,
                 all_queries,
@@ -203,7 +224,7 @@ class MultiRoundEngine:
             current_queries = new_queries
             logger.info("New queries for next round: %s", new_queries)
 
-        # Step 6: 鐢熸垚鏈€缁堢瓟妗?/ Generate final answer
+        # Step 6: 生成最终答案 / Generate final answer
         answer = await self._generate_answer(question, all_results)
 
         return RetrievalResult(
@@ -219,18 +240,18 @@ class MultiRoundEngine:
         self, query: str, collection: str
     ) -> List[Dict[str, Any]]:
         """
-        鎵ц鍗曟鎼滅储 / Execute a single search against DeepVector.
+        执行单次搜索 / Execute a single search against DeepVector.
 
-        娴佺▼: 宓屽叆鏌ヨ鏂囨湰 鈫?POST /search 鈫?杩斿洖缁撴灉
+        流程: 嵌入查询文本 → POST /search → 返回结果
 
         Args:
-            query: 鎼滅储鏌ヨ鏂囨湰
-            collection: 闆嗗悎鍚嶇О
+            query: 搜索查询文本
+            collection: 集合名称
 
         Returns:
-            鎼滅储缁撴灉鍒楄〃, 姣忔潯鍖呭惈 id/distance/text/tags/timestamp
+            搜索结果列表, 每条包含 id/distance/text/tags/timestamp
         """
-        url = f"{self.config.lumendb_url}/search"
+        url = f"{self.config.deepvector_url}/search"
         payload = {
             "vector": await self._embed_query(query),
             "k": self.config.max_results_per_round,
@@ -261,14 +282,15 @@ class MultiRoundEngine:
 
     async def _embed_query(self, text: str) -> List[float]:
         """
-        宓屽叆鏌ヨ鏂囨湰 / Embed query text.
+        嵌入查询文本 / Embed query text.
 
-        鍒涘缓涓存椂 EmbeddingService 瀹炰緥杩涜宓屽叆銆?
+        创建临时 EmbeddingService 实例进行嵌入。
+
         Args:
-            text: 瑕佸祵鍏ョ殑鏂囨湰
+            text: 要嵌入的文本
 
         Returns:
-            宓屽叆鍚戦噺
+            嵌入向量
         """
         from ..embedding.service import EmbeddingService
 
@@ -282,33 +304,39 @@ class MultiRoundEngine:
         self, vector_id: int, collection: str
     ) -> Dict[str, Any]:
         """
-        鑾峰彇鍚戦噺鐨勫厓鏁版嵁 / Fetch metadata for a vector.
+        获取向量的元数据 / Fetch metadata for a vector.
 
-        娉ㄦ剰: 褰撳墠 DeepVector HTTP API 鏆傛湭鎻愪緵閫氳繃 id 鑾峰彇鍏冩暟鎹殑绔偣銆?        姝ゆ柟娉曚负鍗犱綅瀹炵幇, 鍚庣画闇€瑕侀€氳繃 GET /vectors/:id/meta 澧炲己銆?
+        注意: 当前 DeepVector HTTP API 暂未提供通过 id 获取元数据的端点。
+        此方法为占位实现, 后续需要通过 GET /vectors/:id/meta 增强。
+
         Args:
-            vector_id: 鍚戦噺 ID
-            collection: 闆嗗悎鍚嶇О
+            vector_id: 向量 ID
+            collection: 集合名称
 
         Returns:
-            鍏冩暟鎹瓧鍏?        """
+            元数据字典
+        """
         return {"text": "", "tags": "", "timestamp": 0}
 
     async def _generate_answer(
         self, question: str, results: List[Dict[str, Any]]
     ) -> str:
         """
-        鍩轰簬妫€绱㈢粨鏋滅敓鎴愮瓟妗?/ Generate answer from retrieved results.
+        基于检索结果生成答案 / Generate answer from retrieved results.
 
-        灏嗘绱㈠埌鐨勬枃妗ｆ牸寮忓寲涓轰笂涓嬫枃, 鍙戦€佺粰 LLM 鐢熸垚鍥炵瓟銆?
+        将检索到的文档格式化为上下文, 发送给 LLM 生成回答。
+
         Args:
-            question: 鐢ㄦ埛鍘熷闂
-            results: 鎵€鏈夋绱㈠埌鐨勭粨鏋?
+            question: 用户原始问题
+            results: 所有检索到的结果
+
         Returns:
-            LLM 鐢熸垚鐨勭瓟妗堟枃鏈?        """
+            LLM 生成的答案文本
+        """
         if not results:
             return "No relevant documents found."
 
-        # 鏍煎紡鍖栨枃妗ｆ憳瑕?/ Format document summaries
+        # 格式化文档摘要 / Format document summaries
         docs_text = "\n\n".join(
             f"[Doc {i+1}] (id={r['id']}, distance={r['distance']:.4f})\n"
             f"{r.get('text', 'No text available')}"
@@ -328,6 +356,6 @@ class MultiRoundEngine:
         return response.content or "Unable to generate answer."
 
     async def close(self):
-        """鍏抽棴寮曟搸, 閲婃斁璧勬簮 / Close engine and release resources."""
+        """关闭引擎, 释放资源 / Close engine and release resources."""
         if self._client and not self._client.is_closed:
             await self._client.aclose()

@@ -1,178 +1,212 @@
-﻿# AgenticDB 鎿嶄綔鎵嬪唽 / Operations Manual
+# AgenticDB 操作手册 / Operations Manual
 
-## 鐩綍 / Table of Contents
+## 目录 / Table of Contents
 
 <!-- TOC -->
-- [1. 绯荤粺姒傝 / System Overview](#1-绯荤粺姒傝--system-overview)
-- [2. 鐜瑕佹眰 / Prerequisites](#2-鐜瑕佹眰--prerequisites)
-- [3. 瀹夎鎸囧崡 / Installation](#3-瀹夎鎸囧崡--installation)
-- [4. 閰嶇疆璇存槑 / Configuration](#4-閰嶇疆璇存槑--configuration)
-- [5. 鍚姩杩愯 / Running](#5-鍚姩杩愯--running)
-- [6. API 鍙傝€?/ API Reference](#6-api-鍙傝€?-api-reference)
-- [7. 鏁版嵁绠＄悊 / Data Management](#7-鏁版嵁绠＄悊--data-management)
-- [8. 鏁呴殰鎺掗櫎 / Troubleshooting](#8-鏁呴殰鎺掗櫎--troubleshooting)
-- [9. 鎬ц兘浼樺寲 / Performance Tuning](#9-鎬ц兘浼樺寲--performance-tuning)
-- [10. 鐢熶骇閮ㄧ讲妫€鏌ユ竻鍗?/ Production Checklist](#10-鐢熶骇閮ㄧ讲妫€鏌ユ竻鍗?-production-checklist)
+- [1. 系统概览 / System Overview](#1-系统概览--system-overview)
+- [2. 环境要求 / Prerequisites](#2-环境要求--prerequisites)
+- [3. 安装指南 / Installation](#3-安装指南--installation)
+- [4. 配置说明 / Configuration](#4-配置说明--configuration)
+- [5. 启动运行 / Running](#5-启动运行--running)
+- [6. API 参考 / API Reference](#6-api-参考--api-reference)
+- [7. 数据管理 / Data Management](#7-数据管理--data-management)
+- [8. 故障排除 / Troubleshooting](#8-故障排除--troubleshooting)
+- [9. 性能优化 / Performance Tuning](#9-性能优化--performance-tuning)
+- [10. 生产部署检查清单 / Production Checklist](#10-生产部署检查清单--production-checklist)
 
 ---
 
-## 1. 绯荤粺姒傝 / System Overview
+## 1. 系统概览 / System Overview
 
-### 鏋舵瀯鍥?/ Architecture
+### 架构图 / Architecture
 
 ```
-鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?鈹?                      鐢ㄦ埛 / User                         鈹?鈹?             "甯垜鎵?RAG 鐩稿叧鐨勮鏂?                        鈹?鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?                         鈹?HTTP (port 8090)
-                         鈻?鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?鈹?             AgenticDB Agent Server (Python)              鈹?鈹?                                                         鈹?鈹? 鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹? 鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?  鈹?鈹? 鈹? HTTP API        鈹? 鈹? MultiRoundEngine            鈹?  鈹?鈹? 鈹? /query  /ask    鈹? 鈹? 鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?  鈹?  鈹?鈹? 鈹? /plan  /health  鈹? 鈹? 鈹侾lanner 鈹?鈹侲valuator  鈹?  鈹?  鈹?鈹? 鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹? 鈹? 鈹溾攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?鈹溾攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?  鈹?  鈹?鈹?                      鈹? 鈹俁eformer鈹?鈹侴enerator  鈹?  鈹?  鈹?鈹?                      鈹? 鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?  鈹?  鈹?鈹?                      鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?  鈹?鈹?                                                         鈹?鈹? 鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹? 鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?  鈹?鈹? 鈹? LLM Router      鈹? 鈹? Embedding Service           鈹?  鈹?鈹? 鈹? OpenAI / Ollama 鈹? 鈹? Local / OpenAI              鈹?  鈹?鈹? 鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹? 鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?  鈹?鈹?                                                         鈹?鈹? 鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?                                    鈹?鈹? 鈹? MCP Server      鈹? 鈫?Agent 妗嗘灦闆嗘垚 (鍙€?          鈹?鈹? 鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?                                    鈹?鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?                         鈹?HTTP (port 8080)
-                         鈻?鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?鈹?             DeepVector C++ Server                          鈹?鈹? /search  /insert  /collections  /batch                  鈹?鈹? HNSW + mmap + MiniKV + PQ/SQ                           鈹?鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?```
+┌──────────────────────────────────────────────────────────┐
+│                       用户 / User                         │
+│              "帮我找 RAG 相关的论文"                        │
+└────────────────────────┬─────────────────────────────────┘
+                         │ HTTP (port 8090)
+                         ▼
+┌──────────────────────────────────────────────────────────┐
+│              AgenticDB Agent Server (Python)              │
+│                                                          │
+│  ┌─────────────────┐  ┌──────────────────────────────┐   │
+│  │  HTTP API        │  │  MultiRoundEngine            │   │
+│  │  /query  /ask    │  │  ┌────────┐ ┌──────────┐   │   │
+│  │  /plan  /health  │  │  │Planner │ │Evaluator  │   │   │
+│  └─────────────────┘  │  ├────────┤ ├──────────┤   │   │
+│                       │  │Reformer│ │Generator  │   │   │
+│                       │  └────────┘ └──────────┘   │   │
+│                       └──────────────────────────────┘   │
+│                                                          │
+│  ┌─────────────────┐  ┌──────────────────────────────┐   │
+│  │  LLM Router      │  │  Embedding Service           │   │
+│  │  OpenAI / Ollama │  │  Local / OpenAI              │   │
+│  └─────────────────┘  └──────────────────────────────┘   │
+│                                                          │
+│  ┌─────────────────┐                                     │
+│  │  MCP Server      │  ← Agent 框架集成 (可选)          │
+│  └─────────────────┘                                     │
+└────────────────────────┬─────────────────────────────────┘
+                         │ HTTP (port 8080)
+                         ▼
+┌──────────────────────────────────────────────────────────┐
+│              DeepVector C++ Server                          │
+│  /search  /insert  /collections  /batch                  │
+│  HNSW + mmap + MiniKV + PQ/SQ                           │
+└──────────────────────────────────────────────────────────┘
+```
 
-### 缁勪欢鑱岃矗 / Component Responsibilities
+### 组件职责 / Component Responsibilities
 
-| 缁勪欢 | 璇█ | 绔彛 | 鑱岃矗 |
+| 组件 | 语言 | 端口 | 职责 |
 |------|------|------|------|
-| DeepVector Server | C++17 | 8080 | 鍚戦噺瀛樺偍銆佺储寮曘€佹悳绱€佹寔涔呭寲 |
-| Agent Server | Python 3.11+ | 8090 | LLM 浜や簰銆佹煡璇㈣鍒掋€佸杞绱€丮CP |
-| Ollama (鍙€? | Go | 11434 | 鏈湴 LLM 鎺ㄧ悊 |
-| OpenAI API (鍙€? | 浜戠 | - | 浜戠 LLM + 宓屽叆 |
+| DeepVector Server | C++17 | 8080 | 向量存储、索引、搜索、持久化 |
+| Agent Server | Python 3.11+ | 8090 | LLM 交互、查询规划、多轮检索、MCP |
+| Ollama (可选) | Go | 11434 | 本地 LLM 推理 |
+| OpenAI API (可选) | 云端 | - | 云端 LLM + 嵌入 |
 
 ---
 
-## 2. 鐜瑕佹眰 / Prerequisites
+## 2. 环境要求 / Prerequisites
 
-### 纭欢瑕佹眰 / Hardware Requirements
+### 硬件要求 / Hardware Requirements
 
-| 閰嶇疆 | 鏈€浣?| 鎺ㄨ崘 |
+| 配置 | 最低 | 推荐 |
 |------|------|------|
-| CPU | 4 鏍?| 8 鏍? (鏀寔 AVX2) |
-| RAM | 8 GB | 16 GB (鏈湴 LLM 闇€瑕? |
-| 纾佺洏 | 10 GB | 50 GB+ (SSD 鎺ㄨ崘) |
-| GPU (鍙€? | - | NVIDIA + CUDA (鍔犻€熸湰鍦?LLM) |
+| CPU | 4 核 | 8 核+ (支持 AVX2) |
+| RAM | 8 GB | 16 GB (本地 LLM 需要) |
+| 磁盘 | 10 GB | 50 GB+ (SSD 推荐) |
+| GPU (可选) | - | NVIDIA + CUDA (加速本地 LLM) |
 
-### 杞欢瑕佹眰 / Software Requirements
+### 软件要求 / Software Requirements
 
-| 杞欢 | 鐗堟湰 | 鐢ㄩ€?|
+| 软件 | 版本 | 用途 |
 |------|------|------|
-| Python | 3.11+ | Agent 灞?|
-| CMake | 3.16+ | C++ 鏋勫缓 |
-| GCC | g++-12 (Linux/WSL2) | C++ 缂栬瘧 |
-| Ninja | 1.10+ (鍙€? | 鍔犻€?C++ 鏋勫缓 |
-| Ollama | 0.32+ (鍙€? | 鏈湴 LLM |
-| Docker | 24+ (鍙€? | 瀹瑰櫒鍖栭儴缃?|
+| Python | 3.11+ | Agent 层 |
+| CMake | 3.16+ | C++ 构建 |
+| GCC | g++-12 (Linux/WSL2) | C++ 编译 |
+| Ninja | 1.10+ (可选) | 加速 C++ 构建 |
+| Ollama | 0.32+ (可选) | 本地 LLM |
+| Docker | 24+ (可选) | 容器化部署 |
 
-### Windows 鐗规畩璇存槑
+### Windows 特殊说明
 
-Windows 寮€鍙戦渶瑕?WSL2 (Ubuntu 22.04):
+Windows 开发需要 WSL2 (Ubuntu 22.04):
 
 ```powershell
-# 1. 瀹夎 WSL2
+# 1. 安装 WSL2
 wsl --install -d Ubuntu-22.04
 
-# 2. 鍦?WSL2 涓畨瑁呬緷璧?wsl
+# 2. 在 WSL2 中安装依赖
+wsl
 sudo apt update
 sudo apt install -y g++-12 cmake ninja-build
 ```
 
 ---
 
-## 3. 瀹夎鎸囧崡 / Installation
+## 3. 安装指南 / Installation
 
-### Step 1: 鍏嬮殕浠撳簱 / Clone Repository
+### Step 1: 克隆仓库 / Clone Repository
 
 ```bash
 git clone --recursive https://github.com/Thezx-a/DeepVector.git
 cd DeepVector
 ```
 
-濡傛灉宸茬粡鍏嬮殕浣嗗瓙妯″潡鏈垵濮嬪寲:
+如果已经克隆但子模块未初始化:
 
 ```bash
 git submodule update --init --recursive
 ```
 
-### Step 2: 瀹夎 Python 渚濊禆 / Install Python Dependencies
+### Step 2: 安装 Python 依赖 / Install Python Dependencies
 
 ```bash
-# 鏍稿績渚濊禆 / Core dependencies
+# 核心依赖 / Core dependencies
 pip install httpx pydantic sentence-transformers
 
-# 鈿狅笍 瀹夎鎱㈢殑瑙ｅ喅鏂规 / If slow, use mirror:
+# ⚠️ 安装慢的解决方案 / If slow, use mirror:
 pip install -i https://pypi.tuna.tsinghua.edu.cn/simple httpx pydantic sentence-transformers
 
-# 鍙€? FastAPI 鏈嶅姟鍣?(鎺ㄨ崘) / For FastAPI server (recommended)
+# 可选: FastAPI 服务器 (推荐) / For FastAPI server (recommended)
 pip install fastapi uvicorn
 
-# 鍙€? MCP Server / For MCP protocol support
+# 可选: MCP Server / For MCP protocol support
 pip install mcp
 
-# 鍙€? 娴嬭瘯妗嗘灦 / For running tests
+# 可选: 测试框架 / For running tests
 pip install pytest pytest-asyncio
 ```
 
-### Step 3: 缂栬瘧 C++ Server / Build C++ Server
+### Step 3: 编译 C++ Server / Build C++ Server
 
 **Linux / WSL2:**
 
 ```bash
 cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++-12
-cmake --build build --target lumendb_server -j$(nproc)
+cmake --build build --target deepvector_server -j$(nproc)
 ```
 
-**Windows (鍘熺敓 MSVC) 鏆備笉鏀寔**, 璇峰湪 WSL2 涓瀯寤恒€?
-楠岃瘉缂栬瘧鎴愬姛:
+**Windows (原生 MSVC) 暂不支持**, 请在 WSL2 中构建。
+
+验证编译成功:
 
 ```bash
-./build/server/lumendb_server --help
-# 棰勬湡杈撳嚭: 鏄剧ず鍛戒护琛屽弬鏁伴€夐」
+./build/server/deepvector_server --help
+# 预期输出: 显示命令行参数选项
 ```
 
-### Step 4: 瀹夎 Ollama (鍙€? / Install Ollama (Optional)
+### Step 4: 安装 Ollama (可选) / Install Ollama (Optional)
 
 ```bash
 # Linux / WSL2
 curl -fsSL https://ollama.com/install.sh | sh
 
-# 鎷夊彇宓屽叆妯″瀷 (蹇呴渶) / Pull embedding model (required)
+# 拉取嵌入模型 (必需) / Pull embedding model (required)
 ollama pull nomic-embed-text
 
-# 鎷夊彇 LLM 妯″瀷 / Pull LLM model
+# 拉取 LLM 模型 / Pull LLM model
 ollama pull qwen2.5:3b
-# 鎴栨洿澶х殑妯″瀷 / Or larger model:
+# 或更大的模型 / Or larger model:
 # ollama pull qwen2.5:7b
 
-# 楠岃瘉 / Verify
+# 验证 / Verify
 ollama list
-# 搴旀樉绀? nomic-embed-text 鍜?qwen2.5:3b
+# 应显示: nomic-embed-text 和 qwen2.5:3b
 ```
 
-> 鈿狅笍 **缃戠粶鎱㈡€庝箞鍔?** 浣跨敤浠ｇ悊鎴栧浗鍐呴暅鍍?
+> ⚠️ **网络慢怎么办?** 使用代理或国内镜像:
 > ```bash
-> # 璁剧疆浠ｇ悊 / Set proxy
+> # 设置代理 / Set proxy
 > export http_proxy=http://127.0.0.1:7890
 > export https_proxy=http://127.0.0.1:7890
 > ```
 
 ---
 
-## 4. 閰嶇疆璇存槑 / Configuration
+## 4. 配置说明 / Configuration
 
-### 鐜鍙橀噺 / Environment Variables
+### 环境变量 / Environment Variables
 
-鎵€鏈夐厤缃彲閫氳繃鐜鍙橀噺瑕嗙洊:
+所有配置可通过环境变量覆盖:
 
-| 鍙橀噺 | 榛樿鍊?| 璇存槑 |
+| 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `AGENTICDB_LLM_PROVIDER` | `ollama` | `openai` 鎴?`ollama` |
-| `AGENTICDB_LLM_MODEL` | `qwen2.5:7b` | LLM 妯″瀷鍚嶇О |
-| `AGENTICDB_EMBEDDING_PROVIDER` | `local` | `local` 鎴?`openai` |
-| `AGENTICDB_EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | 鏈湴宓屽叆妯″瀷 |
-| `OPENAI_API_KEY` | - | OpenAI API 瀵嗛挜 |
-| `AGENTICDB_DEEPVECTOR_URL` | `http://localhost:8080` | DeepVector 鍦板潃 |
-| `AGENTICDB_AGENT_PORT` | `8090` | Agent 鏈嶅姟绔彛 |
-| `AGENTICDB_MAX_ROUNDS` | `5` | 鏈€澶ф绱㈣疆鏁?|
-| `AGENTICDB_QUALITY_THRESHOLD` | `0.7` | 璐ㄩ噺璇勫垎闃堝€?|
+| `AGENTICDB_LLM_PROVIDER` | `ollama` | `openai` 或 `ollama` |
+| `AGENTICDB_LLM_MODEL` | `qwen2.5:7b` | LLM 模型名称 |
+| `AGENTICDB_EMBEDDING_PROVIDER` | `local` | `local` 或 `openai` |
+| `AGENTICDB_EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | 本地嵌入模型 |
+| `OPENAI_API_KEY` | - | OpenAI API 密钥 |
+| `AGENTICDB_DEEPVECTOR_URL` | `http://localhost:8080` | DeepVector 地址 |
+| `AGENTICDB_AGENT_PORT` | `8090` | Agent 服务端口 |
+| `AGENTICDB_MAX_ROUNDS` | `5` | 最大检索轮数 |
+| `AGENTICDB_QUALITY_THRESHOLD` | `0.7` | 质量评分阈值 |
 
-### 閰嶇疆鏂囦欢 / Config File
+### 配置文件 / Config File
 
-涔熷彲浠ラ€氳繃 Python 浠ｇ爜閰嶇疆:
+也可以通过 Python 代码配置:
 
 ```python
 from agent.config import AgenticDBConfig, LLMConfig, EmbeddingConfig
@@ -195,46 +229,46 @@ config = AgenticDBConfig(
 
 ---
 
-## 5. 鍚姩杩愯 / Running
+## 5. 启动运行 / Running
 
-### 鏈€灏忓惎鍔?(DeepVector + 鏈湴宓屽叆, 鏃?LLM)
+### 最小启动 (DeepVector + 本地嵌入, 无 LLM)
 
 ```bash
-# 缁堢 1: 鍚姩 DeepVector
+# 终端 1: 启动 DeepVector
 cd DeepVector
-./build/server/lumendb_server --port 8080 --dim 384 --data-dir ./data
+./build/server/deepvector_server --port 8080 --dim 384 --data-dir ./data
 
-# 楠岃瘉
+# 验证
 curl http://localhost:8080/health
 # {"status":"ok","vectors":0,"dim":384}
 ```
 
-### 瀹屾暣鍚姩 (DeepVector + Agent + Ollama)
+### 完整启动 (DeepVector + Agent + Ollama)
 
 ```bash
-# 缁堢 1: 鍚姩 Ollama (濡傛灉浣跨敤鏈湴 LLM)
+# 终端 1: 启动 Ollama (如果使用本地 LLM)
 ollama serve
 
-# 缁堢 2: 鍚姩 DeepVector
-./build/server/lumendb_server --port 8080 --dim 384 --data-dir ./data
+# 终端 2: 启动 DeepVector
+./build/server/deepvector_server --port 8080 --dim 384 --data-dir ./data
 
-# 缁堢 3: 鍚姩 Agent Server
+# 终端 3: 启动 Agent Server
 cd DeepVector
 python agent/server/app.py
-# 鍚姩 FastAPI 鏈嶅姟鍣? http://0.0.0.0:8090
+# 启动 FastAPI 服务器: http://0.0.0.0:8090
 
-# 缁堢 4: 鐏屽叆鏁版嵁 + 杩愯 Demo
+# 终端 4: 灌入数据 + 运行 Demo
 python scripts/demo_data.py
 python examples/demo_agentic_search.py
 ```
 
-### 浣跨敤 OpenAI (鏃犻渶 Ollama)
+### 使用 OpenAI (无需 Ollama)
 
 ```bash
-# 缁堢 1: 鍚姩 DeepVector
-./build/server/lumendb_server --port 8080 --dim 1536 --data-dir ./data
+# 终端 1: 启动 DeepVector
+./build/server/deepvector_server --port 8080 --dim 1536 --data-dir ./data
 
-# 缁堢 2: 鍚姩 Agent Server (OpenAI 妯″紡)
+# 终端 2: 启动 Agent Server (OpenAI 模式)
 export AGENTICDB_LLM_PROVIDER=openai
 export AGENTICDB_LLM_MODEL=gpt-4o
 export AGENTICDB_EMBEDDING_PROVIDER=openai
@@ -244,29 +278,29 @@ export OPENAI_API_KEY=sk-your-key-here
 python agent/server/app.py
 ```
 
-### Docker 閮ㄧ讲 / Docker Deployment
+### Docker 部署 / Docker Deployment
 
 ```bash
-# 鏋勫缓闀滃儚 / Build image
-docker build -t lumendb:latest .
+# 构建镜像 / Build image
+docker build -t deepvector:latest .
 
-# 鍚姩瀹瑰櫒 / Run container
+# 启动容器 / Run container
 docker run -d \
-  --name lumendb \
+  --name deepvector \
   -p 8080:8080 \
   -v ./data:/data \
   -e DEEPVECTOR_DIM=384 \
-  lumendb:latest
+  deepvector:latest
 ```
 
 ---
 
-## 6. API 鍙傝€?/ API Reference
+## 6. API 参考 / API Reference
 
 ### DeepVector C++ Server (port 8080)
 
 #### `GET /health`
-鍋ュ悍妫€鏌?/ Health check.
+健康检查 / Health check.
 
 ```bash
 curl http://localhost:8080/health
@@ -274,7 +308,7 @@ curl http://localhost:8080/health
 ```
 
 #### `POST /search`
-鍚戦噺鎼滅储 / Vector search.
+向量搜索 / Vector search.
 
 ```bash
 curl -X POST http://localhost:8080/search \
@@ -283,7 +317,7 @@ curl -X POST http://localhost:8080/search \
 # {"results":[{"id":1,"distance":0.23},...]}
 ```
 
-鏀寔杩囨护 / With filter:
+支持过滤 / With filter:
 
 ```bash
 curl -X POST http://localhost:8080/search \
@@ -292,7 +326,7 @@ curl -X POST http://localhost:8080/search \
 ```
 
 #### `POST /insert`
-鎻掑叆鍚戦噺 / Insert vector.
+插入向量 / Insert vector.
 
 ```bash
 curl -X POST http://localhost:8080/insert \
@@ -301,7 +335,7 @@ curl -X POST http://localhost:8080/insert \
 # {"ids":[1]}
 ```
 
-鎵归噺鎻掑叆 / Batch insert:
+批量插入 / Batch insert:
 
 ```bash
 curl -X POST http://localhost:8080/insert \
@@ -310,7 +344,7 @@ curl -X POST http://localhost:8080/insert \
 ```
 
 #### `GET /collections`
-鍒楀嚭闆嗗悎鍒楄〃 / List collections.
+列出集合列表 / List collections.
 
 ```bash
 curl http://localhost:8080/collections
@@ -318,7 +352,7 @@ curl http://localhost:8080/collections
 ```
 
 #### `POST /batch/search`
-鎵归噺鎼滅储 / Batch search.
+批量搜索 / Batch search.
 
 ```bash
 curl -X POST http://localhost:8080/batch/search \
@@ -327,7 +361,7 @@ curl -X POST http://localhost:8080/batch/search \
 ```
 
 #### `DELETE /vectors/:id`
-鍒犻櫎鍚戦噺 / Delete vector.
+删除向量 / Delete vector.
 
 ```bash
 curl -X DELETE http://localhost:8080/vectors/1
@@ -343,7 +377,7 @@ curl http://localhost:8090/health
 ```
 
 #### `POST /query`
-瀹屾暣 Agent 妫€绱?/ Full agent search.
+完整 Agent 检索 / Full agent search.
 
 ```bash
 curl -X POST http://localhost:8090/query \
@@ -359,7 +393,7 @@ curl -X POST http://localhost:8090/query \
 ```
 
 #### `POST /ask`
-绠€娲侀棶绛?/ Simple Q&A.
+简洁问答 / Simple Q&A.
 
 ```bash
 curl -X POST http://localhost:8090/ask \
@@ -369,7 +403,7 @@ curl -X POST http://localhost:8090/ask \
 ```
 
 #### `POST /plan`
-浠呮煡鐪嬫绱㈣鍒?(涓嶆墽琛? / Preview plan only.
+仅查看检索计划 (不执行) / Preview plan only.
 
 ```bash
 curl -X POST http://localhost:8090/plan \
@@ -380,13 +414,13 @@ curl -X POST http://localhost:8090/plan \
 
 ---
 
-## 7. 鏁版嵁绠＄悊 / Data Management
+## 7. 数据管理 / Data Management
 
-### 鐏屽叆绀轰緥鏁版嵁 / Insert Demo Data
+### 灌入示例数据 / Insert Demo Data
 
 ```bash
 python scripts/demo_data.py
-# 棰勬湡杈撳嚭:
+# 预期输出:
 #   Inserting 15 documents into DeepVector...
 #   [1/15] Inserted doc 1
 #   [2/15] Inserted doc 2
@@ -394,24 +428,24 @@ python scripts/demo_data.py
 #   Done!
 ```
 
-### 鑷畾涔夋暟鎹泦 / Custom Dataset
+### 自定义数据集 / Custom Dataset
 
 ```python
 from agent.embedding.service import EmbeddingService
 import httpx
 import numpy as np
 
-# 鍑嗗鏁版嵁 / Prepare data
+# 准备数据 / Prepare data
 documents = [
     "Document 1 text...",
     "Document 2 text...",
 ]
 
-# 宓屽叆 / Embed
+# 嵌入 / Embed
 svc = EmbeddingService()
 vectors = await svc.embed(documents)
 
-# 鎻掑叆 / Insert
+# 插入 / Insert
 async with httpx.AsyncClient() as client:
     for vec in vectors:
         resp = await client.post(
@@ -421,107 +455,110 @@ async with httpx.AsyncClient() as client:
         print(f"Inserted: {resp.json()['ids'][0]}")
 ```
 
-### 鏁版嵁鎸佷箙鍖?/ Data Persistence
+### 数据持久化 / Data Persistence
 
-DeepVector 浣跨敤 mmap 鎸佷箙鍖栧埌纾佺洏銆傛暟鎹洰褰曠粨鏋?
+DeepVector 使用 mmap 持久化到磁盘。数据目录结构:
 
 ```
 ./data/
-鈹溾攢鈹€ vectors.bin        # 鍚戦噺鏁版嵁 (mmap)
-鈹溾攢鈹€ docs/              # 鍏冩暟鎹?(MiniKV LSM-Tree)
-鈹?  鈹溾攢鈹€ MANIFEST-00001
-鈹?  鈹溾攢鈹€ CURRENT
-鈹?  鈹斺攢鈹€ *.sst
-鈹斺攢鈹€ *.cfg.json         # 闆嗗悎閰嶇疆
+├── vectors.bin        # 向量数据 (mmap)
+├── docs/              # 元数据 (MiniKV LSM-Tree)
+│   ├── MANIFEST-00001
+│   ├── CURRENT
+│   └── *.sst
+└── *.cfg.json         # 集合配置
 ```
 
-澶囦唤: 鐩存帴澶嶅埗 data/ 鐩綍鍗冲彲銆?
+备份: 直接复制 data/ 目录即可。
+
 ---
 
-## 8. 鏁呴殰鎺掗櫎 / Troubleshooting
+## 8. 故障排除 / Troubleshooting
 
-### 甯歌闂 / Common Issues
+### 常见问题 / Common Issues
 
-#### Q: DeepVector 鍚姩澶辫触 "failed to bind to port"
+#### Q: DeepVector 启动失败 "failed to bind to port"
 
 ```bash
-# 妫€鏌ョ鍙ｅ崰鐢?/ Check port usage
+# 检查端口占用 / Check port usage
 netstat -ano | grep 8080
 
-# 浣跨敤涓嶅悓绔彛 / Use different port
-./build/server/lumendb_server --port 8081
+# 使用不同端口 / Use different port
+./build/server/deepvector_server --port 8081
 ```
 
-#### Q: Python 瀵煎叆 agent 鍖呭け璐?/ ImportError
+#### Q: Python 导入 agent 包失败 / ImportError
 
 ```bash
-# 纭繚鍦?DeepVector 鐩綍涓嬭繍琛?/ Run from DeepVector directory
+# 确保在 DeepVector 目录下运行 / Run from DeepVector directory
 cd DeepVector
 
-# 妫€鏌?PYTHONPATH / Check Python path
+# 检查 PYTHONPATH / Check Python path
 $env:PYTHONPATH = "$env:PYTHONPATH;."
 python -c "from agent.config import load_config; print(load_config())"
 ```
 
-#### Q: Ollama 杩炴帴琚嫆缁?/ Connection refused
+#### Q: Ollama 连接被拒绝 / Connection refused
 
 ```bash
-# 妫€鏌?Ollama 鏄惁杩愯 / Check if Ollama is running
+# 检查 Ollama 是否运行 / Check if Ollama is running
 ollama list
 
-# 鍚姩 Ollama 鏈嶅姟 / Start Ollama
+# 启动 Ollama 服务 / Start Ollama
 ollama serve &
 
-# 璁剧疆 Ollama 鍦板潃 / Set Ollama host
+# 设置 Ollama 地址 / Set Ollama host
 set AGENTICDB_OLLAMA_HOST=http://127.0.0.1:11434
 ```
 
-#### Q: 妫€绱㈢粨鏋滀负绌虹殑甯歌鍘熷洜 / Empty Search Results
+#### Q: 检索结果为空的常见原因 / Empty Search Results
 
-1. 宓屽叆妯″瀷缁村害涓嶅尮閰? DeepVector `--dim` 蹇呴』涓?embedding 杈撳嚭缁村害涓€鑷?   - all-MiniLM-L6-v2: 384
+1. 嵌入模型维度不匹配: DeepVector `--dim` 必须与 embedding 输出维度一致
+   - all-MiniLM-L6-v2: 384
    - text-embedding-3-small: 1536
    - nomic-embed-text: 768
-2. 娌℃湁鏁版嵁: 鍏堣繍琛?`python scripts/demo_data.py`
-3. DeepVector 鏈惎鍔? 妫€鏌?`curl http://localhost:8080/health`
+2. 没有数据: 先运行 `python scripts/demo_data.py`
+3. DeepVector 未启动: 检查 `curl http://localhost:8080/health`
 
-#### Q: C++ 缂栬瘧閿欒 / Build Errors
+#### Q: C++ 编译错误 / Build Errors
 
 ```bash
-# 娓呯悊閲嶈瘯 / Clean rebuild
+# 清理重试 / Clean rebuild
 rm -rf build
 cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build build --target lumendb_server
+cmake --build build --target deepvector_server
 
-# 妫€鏌ョ紪璇戝櫒 / Check compiler
+# 检查编译器 / Check compiler
 g++-12 --version
 ```
 
 ---
 
-## 9. 鎬ц兘浼樺寲 / Performance Tuning
+## 9. 性能优化 / Performance Tuning
 
-### C++ Server 浼樺寲
+### C++ Server 优化
 
-| 鍙傛暟 | 榛樿 | 璇存槑 |
+| 参数 | 默认 | 说明 |
 |------|------|------|
-| `--dim` | 768 | 鍚戦噺缁村害, 瓒婂皬鎼滅储瓒婂揩 |
-| HNSW `M` | 16 | 鍥炬渶澶ч偦灞呮暟, 瓒婂ぇ鍙洖鐜囪秺楂樹絾鍐呭瓨鍜屽欢杩熷鍔?|
-| HNSW `ef_search` | 50 | 鎼滅储瀹藉害, 瓒婂ぇ鍙洖鐜囪秺楂樹絾寤惰繜澧炲姞 |
-| `USE_AVX2` | ON | 鍚敤 SIMD 鍔犻€?(缂栬瘧閫夐」) |
+| `--dim` | 768 | 向量维度, 越小搜索越快 |
+| HNSW `M` | 16 | 图最大邻居数, 越大召回率越高但内存和延迟增加 |
+| HNSW `ef_search` | 50 | 搜索宽度, 越大召回率越高但延迟增加 |
+| `USE_AVX2` | ON | 启用 SIMD 加速 (编译选项) |
 
-### Agent Server 浼樺寲
+### Agent Server 优化
 
-| 鍙傛暟 | 榛樿 | 浼樺寲寤鸿 |
+| 参数 | 默认 | 优化建议 |
 |------|------|---------|
-| `max_rounds` | 5 | 绠€鍗曟煡璇㈣涓?1-2, 澶嶆潅鏌ヨ 3-5 |
-| `quality_threshold` | 0.7 | 璐ㄩ噺瑕佹眰楂樿涓?0.8, 閫熷害蹇涓?0.5 |
-| `temperature` | 0.1 | 闇€瑕佺‘瀹氭€ц涓?0.0, 闇€瑕佸垱鎰忚涓?0.7 |
-| `top_k_final` | 10 | 鏈€缁堣繑鍥炵粨鏋滄暟, 涓嶅奖鍝嶈川閲忎絾褰卞搷 token 娑堣€?|
+| `max_rounds` | 5 | 简单查询设为 1-2, 复杂查询 3-5 |
+| `quality_threshold` | 0.7 | 质量要求高设为 0.8, 速度快设为 0.5 |
+| `temperature` | 0.1 | 需要确定性设为 0.0, 需要创意设为 0.7 |
+| `top_k_final` | 10 | 最终返回结果数, 不影响质量但影响 token 消耗 |
 
-### 鎵瑰鐞?/ Batch Processing
+### 批处理 / Batch Processing
 
 ```bash
-# 鎵归噺鎻掑叆 10000 涓悜閲?python -c "
+# 批量插入 10000 个向量
+python -c "
 import httpx, numpy as np
 vectors = np.random.randn(10000, 384).astype(np.float32)
 for batch in np.array_split(vectors, 10):
@@ -533,32 +570,33 @@ for batch in np.array_split(vectors, 10):
 
 ---
 
-## 10. 鐢熶骇閮ㄧ讲妫€鏌ユ竻鍗?/ Production Checklist
+## 10. 生产部署检查清单 / Production Checklist
 
-### 瀹夊叏 / Security
-- [ ] 璁剧疆 DeepVector `--api-key` 闃叉鏈巿鏉冭闂?- [ ] 浣跨敤鐜鍙橀噺绠＄悊瀵嗛挜, 涓嶇‖缂栫爜
-- [ ] 灏?Agent Server 缃簬鍙嶅悜浠ｇ悊鍚?(nginx/Caddy)
-- [ ] 鍚敤 HTTPS (Let's Encrypt)
+### 安全 / Security
+- [ ] 设置 DeepVector `--api-key` 防止未授权访问
+- [ ] 使用环境变量管理密钥, 不硬编码
+- [ ] 将 Agent Server 置于反向代理后 (nginx/Caddy)
+- [ ] 启用 HTTPS (Let's Encrypt)
 
-### 鍙潬鎬?/ Reliability
-- [ ] 浣跨敤 systemd/supervisor 绠＄悊杩涚▼, 鏀寔鑷姩閲嶅惎
-- [ ] 閰嶇疆鏁版嵁瀹氭湡澶囦唤
-- [ ] 璁剧疆璧勬簮闄愬埗 (ulimit/RLIMIT)
-- [ ] 鐩戞帶: 鎺ュ叆 Prometheus + Grafana
+### 可靠性 / Reliability
+- [ ] 使用 systemd/supervisor 管理进程, 支持自动重启
+- [ ] 配置数据定期备份
+- [ ] 设置资源限制 (ulimit/RLIMIT)
+- [ ] 监控: 接入 Prometheus + Grafana
 
-### 鎬ц兘 / Performance
-- [ ] 浣跨敤 GPU 鍔犻€熸湰鍦?LLM (Ollama + CUDA)
-- [ ] 浣跨敤 SSD 瀛樺偍鍚戦噺鏁版嵁
-- [ ] 璋冩暣 HNSW 鍙傛暟骞宠　鍙洖鐜囧拰寤惰繜
-- [ ] 鍚敤鍝嶅簲缂撳瓨 (Redis) 鍑忓皯閲嶅鏌ヨ
+### 性能 / Performance
+- [ ] 使用 GPU 加速本地 LLM (Ollama + CUDA)
+- [ ] 使用 SSD 存储向量数据
+- [ ] 调整 HNSW 参数平衡召回率和延迟
+- [ ] 启用响应缓存 (Redis) 减少重复查询
 
-### 杩愮淮 / Operations
-- [ ] 閰嶇疆鏃ュ織杞浆 (logrotate)
-- [ ] 璁剧疆鍋ュ悍妫€鏌ョ鐐瑰拰鍛婅
-- [ ] 鍑嗗瀹归噺瑙勫垝鎸囧崡
-- [ ] 缂栧啓鏁呴殰鎭㈠ SOP
+### 运维 / Operations
+- [ ] 配置日志轮转 (logrotate)
+- [ ] 设置健康检查端点和告警
+- [ ] 准备容量规划指南
+- [ ] 编写故障恢复 SOP
 
-### 绀轰緥 systemd 鏈嶅姟 / Example systemd Service
+### 示例 systemd 服务 / Example systemd Service
 
 ```ini
 # /etc/systemd/system/deepvector.service
@@ -568,10 +606,10 @@ After=network.target
 
 [Service]
 Type=simple
-User=lumendb
-WorkingDirectory=/opt/lumendb
-ExecStart=/opt/lumendb/build/server/lumendb_server \
-  --port 8080 --dim 384 --data-dir /opt/lumendb/data --api-key ${API_KEY}
+User=deepvector
+WorkingDirectory=/opt/deepvector
+ExecStart=/opt/deepvector/build/server/deepvector_server \
+  --port 8080 --dim 384 --data-dir /opt/deepvector/data --api-key ${API_KEY}
 Restart=always
 RestartSec=5
 LimitNOFILE=65536

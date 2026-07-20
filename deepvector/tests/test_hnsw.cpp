@@ -1,9 +1,9 @@
-﻿#include <gtest/gtest.h>
+#include <gtest/gtest.h>
 #include <cmath>
 #include <vector>
 #include <random>
-#include "dv/index/hnsw.h"
-#include "dv/index/distance.h"
+#include "lumendb/index/hnsw.h"
+#include "lumendb/index/distance.h"
 
 using namespace lumendb;
 using namespace dv::index;

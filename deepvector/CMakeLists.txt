@@ -1,5 +1,5 @@
-﻿cmake_minimum_required(VERSION 3.16)
-project(deepvector VERSION 0.1.0 LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.16)
+project(DeepVector VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -33,7 +33,7 @@ FetchContent_Declare(json
 )
 FetchContent_MakeAvailable(json)
 
-add_library(lumendb STATIC
+add_library(deepvector STATIC
     src/collection.cpp
     src/filter.cpp
     src/index/hnsw.cpp
@@ -43,17 +43,17 @@ add_library(lumendb STATIC
     src/storage/document_store.cpp
 )
 
-target_include_directories(lumendb PUBLIC
+target_include_directories(deepvector PUBLIC
     ${CMAKE_SOURCE_DIR}/include
 )
 
-target_compile_options(lumendb PRIVATE
+target_compile_options(deepvector PRIVATE
     $<$<CXX_COMPILER_ID:GNU>:-Wall -Wextra -Wno-unused-parameter>
     $<$<CXX_COMPILER_ID:Clang>:-Wall -Wextra -Wno-unused-parameter>
 )
 
 find_package(Threads REQUIRED)
-target_link_libraries(lumendb PUBLIC Threads::Threads minikv)
+target_link_libraries(deepvector PUBLIC Threads::Threads minikv)
 
 if(ENABLE_TESTS)
     include(FetchContent)
@@ -74,10 +74,10 @@ if(ENABLE_PYTHON)
     add_subdirectory(python)
 endif()
 
-add_executable(lumendb_server
+add_executable(deepvector_server
     src/server/main.cpp
     src/server/server.cpp
 )
-target_compile_features(lumendb_server PRIVATE cxx_std_20)
-target_link_libraries(lumendb_server PRIVATE lumendb skynet nlohmann_json::nlohmann_json)
-target_include_directories(lumendb_server PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_compile_features(deepvector_server PRIVATE cxx_std_20)
+target_link_libraries(deepvector_server PRIVATE deepvector skynet nlohmann_json::nlohmann_json)
+target_include_directories(deepvector_server PRIVATE ${CMAKE_SOURCE_DIR}/include)

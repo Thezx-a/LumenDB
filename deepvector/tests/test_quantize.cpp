@@ -1,9 +1,9 @@
-﻿#include <gtest/gtest.h>
+#include <gtest/gtest.h>
 #include <cmath>
 #include <vector>
 #include <random>
-#include "dv/quantize/pq.h"
-#include "dv/quantize/scalar.h"
+#include "lumendb/quantize/pq.h"
+#include "lumendb/quantize/scalar.h"
 
 using namespace dv::quantize;
 

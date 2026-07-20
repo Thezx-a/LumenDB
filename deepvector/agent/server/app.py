@@ -1,16 +1,31 @@
-﻿"""
-AgenticDB Agent HTTP Server / Agent HTTP 鏈嶅姟鍣?
+"""
+AgenticDB Agent HTTP Server / Agent HTTP 服务器.
 
-鎻愪緵 /query, /ask, /plan 绔偣渚涘鎴风璋冪敤銆?鏀寔 FastAPI (鎺ㄨ崘) 鍜岀函 Python HTTP 涓ょ妯″紡銆?
-绔偣璇勫垎 / API Endpoints:
-  GET  /health  鈥?鍋ュ悍妫€鏌?/ Health check
-  POST /query   鈥?瀹屾暣妫€绱?(瑙勫垝+鎵ц+鍥炵瓟) / Full agent search
-  POST /ask     鈥?绠€娲侀棶绛?/ Simple Q&A
-  POST /plan    鈥?浠呯敓鎴愭绱㈣鍒?/ Just generate plan
+提供 /query, /ask, /plan 端点供客户端调用。
+支持 FastAPI (推荐) 和纯 Python HTTP 两种模式。
 
-閮ㄧ讲鎷撴墤 / Deployment Topology:
-  鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?    HTTP (8080)     鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?  鈹?Python Agent   鈹?鈼勨攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈻?鈹?DeepVector C++   鈹?  鈹?Server (8090)  鈹?                     鈹?Server (8080) 鈹?  鈹?               鈹?                     鈹?               鈹?  鈹?/query 鈫?LLM   鈹?                     鈹?/search        鈹?  鈹?/ask   鈫?LLM   鈹?                     鈹?/insert        鈹?  鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?                     鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?          鈹?LLM API
-          鈻?  鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?  鈹?OpenAI API     鈹?  鈹?鎴?Ollama      鈹?  鈹?(localhost)    鈹?  鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?"""
+端点评分 / API Endpoints:
+  GET  /health  — 健康检查 / Health check
+  POST /query   — 完整检索 (规划+执行+回答) / Full agent search
+  POST /ask     — 简洁问答 / Simple Q&A
+  POST /plan    — 仅生成检索计划 / Just generate plan
+
+部署拓扑 / Deployment Topology:
+  ┌────────────────┐     HTTP (8080)     ┌────────────────┐
+  │ Python Agent   │ ◄──────────────────► │ DeepVector C++   │
+  │ Server (8090)  │                      │ Server (8080) │
+  │                │                      │                │
+  │ /query → LLM   │                      │ /search        │
+  │ /ask   → LLM   │                      │ /insert        │
+  └───────┬────────┘                      └────────────────┘
+          │ LLM API
+          ▼
+  ┌────────────────┐
+  │ OpenAI API     │
+  │ 或 Ollama      │
+  │ (localhost)    │
+  └────────────────┘
+"""
 
 import sys
 import os
@@ -36,9 +51,10 @@ async def handle_query(
     engine: MultiRoundEngine, body: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
-    澶勭悊 /query 璇锋眰 鈥?瀹屾暣鐨?Agentic Search / Handle /query endpoint.
+    处理 /query 请求 — 完整的 Agentic Search / Handle /query endpoint.
 
-    杩斿洖鍖呭惈妫€绱㈢瓥鐣ャ€佸杞繃绋嬨€佽川閲忚瘎鍒嗗拰鏈€缁堢瓟妗堢殑瀹屾暣缁撴灉銆?
+    返回包含检索策略、多轮过程、质量评分和最终答案的完整结果。
+
     Request body:
         {"question": "...", "collection": "default", "max_rounds": 5}
 
@@ -68,9 +84,10 @@ async def handle_ask(
     engine: MultiRoundEngine, body: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
-    澶勭悊 /ask 璇锋眰 鈥?绠€娲侀棶绛?/ Handle /ask endpoint 鈥?simple Q&A.
+    处理 /ask 请求 — 简洁问答 / Handle /ask endpoint — simple Q&A.
 
-    杩斿洖绠€鍖栫殑绛旀鍜屽厓淇℃伅, 閫傚悎绠€鍗曟煡璇€?
+    返回简化的答案和元信息, 适合简单查询。
+
     Request body:
         {"question": "..."}
 
@@ -98,9 +115,10 @@ async def handle_plan(
     engine: MultiRoundEngine, body: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
-    澶勭悊 /plan 璇锋眰 鈥?浠呯敓鎴愯鍒? 涓嶆墽琛?/ Handle /plan endpoint.
+    处理 /plan 请求 — 仅生成计划, 不执行 / Handle /plan endpoint.
 
-    鐢ㄤ簬璋冭瘯鍜屽睍绀?LLM 鐨勮鍒掕兘鍔涖€?
+    用于调试和展示 LLM 的规划能力。
+
     Request body:
         {"question": "..."}
 
@@ -125,13 +143,13 @@ async def handle_plan(
 
 def create_fastapi_app():
     """
-    鍒涘缓 FastAPI 搴旂敤 / Create FastAPI application.
+    创建 FastAPI 应用 / Create FastAPI application.
 
-    闇€瑕佸畨瑁?fastapi 鍜?uvicorn:
+    需要安装 fastapi 和 uvicorn:
         pip install fastapi uvicorn
 
     Returns:
-        FastAPI 搴旂敤瀹炰緥, 鍙洿鎺?uvicorn.run()
+        FastAPI 应用实例, 可直接 uvicorn.run()
     """
     from fastapi import FastAPI
     from pydantic import BaseModel
@@ -143,14 +161,14 @@ def create_fastapi_app():
     app = FastAPI(title="AgenticDB", version="0.1.0")
 
     class QueryRequest(BaseModel):
-        """璇锋眰浣?Schema / Request body schema for /query and /ask."""
+        """请求体 Schema / Request body schema for /query and /ask."""
         question: str
         collection: str = "default"
         max_rounds: int = 5
 
     @app.get("/health")
     async def health():
-        """鍋ュ悍妫€鏌?/ Health check endpoint."""
+        """健康检查 / Health check endpoint."""
         return {
             "status": "ok",
             "model": config.llm.model,
@@ -159,22 +177,22 @@ def create_fastapi_app():
 
     @app.post("/query")
     async def query(req: QueryRequest):
-        """瀹屾暣 agentic 鎼滅储 / Full agentic search with planning + multi-round."""
+        """完整 agentic 搜索 / Full agentic search with planning + multi-round."""
         return await handle_query(engine, req.dict())
 
     @app.post("/ask")
     async def ask(req: QueryRequest):
-        """绠€娲侀棶绛?/ Simple Q&A with retrieval."""
+        """简洁问答 / Simple Q&A with retrieval."""
         return await handle_ask(engine, req.dict())
 
     @app.post("/plan")
     async def plan(req: QueryRequest):
-        """浠呯敓鎴愭绱㈣鍒?/ Generate retrieval plan only."""
+        """仅生成检索计划 / Generate retrieval plan only."""
         return await handle_plan(engine, req.dict())
 
     @app.on_event("shutdown")
     async def shutdown():
-        """浼橀泤鍏抽棴 / Graceful shutdown 鈥?release resources."""
+        """优雅关闭 / Graceful shutdown — release resources."""
         await llm.close()
         await engine.close()
 
@@ -183,11 +201,12 @@ def create_fastapi_app():
 
 def create_simple_http_server():
     """
-    鍒涘缓绠€鍗?HTTP 鏈嶅姟鍣?(鏃犻渶 FastAPI) / Create simple HTTP server (no FastAPI).
+    创建简单 HTTP 服务器 (无需 FastAPI) / Create simple HTTP server (no FastAPI).
 
-    鐢ㄤ簬鏈€灏忎緷璧栭儴缃? 浣跨敤 Python 鏍囧噯搴?asyncio 瀹炵幇銆?
+    用于最小依赖部署, 使用 Python 标准库 asyncio 实现。
+
     Returns:
-        (ASGI app function, engine, llm) 鍏冪粍
+        (ASGI app function, engine, llm) 元组
     """
     import asyncio
     from urllib.parse import urlparse, parse_qs
@@ -197,14 +216,14 @@ def create_simple_http_server():
     engine = MultiRoundEngine(config, llm)
 
     async def app_scope(scope, receive, send):
-        """ASGI 搴旂敤 / ASGI application."""
+        """ASGI 应用 / ASGI application."""
         if scope["type"] != "http":
             return
 
         method = scope["method"]
         path = scope["path"]
 
-        # 璇诲彇 HTTP body / Read HTTP body
+        # 读取 HTTP body / Read HTTP body
         body_bytes = b""
         more_body = True
         while more_body:
@@ -221,7 +240,7 @@ def create_simple_http_server():
             except json.JSONDecodeError:
                 pass
 
-        # 璺敱鍒嗗彂 / Route dispatching
+        # 路由分发 / Route dispatching
         try:
             if path == "/health" and method == "GET":
                 resp_data = {
@@ -255,7 +274,7 @@ def create_simple_http_server():
 
 
 if __name__ == "__main__":
-    """鍏ュ彛: 鍚姩 AgenticDB Agent 鏈嶅姟鍣?/ Entry point: start Agent server."""
+    """入口: 启动 AgenticDB Agent 服务器 / Entry point: start Agent server."""
     try:
         import uvicorn
 

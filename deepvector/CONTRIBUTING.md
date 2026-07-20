@@ -1,4 +1,4 @@
-﻿# Contributing to DeepVector
+# Contributing to DeepVector
 
 ## Building from Source
 
@@ -82,38 +82,38 @@ Test files:
 
 ```
 DeepVector/
-鈹溾攢鈹€ include/lumendb/       # Public headers
-鈹?  鈹溾攢鈹€ types.h             #   CollectionConfig, SearchResult, DistanceMetric
-鈹?  鈹溾攢鈹€ collection.h        #   Collection class
-鈹?  鈹溾攢鈹€ filter.h            #   FilterNode, evaluateFilter
-鈹?  鈹溾攢鈹€ deepvector.h           #   Umbrella header
-鈹?  鈹溾攢鈹€ index/              #   HNSW index, distance kernels
-鈹?  鈹溾攢鈹€ quantize/           #   PQ, SQ headers (not public)
-鈹?  鈹溾攢鈹€ storage/            #   VectorStore, DocumentStore headers (not public)
-鈹?  鈹斺攢鈹€ server/             #   ServerConfig, DeepVectorServer
-鈹溾攢鈹€ src/                    # Implementation
-鈹?  鈹溾攢鈹€ collection.cpp
-鈹?  鈹溾攢鈹€ filter.cpp
-鈹?  鈹溾攢鈹€ index/hnsw.cpp
-鈹?  鈹溾攢鈹€ quantize/pq.cpp
-鈹?  鈹溾攢鈹€ quantize/scalar.cpp
-鈹?  鈹溾攢鈹€ storage/vector_store.cpp
-鈹?  鈹溾攢鈹€ storage/document_store.cpp
-鈹?  鈹斺攢鈹€ server/
-鈹?      鈹溾攢鈹€ main.cpp         #   Server entry point
-鈹?      鈹斺攢鈹€ server.cpp       #   DeepVectorServer::Impl
-鈹溾攢鈹€ tests/                   # Google Test unit tests
-鈹溾攢鈹€ benchmarks/              # Google Benchmark microbenchmarks
-鈹溾攢鈹€ python/                  # pybind11 bindings + LangChain integration
-鈹溾攢鈹€ vendor/                  # Git submodules
-鈹?  鈹溾攢鈹€ MiniKV/              #   LSM-Tree KV store
-鈹?  鈹斺攢鈹€ SkyNet/              #   C++20 network framework (future use)
-鈹溾攢鈹€ cmake/                   # CMake modules
-鈹溾攢鈹€ .github/workflows/       # CI definition
-鈹溾攢鈹€ CMakeLists.txt           # Top-level build
-鈹溾攢鈹€ docker-compose.yml
-鈹溾攢鈹€ Dockerfile
-鈹斺攢鈹€ .clang-format
+├── include/deepvector/       # Public headers
+│   ├── types.h             #   CollectionConfig, SearchResult, DistanceMetric
+│   ├── collection.h        #   Collection class
+│   ├── filter.h            #   FilterNode, evaluateFilter
+│   ├── deepvector.h           #   Umbrella header
+│   ├── index/              #   HNSW index, distance kernels
+│   ├── quantize/           #   PQ, SQ headers (not public)
+│   ├── storage/            #   VectorStore, DocumentStore headers (not public)
+│   └── server/             #   ServerConfig, DeepVectorServer
+├── src/                    # Implementation
+│   ├── collection.cpp
+│   ├── filter.cpp
+│   ├── index/hnsw.cpp
+│   ├── quantize/pq.cpp
+│   ├── quantize/scalar.cpp
+│   ├── storage/vector_store.cpp
+│   ├── storage/document_store.cpp
+│   └── server/
+│       ├── main.cpp         #   Server entry point
+│       └── server.cpp       #   DeepVectorServer::Impl
+├── tests/                   # Google Test unit tests
+├── benchmarks/              # Google Benchmark microbenchmarks
+├── python/                  # pybind11 bindings + LangChain integration
+├── vendor/                  # Git submodules
+│   ├── MiniKV/              #   LSM-Tree KV store
+│   └── SkyNet/              #   C++20 network framework (future use)
+├── cmake/                   # CMake modules
+├── .github/workflows/       # CI definition
+├── CMakeLists.txt           # Top-level build
+├── docker-compose.yml
+├── Dockerfile
+└── .clang-format
 ```
 
 ## PR Process
@@ -141,21 +141,21 @@ DeepVector/
 
 | Area | Difficulty | Description |
 |------|-----------|-------------|
-| epoll migration | 猸愨瓙 | Replace `select()` with epoll in the HTTP server |
-| Connection keep-alive | 猸愨瓙 | Add persistent connections with idle timeout |
-| Rate limiting | 猸?| Token bucket rate limiter per API key |
-| Prometheus /metrics | 猸?| Add histogram metrics endpoint |
-| Heuristic neighbor selection | 猸愨瓙猸?| Replace `selectNeighborsSimple` with heuristic pruning |
-| VectorStore compaction | 猸愨瓙 | Background thread to compact soft-deleted slots |
-| PQ periodic retraining | 猸愨瓙猸?| Detect drift and retrain PQ on recent data |
-| ARM NEON SIMD | 猸愨瓙 | Add NEON intrinsics path in `distance.h` |
-| AVX-512 dispatch | 猸愨瓙 | Runtime dispatch for AVX-512 distance kernels |
-| Full-text metadata search | 猸愨瓙 | Add inverted index for text field search |
-| Snapshot/backup | 猸愨瓙 | Consistent snapshot without stopping writes |
-| gRPC server | 猸愨瓙 | gRPC API alongside REST for higher throughput |
-| DiskANN-style layout | 猸愨瓙猸?| SSD-optimized graph layout for out-of-RAM datasets |
-| Multi-collection server | 猸?| Support multiple named collections in the HTTP server |
-| Delete with metadata | 猸?| Add metadata support to HTTP insert endpoint |
+| epoll migration | ⭐⭐ | Replace `select()` with epoll in the HTTP server |
+| Connection keep-alive | ⭐⭐ | Add persistent connections with idle timeout |
+| Rate limiting | ⭐ | Token bucket rate limiter per API key |
+| Prometheus /metrics | ⭐ | Add histogram metrics endpoint |
+| Heuristic neighbor selection | ⭐⭐⭐ | Replace `selectNeighborsSimple` with heuristic pruning |
+| VectorStore compaction | ⭐⭐ | Background thread to compact soft-deleted slots |
+| PQ periodic retraining | ⭐⭐⭐ | Detect drift and retrain PQ on recent data |
+| ARM NEON SIMD | ⭐⭐ | Add NEON intrinsics path in `distance.h` |
+| AVX-512 dispatch | ⭐⭐ | Runtime dispatch for AVX-512 distance kernels |
+| Full-text metadata search | ⭐⭐ | Add inverted index for text field search |
+| Snapshot/backup | ⭐⭐ | Consistent snapshot without stopping writes |
+| gRPC server | ⭐⭐ | gRPC API alongside REST for higher throughput |
+| DiskANN-style layout | ⭐⭐⭐ | SSD-optimized graph layout for out-of-RAM datasets |
+| Multi-collection server | ⭐ | Support multiple named collections in the HTTP server |
+| Delete with metadata | ⭐ | Add metadata support to HTTP insert endpoint |
 
 ## License
 

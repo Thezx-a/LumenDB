@@ -1,31 +1,34 @@
-﻿# 绗節绔狅細HTTP 鏈嶅姟鍣?
-> Agent Server 鈥?FastAPI 鍜岀畝鍗?HTTP 鍙屾ā寮忋€?
-## 鍓嶇疆鐭ヨ瘑
+# 第九章：HTTP 服务器
 
-> 馃搸 **鍙傝€?*: [Python鐜](../prerequisites/02_Python鐜_zh.md) | [閰嶇疆绯荤粺](../ch03_config/03_閰嶇疆绯荤粺_zh.md)
+> Agent Server — FastAPI 和简单 HTTP 双模式。
 
----
+## 前置知识
 
-## 瀛︿範鐩爣
-
-- 鐞嗚В鍙屾ā寮忔湇鍔″櫒璁捐
-- 鎺屾彙 API 绔偣璁捐
-- 瀛︿細 FastAPI 鍜岀函 Python 鐨勯€夋嫨绛栫暐
+> 📎 **参考**: [Python环境](../prerequisites/02_Python环境_zh.md) | [配置系统](../ch03_config/03_配置系统_zh.md)
 
 ---
 
-## 9.1 鍙屾ā寮忔灦鏋?
+## 学习目标
+
+- 理解双模式服务器设计
+- 掌握 API 端点设计
+- 学会 FastAPI 和纯 Python 的选择策略
+
+---
+
+## 9.1 双模式架构
+
 ```mermaid
 flowchart TD
-    subgraph Client["瀹㈡埛绔?]
+    subgraph Client["客户端"]
         C1[curl]
         C2["Python SDK"]
-        C3["娴忚鍣?]
+        C3["浏览器"]
     end
     
     subgraph Server["Agent Server"]
-        F[FastAPI (鎺ㄨ崘)]
-        S[Simple HTTP (鍥為€€)]
+        F[FastAPI (推荐)]
+        S[Simple HTTP (回退)]
     end
     
     Client --> F
@@ -38,38 +41,39 @@ flowchart TD
     Engine --> LDB[DeepVector HTTP API]
 ```
 
-涓ょ妯″紡鐨勯€夋嫨锛?
-| 妯″紡 | 渚濊禆 | 閫傜敤鍦烘櫙 | 鍔熻兘 |
+两种模式的选择：
+
+| 模式 | 依赖 | 适用场景 | 功能 |
 |------|------|----------|------|
-| FastAPI | fastapi + uvicorn | 鐢熶骇閮ㄧ讲 | OpenAPI 鏂囨。, 鑷姩鏍￠獙, WebSocket |
-| Simple HTTP | 鏃犻澶栦緷璧?| 鏈€灏忓寲閮ㄧ讲, 宓屽叆寮?| 鍩虹璺敱, JSON 鍝嶅簲 |
+| FastAPI | fastapi + uvicorn | 生产部署 | OpenAPI 文档, 自动校验, WebSocket |
+| Simple HTTP | 无额外依赖 | 最小化部署, 嵌入式 | 基础路由, JSON 响应 |
 
 ---
 
-## 9.2 API 绔偣
+## 9.2 API 端点
 
-| 绔偣 | 鏂规硶 | 璇存槑 |
+| 端点 | 方法 | 说明 |
 |------|------|------|
-| `/health` | GET | 鍋ュ悍妫€鏌?|
-| `/query` | POST | 瀹屾暣妫€绱?(瑙勫垝+鎵ц+鍥炵瓟) |
-| `/ask` | POST | 绠€娲侀棶绛?|
-| `/plan` | POST | 浠呯敓鎴愭绱㈣鍒?|
+| `/health` | GET | 健康检查 |
+| `/query` | POST | 完整检索 (规划+执行+回答) |
+| `/ask` | POST | 简洁问答 |
+| `/plan` | POST | 仅生成检索计划 |
 
-`/query` 璇锋眰绀轰緥:
+`/query` 请求示例:
 
 ```json
 {
-    "question": "瀵规瘮 HNSW 鍜?IVF 鐨勪紭缂虹偣",
+    "question": "对比 HNSW 和 IVF 的优缺点",
     "collection": "default",
     "max_rounds": 3
 }
 ```
 
-`/query` 鍝嶅簲绀轰緥:
+`/query` 响应示例:
 
 ```json
 {
-    "answer": "HNSW 閫氳繃鍒嗗眰鍥剧粨鏋勫疄鐜?..",
+    "answer": "HNSW 通过分层图结构实现...",
     "documents": [
         {"id": 1, "distance": 0.12, "text": "HNSW search..."}
     ],
@@ -81,7 +85,7 @@ flowchart TD
 
 ---
 
-## 9.3 閿欒澶勭悊
+## 9.3 错误处理
 
 ```python
 try:
@@ -95,14 +99,18 @@ except Exception as e:
     status = 500
 ```
 
-鎵€鏈夊紓甯搁兘浼氳鎹曡幏骞惰繑鍥?JSON 鏍煎紡鐨勯敊璇秷鎭紝涓嶄細鏆撮湶鍐呴儴鍫嗘爤銆?
+所有异常都会被捕获并返回 JSON 格式的错误消息，不会暴露内部堆栈。
+
 ---
 
-## 鎬濊€冮
+## 思考题
 
-1. FastAPI 鐨勮嚜鍔ㄨ姹傛牎楠?(Pydantic) 鐩告瘮鎵嬪姩瑙ｆ瀽鏈変粈涔堜紭鍔匡紵
-2. 濡傛灉璇锋眰 body 涓殑 `question` 闀垮害瓒呰繃 10000 瀛楃锛屽簲璇ユ€庝箞澶勭悊锛?3. 濡備綍缁?Agent Server 娣诲姞璇锋眰闄愭祦 (Rate Limiting)锛?
-## 鍔ㄦ墜缁冧範
+1. FastAPI 的自动请求校验 (Pydantic) 相比手动解析有什么优势？
+2. 如果请求 body 中的 `question` 长度超过 10000 字符，应该怎么处理？
+3. 如何给 Agent Server 添加请求限流 (Rate Limiting)？
 
-1. 鍦?Simple HTTP 妯″紡涓鍔?CORS 澶存敮鎸?2. 缁?`/query` 娣诲姞 `stream` 鍙傛暟锛屽疄鐜?SSE 娴佸紡杩斿洖
-3. 瀹炵幇涓€涓?`/batch/query` 绔偣锛屼竴娆″鐞嗗涓棶棰?
+## 动手练习
+
+1. 在 Simple HTTP 模式中增加 CORS 头支持
+2. 给 `/query` 添加 `stream` 参数，实现 SSE 流式返回
+3. 实现一个 `/batch/query` 端点，一次处理多个问题

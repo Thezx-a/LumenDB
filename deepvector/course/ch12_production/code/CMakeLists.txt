@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(lumendb_benchmark VERSION 0.1.0 LANGUAGES CXX)
+project(deepvector_benchmark VERSION 0.1.0 LANGUAGES CXX)
 
 add_executable(benchmark benchmark.cpp)
 

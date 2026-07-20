@@ -1,4 +1,4 @@
-add_executable(lumendb_tests
+add_executable(deepvector_tests
     test_distance.cpp
     test_hnsw.cpp
     test_collection.cpp
@@ -6,6 +6,6 @@ add_executable(lumendb_tests
     test_collection_filter.cpp
     test_quantize.cpp
 )
-target_link_libraries(lumendb_tests PRIVATE lumendb GTest::gtest_main)
+target_link_libraries(deepvector_tests PRIVATE deepvector GTest::gtest_main)
 include(GoogleTest)
-gtest_discover_tests(lumendb_tests)
+gtest_discover_tests(deepvector_tests)

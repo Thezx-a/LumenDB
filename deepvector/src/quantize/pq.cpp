@@ -1,4 +1,4 @@
-﻿#include "dv/quantize/pq.h"
+#include "lumendb/quantize/pq.h"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -62,7 +62,7 @@ static void kmeans(const float* data, size_t n, size_t d, size_t K,
 ProductQuantizer::ProductQuantizer(Dimension dim, size_t M, size_t K)
     : dim_(dim), M_(M ? M : dim / 4), K_(K), trained_(false) {
     if (dim_ % M_ != 0) throw std::runtime_error("dim must be divisible by M");
-    if (K_ > 256 || (K_ & (K_ - 1)) != 0) throw std::runtime_error("K must be power-of-2 and 鈮?256");
+    if (K_ > 256 || (K_ & (K_ - 1)) != 0) throw std::runtime_error("K must be power-of-2 and ≤ 256");
     dsub_ = dim_ / M_;
     centroids_.resize(M_ * K_ * dsub_, 0.0f);
 }

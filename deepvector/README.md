@@ -1,4 +1,4 @@
-﻿<p align="center">
+<p align="center">
   <img src="https://img.shields.io/badge/C%2B%2B-17-00599C?style=for-the-badge&logo=cplusplus&logoColor=white" alt="C++17"/>
   <img src="https://img.shields.io/badge/Build-CMake%20%2B%20Ninja-064F8C?style=for-the-badge&logo=cmake&logoColor=white" alt="CMake"/>
   <img src="https://img.shields.io/badge/Tests-28%20passing-brightgreen?style=for-the-badge" alt="Tests"/>
@@ -6,11 +6,11 @@
   <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-lightgrey?style=for-the-badge" alt="Platform"/>
 </p>
 
-<h1 align="center">鈿?DeepVector</h1>
+<h1 align="center">⚡ DeepVector</h1>
 
 <p align="center">
   <b>C++ Zero-Copy Vector Database for RAG</b><br/>
-  <i>Embeddable 路 SIMD-Accelerated 路 Production-Ready</i>
+  <i>Embeddable · SIMD-Accelerated · Production-Ready</i>
 </p>
 
 <p align="center">
@@ -24,7 +24,7 @@
 
 ## What is DeepVector?
 
-DeepVector is an **embedded** C++ vector database purpose-built for Retrieval-Augmented Generation (RAG). It lives inside your application as a static library 鈥?no separate server process, no network overhead, no latency penalty.
+DeepVector is an **embedded** C++ vector database purpose-built for Retrieval-Augmented Generation (RAG). It lives inside your application as a static library — no separate server process, no network overhead, no latency penalty.
 
 ### Architecture
 
@@ -64,9 +64,9 @@ graph TB
 |---|---|---|---|
 | **Architecture** | Embedded library | Client-Server | Index library only |
 | **Metadata** | Full LSM-Tree store | Proprietary | None |
-| **Zero-copy** | 鉁?mmap throughout | 鉂?serialization | 鉂?copies |
-| **Filtering** | SQL-like expressions | DSL | 鉂?manual |
-| **Quantization** | PQ + SQ built-in | 鉁?| 鉁?|
+| **Zero-copy** | ✅ mmap throughout | ❌ serialization | ❌ copies |
+| **Filtering** | SQL-like expressions | DSL | ❌ manual |
+| **Quantization** | PQ + SQ built-in | ✅ | ✅ |
 | **Language** | C++ core + Python | Go/Rust + Python | C++/Python |
 
 ---
@@ -76,8 +76,8 @@ graph TB
 ### C++ (3 lines to search)
 
 ```cpp
-#include <dv/collection.h>
-using namespace lumendb;
+#include <deepvector/collection.h>
+using namespace deepvector;
 
 Collection coll({768, DistanceMetric::Cosine}, "./data");
 coll.add(my_embedding);                              // returns id
@@ -96,7 +96,7 @@ curl -X POST http://localhost:8080/search \
 ### Python (native bindings)
 
 ```python
-import lumendb, numpy as np
+import deepvector, numpy as np
 
 cfg = deepvector.CollectionConfig()
 cfg.dim = 768
@@ -141,7 +141,7 @@ sequenceDiagram
 
 ## Performance
 
-**50K vectors 路 128-dim 路 AVX2 路 g++-12**
+**50K vectors · 128-dim · AVX2 · g++-12**
 
 ```mermaid
 xychart-beta
@@ -151,12 +151,12 @@ xychart-beta
     bar [150, 80, 800, 400]
 ```
 
-| Metric | Raw float32 | With PQ (32脳) |
+| Metric | Raw float32 | With PQ (32×) |
 |--------|-------------|---------------|
 | Insert throughput | ~30K vec/s | ~35K vec/s |
-| Search latency P50 | ~150碌s | ~80碌s |
-| Search latency P99 | ~800碌s | ~400碌s |
-| Memory per vector | `dim 脳 4B` | `dim/32 脳 1B` |
+| Search latency P50 | ~150µs | ~80µs |
+| Search latency P99 | ~800µs | ~400µs |
+| Memory per vector | `dim × 4B` | `dim/32 × 1B` |
 | Recall@10 | 99.5% | ~97% |
 
 > Run it yourself: `cmake -B build -DENABLE_BENCHMARKS=ON && ./build/benchmarks/bench_hnsw`
@@ -172,7 +172,7 @@ pie title Memory per Vector (1024-dim)
     "Saved (4064B)" : 4064
 ```
 
-| Vectors | Raw float32 | PQ (32脳) | Savings |
+| Vectors | Raw float32 | PQ (32×) | Savings |
 |---------|-------------|----------|---------|
 | 100K | 400 MB | 12.5 MB | 97% |
 | 1M | 4 GB | 125 MB | 97% |
@@ -184,19 +184,19 @@ pie title Memory per Vector (1024-dim)
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| HNSW graph index | 鉁?| M=16, ef_construction=200 |
-| SIMD distance (AVX2) | 鉁?| L2, Inner Product, Cosine |
-| Zero-copy mmap storage | 鉁?| Instant restart via OS page cache |
-| Metadata filtering | 鉁?| Tree expressions (eq/gt/and/or) |
-| PQ quantization | 鉁?| k-means subspace, 32脳 compression |
-| SQ int8 quantization | 鉁?| Per-dimension scaling, 4脳 compression |
-| HTTP REST API | 鉁?| GET/POST/DELETE endpoints |
-| Bearer auth | 鉁?| Configurable API key |
-| Python bindings | 鉁?| pybind11 numpy zero-copy |
-| Docker deployment | 鉁?| Multi-stage, <100MB |
-| gRPC / TLS | 馃敎 | Planned |
-| Prometheus metrics | 馃敎 | Atomic counters exist |
-| Distributed / sharding | 馃敎 | Architecture reserved |
+| HNSW graph index | ✅ | M=16, ef_construction=200 |
+| SIMD distance (AVX2) | ✅ | L2, Inner Product, Cosine |
+| Zero-copy mmap storage | ✅ | Instant restart via OS page cache |
+| Metadata filtering | ✅ | Tree expressions (eq/gt/and/or) |
+| PQ quantization | ✅ | k-means subspace, 32× compression |
+| SQ int8 quantization | ✅ | Per-dimension scaling, 4× compression |
+| HTTP REST API | ✅ | GET/POST/DELETE endpoints |
+| Bearer auth | ✅ | Configurable API key |
+| Python bindings | ✅ | pybind11 numpy zero-copy |
+| Docker deployment | ✅ | Multi-stage, <100MB |
+| gRPC / TLS | 🔜 | Planned |
+| Prometheus metrics | 🔜 | Atomic counters exist |
+| Distributed / sharding | 🔜 | Architecture reserved |
 
 ---
 
@@ -264,4 +264,4 @@ graph LR
 
 ## License
 
-[MIT](LICENSE) 鈥?free to use, modify, and distribute.
+[MIT](LICENSE) — free to use, modify, and distribute.

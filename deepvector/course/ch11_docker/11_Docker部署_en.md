@@ -1,10 +1,10 @@
-﻿# Chapter 11: Docker & Deployment
+# Chapter 11: Docker & Deployment
 
 > Containerized DeepVector + Agent production deployment.
 
 ## Prerequisites
 
-> 馃搸 **Reference**: [Docker](../prerequisites/03_Docker瀹瑰櫒鍖朹en.md) | [Build Environment](../prerequisites/01_鏋勫缓鐜閰嶇疆_en.md)
+> 📎 **Reference**: [Docker](../prerequisites/03_Docker容器化_en.md) | [Build Environment](../prerequisites/01_构建环境配置_en.md)
 
 ---
 
@@ -23,13 +23,13 @@
 FROM ubuntu:22.04 AS builder
 RUN apt-get install -y g++-12 cmake ninja-build
 COPY . .
-RUN cmake -B build && cmake --build build --target lumendb_server
+RUN cmake -B build && cmake --build build --target deepvector_server
 
 # Stage 2: Runtime
 FROM ubuntu:22.04
-COPY --from=builder /build/build/lumendb_server /usr/local/bin/
+COPY --from=builder /build/build/deepvector_server /usr/local/bin/
 EXPOSE 8080
-CMD ["lumendb_server", "--port", "8080"]
+CMD ["deepvector_server", "--port", "8080"]
 ```
 
 ---
@@ -38,10 +38,10 @@ CMD ["lumendb_server", "--port", "8080"]
 
 ```yaml
 services:
-  lumendb:
+  deepvector:
     build:
       context: .
-      target: lumendb-runtime
+      target: deepvector-runtime
     ports: ["8080:8080"]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
@@ -52,7 +52,7 @@ services:
       target: agent-runtime
     ports: ["8090:8090"]
     depends_on:
-      lumendb:
+      deepvector:
         condition: service_healthy
     environment:
       - AGENTICDB_LLM_PROVIDER=${LLM_PROVIDER:-ollama}
@@ -83,6 +83,6 @@ services:
 
 ## Hands-on Exercises
 
-1. Add health check to ensure agent waits for lumendb
+1. Add health check to ensure agent waits for deepvector
 2. Create a `.env.example` with all available env vars
 3. Write a `docker-compose.prod.yml` with resource limits and log config

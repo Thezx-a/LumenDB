@@ -1,12 +1,12 @@
-﻿# Chapter 9: Python Bindings (pybind11)
+# Chapter 9: Python Bindings (pybind11)
 
 ## Prerequisites
 
 This chapter assumes familiarity with the following concepts. Review these shared documents before proceeding:
 
-> 馃搸 **Reference**: [Build Environment Configuration](../prerequisites/01_鏋勫缓鐜閰嶇疆_en.md) 鈥?CMake fundamentals and build setup
-> 馃搸 **Reference**: [Python Environment](../prerequisites/03_Python鐜_en.md) 鈥?Virtual environments and pip
-> 馃搸 **Reference**: [Vector Distance Metrics](../prerequisites/05_鍚戦噺璺濈搴﹂噺_en.md) 鈥?Distance functions exposed via bindings
+> 📎 **Reference**: [Build Environment Configuration](../prerequisites/01_构建环境配置_en.md) — CMake fundamentals and build setup
+> 📎 **Reference**: [Python Environment](../prerequisites/03_Python环境_en.md) — Virtual environments and pip
+> 📎 **Reference**: [Vector Distance Metrics](../prerequisites/05_向量距离度量_en.md) — Distance functions exposed via bindings
 
 ---
 
@@ -27,18 +27,18 @@ This chapter assumes familiarity with the following concepts. Review these share
 
 ### 1.1 The Core Problem: Python Rules AI, but C++ Is the Engine
 
-First, a fact you may already know: **Python is the lingua franca of the AI/ML world.** Not because it's fast鈥攊t isn't鈥攂ut because its ecosystem is massive.
+First, a fact you may already know: **Python is the lingua franca of the AI/ML world.** Not because it's fast—it isn't—but because its ecosystem is massive.
 
 Python has the world's densest AI toolchain:
-- **NumPy** 鈥?The multi-dimensional array computation library that underpins PyTorch and TensorFlow. NumPy's core is written in C and Fortran; Python is just a thin glue layer.
-- **pandas** 鈥?The de facto standard for data cleaning and analysis.
-- **LangChain** and **LlamaIndex** 鈥?The mainstream frameworks for building LLM (Large Language Model) applications. LangChain's core concept is the "Chain": stitching document loading, vectorization, retrieval, and generation into a pipeline.
-- **OpenAI SDK** 鈥?Calling GPT-4 as easily as calling a local function.
-- **Jupyter Notebook** 鈥?The interactive workbench for data scientists.
+- **NumPy** — The multi-dimensional array computation library that underpins PyTorch and TensorFlow. NumPy's core is written in C and Fortran; Python is just a thin glue layer.
+- **pandas** — The de facto standard for data cleaning and analysis.
+- **LangChain** and **LlamaIndex** — The mainstream frameworks for building LLM (Large Language Model) applications. LangChain's core concept is the "Chain": stitching document loading, vectorization, retrieval, and generation into a pipeline.
+- **OpenAI SDK** — Calling GPT-4 as easily as calling a local function.
+- **Jupyter Notebook** — The interactive workbench for data scientists.
 
 **A C++ vector database without Python support is abandoning this ecosystem.** You built the fastest engine in the world, but nobody can put it in their car.
 
-**Python Bindings** are the bridge connecting these two worlds鈥攅xposing the high-performance core written in C++ (HNSW graph search, SIMD-accelerated vector computation, mmap zero-copy storage) as modules that Python can directly `import` and call.
+**Python Bindings** are the bridge connecting these two worlds—exposing the high-performance core written in C++ (HNSW graph search, SIMD-accelerated vector computation, mmap zero-copy storage) as modules that Python can directly `import` and call.
 
 ```mermaid
 flowchart TD
@@ -48,7 +48,7 @@ flowchart TD
     end
 
     subgraph Pybind11["pybind11 Layer (Transmission)"]
-        C[Type Conversion: list 鈫?vector&lt;float&gt;]
+        C[Type Conversion: list ↔ vector&lt;float&gt;]
         D[GIL Management / Exception Translation]
         E[Buffer Protocol Zero-Copy Channel]
     end
@@ -72,30 +72,30 @@ flowchart TD
     style CPP fill:#fce4ec,stroke:#c62828
 ```
 
-Using an analogy: C++ is the engine鈥攔oaring with 0-100 km/h in 3 seconds, hauling 20 tons of cargo. But the cockpit has only two seats, no air conditioning, no navigation. Python is a luxury tour bus鈥攚ith AC, Wi-Fi, touchscreen navigation, and 200 passengers helping you move cargo鈥攂ut when you step on the gas, the engine wheezes like an old cow. **pybind11 is the transmission, letting each do what it does best.**
+Using an analogy: C++ is the engine—roaring with 0-100 km/h in 3 seconds, hauling 20 tons of cargo. But the cockpit has only two seats, no air conditioning, no navigation. Python is a luxury tour bus—with AC, Wi-Fi, touchscreen navigation, and 200 passengers helping you move cargo—but when you step on the gas, the engine wheezes like an old cow. **pybind11 is the transmission, letting each do what it does best.**
 
 ### 1.2 What Is pybind11?
 
-**pybind11** is a **header-only** C++ library. "Header-only" means you only need to `#include` its headers鈥攏o extra `.cpp` to compile, no `.a` static library, no `.so` dynamic library. All code is expanded directly when your project compiles.
+**pybind11** is a **header-only** C++ library. "Header-only" means you only need to `#include` its headers—no extra `.cpp` to compile, no `.a` static library, no `.so` dynamic library. All code is expanded directly when your project compiles.
 
 pybind11's core function: **making C++ classes, functions, and enums look and behave like native Python objects in Python.**
 
-It's not magic鈥攊t's based on two C++11 features:
+It's not magic—it's based on two C++11 features:
 
-- **Variadic Templates**: A template mechanism introduced in C++11 that allows templates to accept any number of arguments鈥攕imilar to Python's `*args`, but happening at compile time. pybind11 uses this to implement parameter naming syntax like `py::arg("a"), py::arg("b")`. The compiler generates specialized code for each different number and type of argument.
+- **Variadic Templates**: A template mechanism introduced in C++11 that allows templates to accept any number of arguments—similar to Python's `*args`, but happening at compile time. pybind11 uses this to implement parameter naming syntax like `py::arg("a"), py::arg("b")`. The compiler generates specialized code for each different number and type of argument.
 
 - **Type Traits**: A set of compile-time "type interrogation tools." For example, `std::is_same<T, float>::value` returns `true` or `false` at compile time. pybind11 uses them to automatically determine: is this C++ type an integer? Floating point? STL container? Then it selects the correct conversion logic.
 
 Because everything happens at compile time, pybind11 can achieve:
-- **Compile-time type checking** 鈥?If Python passes a `str` where a `float*` is expected, it's a compile-time error
-- **Automatic STL 鈫?Python conversion** 鈥?`std::vector<float>` automatically becomes a Python `list`, no manual conversion code needed
-- **Near-zero overhead** 鈥?Generated code is as fast as hand-written Python C API
+- **Compile-time type checking** — If Python passes a `str` where a `float*` is expected, it's a compile-time error
+- **Automatic STL ↔ Python conversion** — `std::vector<float>` automatically becomes a Python `list`, no manual conversion code needed
+- **Near-zero overhead** — Generated code is as fast as hand-written Python C API
 
 ### 1.3 What Is the Python C API?
 
-Under pybind11's comfortable surface, the real work is done by the **Python C API** 鈥?also called the **CPython API**.
+Under pybind11's comfortable surface, the real work is done by the **Python C API** — also called the **CPython API**.
 
-**CPython** is the official implementation of Python鈥攖he Python you download from python.org, or the `python3` that ships with macOS/Linux, is CPython. It's written in C. Inside CPython there is an **Interpreter** that reads Python source code, compiles it to **Bytecode**, and then executes bytecode instruction by instruction. Bytecode is the intermediate representation of Python source鈥攊t's what's stored in `.pyc` files.
+**CPython** is the official implementation of Python—the Python you download from python.org, or the `python3` that ships with macOS/Linux, is CPython. It's written in C. Inside CPython there is an **Interpreter** that reads Python source code, compiles it to **Bytecode**, and then executes bytecode instruction by instruction. Bytecode is the intermediate representation of Python source—it's what's stored in `.pyc` files.
 
 The Python C API is the internal interface that CPython exposes to C/C++ programmers. It defines a set of functions and types that let you manipulate Python objects with C code.
 
@@ -103,9 +103,9 @@ Core concepts:
 
 - **PyObject\***: The base class pointer for **all objects** in CPython (int, str, list, custom classes, modules...). Any Python object in memory is a `PyObject` struct containing at least a reference count field `ob_refcnt` and a pointer to the type object `ob_type`. All CPython API functions start with `Py` (e.g., `Py_INCREF`, `PyErr_SetString`).
 
-- **Reference Counting**: CPython's memory management mechanism鈥攏ot garbage collection (GC), but counting references for each object. `Py_INCREF` increments by one, `Py_DECREF` decrements by one. When the count reaches zero, CPython immediately calls the object's destructor to free memory. Forgot to call `Py_INCREF`? The object may be freed prematurely, creating a dangling pointer. Forgot to call `Py_DECREF`? Memory leak. Called `Py_DECREF` one extra time? Double-free crash. Reference counting is the most error-prone part of the Python C API and one of the biggest reasons pybind11 exists.
+- **Reference Counting**: CPython's memory management mechanism—not garbage collection (GC), but counting references for each object. `Py_INCREF` increments by one, `Py_DECREF` decrements by one. When the count reaches zero, CPython immediately calls the object's destructor to free memory. Forgot to call `Py_INCREF`? The object may be freed prematurely, creating a dangling pointer. Forgot to call `Py_DECREF`? Memory leak. Called `Py_DECREF` one extra time? Double-free crash. Reference counting is the most error-prone part of the Python C API and one of the biggest reasons pybind11 exists.
 
-- **C Extension**: A Python module written in C or C++. When you write `import numpy`, what loads is a C extension鈥攁 compiled `.so` (Linux/macOS) or `.pyd` (Windows) file. C extensions are much faster than pure Python because they directly manipulate CPython's internal `PyObject*` structures.
+- **C Extension**: A Python module written in C or C++. When you write `import numpy`, what loads is a C extension—a compiled `.so` (Linux/macOS) or `.pyd` (Windows) file. C extensions are much faster than pure Python because they directly manipulate CPython's internal `PyObject*` structures.
 
 - **Module Init**: When Python executes `import foo`, CPython looks for a C function named `PyInit_foo`. This function is responsible for creating the module object and registering all functions and classes on it. pybind11's `PYBIND11_MODULE` macro generates this function for you.
 
@@ -119,11 +119,11 @@ pybind11's value: **It encapsulates all the dirty work of `PyObject*`, reference
 | **ctypes** | Python standard library, loads `.so`/`.dll` via `cdll.LoadLibrary` | No compilation needed, pure Python | No type safety (no one reminds you if you forget `c_float`), manual memory management, no STL conversion, can only call C, not bind C++ classes |
 | **cffi** | Similar to ctypes but supports C declaration parsing (can auto-extract function signatures from `.h` files) | More modern than ctypes, supports C declaration parsing | Still requires manual management of everything, cannot bind C++ classes (no concept of classes, virtual functions, templates) |
 | **SWIG** | Generates multi-language bindings (C++/Python/Java/Ruby/...) via interface files (`.i` files) | Supports 20+ languages, suitable for multi-language projects | Complex configuration, verbose generated code hard to read, difficult debugging, limited modern C++ support |
-| **Boost.Python** | Part of Boost library, predecessor to pybind11 | Mature and stable (20+ years of history) | **Heavyweight** 鈥?depends on entire Boost library (>100MB headers), extremely slow compilation, old-style C++ |
+| **Boost.Python** | Part of Boost library, predecessor to pybind11 | Mature and stable (20+ years of history) | **Heavyweight** — depends on entire Boost library (>100MB headers), extremely slow compilation, old-style C++ |
 | **Cython** | A standalone language mixing Python + C (`.pyx` files) | Extremely flexible, can manually control performance-critical paths | Requires learning **another language**'s syntax, difficult debugging, not standard C++ |
 | **nanobind** | Modern replacement for pybind11 (created in 2022 by pybind11 author Wenzel Jakob) | ~80% smaller compiled size, ~4x faster compile, ~10x lower runtime overhead; adopted by Google IREE, Apple MLX | Relatively new, community and documentation far behind pybind11, ecosystem compatibility unproven |
 
-**In one sentence: pybind11 is the "sweet spot" for C++ bindings鈥攕afer than ctypes, lighter than Boost, simpler than Cython, more modern than SWIG.** For most C++/Python hybrid projects, it offers the best value.
+**In one sentence: pybind11 is the "sweet spot" for C++ bindings—safer than ctypes, lighter than Boost, simpler than Cython, more modern than SWIG.** For most C++/Python hybrid projects, it offers the best value.
 
 ```mermaid
 pie title Binding Approach Use Case Distribution
@@ -142,7 +142,7 @@ pie title Binding Approach Use Case Distribution
 
 ### 2.1 First Module: From C++ to Python
 
-Let's start with "Hello World"鈥攅xposing a simple C++ addition function to Python.
+Let's start with "Hello World"—exposing a simple C++ addition function to Python.
 
 ```cpp
 // bindings.cpp
@@ -156,7 +156,7 @@ int add(int a, int b) {
 
 // PYBIND11_MODULE is a macro that expands to generate the CPython module init function
 // (i.e., the PyInit_mymath function)
-// First parameter "mymath" is the module name鈥攖he name used in Python import
+// First parameter "mymath" is the module name—the name used in Python import
 // Second parameter m is the py::module_ object, representing the module itself
 PYBIND11_MODULE(mymath, m) {
     m.doc() = "My math module in C++";  // Value of mymath.__doc__ in Python
@@ -176,7 +176,7 @@ After compilation, use directly in Python:
 ```python
 import mymath
 print(mymath.add(3, 5))       # 8
-print(mymath.add(a=10, b=7))  # 17 鈥?supports keyword arguments
+print(mymath.add(a=10, b=7))  # 17 — supports keyword arguments
 print(mymath.__doc__)         # "My math module in C++"
 ```
 
@@ -222,7 +222,7 @@ Python-side usage experience:
 
 ```python
 v = Vec3(1, 2, 3)
-print(v.x)           # 1.0 鈥?like a native Python property
+print(v.x)           # 1.0 — like a native Python property
 print(v.length())    # 3.741657...
 print(v)             # <Vec3 (1.000000, 2.000000, 3.000000)>
 ```
@@ -246,10 +246,10 @@ PYBIND11_MODULE(mymod, m) {
 ### 2.4 STL Container Automatic Conversion
 
 ```cpp
-#include <pybind11/stl.h>  // Enable STL 鈫?Python automatic conversion
+#include <pybind11/stl.h>  // Enable STL ↔ Python automatic conversion
 
 // Once you #include <pybind11/stl.h>,
-// std::vector 鈫?list, std::map 鈫?dict conversions are fully automatic
+// std::vector ↔ list, std::map ↔ dict conversions are fully automatic
 std::vector<float> scale_vector(const std::vector<float>& vec, float factor) {
     std::vector<float> result;
     result.reserve(vec.size());
@@ -260,11 +260,11 @@ std::vector<float> scale_vector(const std::vector<float>& vec, float factor) {
 m.def("scale_vector", &scale_vector);  // That's all it takes
 ```
 
-**`py::object`** is the C++ type representing any Python object in pybind11鈥攊t's an RAII wrapper around `PyObject*`. When you need to operate on a Python object in C++ (e.g., passing arguments, returning values, calling Python methods), use `py::object`. pybind11 automatically manages reference counting (`Py_INCREF`/`Py_DECREF`), avoiding errors from manual operations.
+**`py::object`** is the C++ type representing any Python object in pybind11—it's an RAII wrapper around `PyObject*`. When you need to operate on a Python object in C++ (e.g., passing arguments, returning values, calling Python methods), use `py::object`. pybind11 automatically manages reference counting (`Py_INCREF`/`Py_DECREF`), avoiding errors from manual operations.
 
 ### 2.5 Object Lifetime Management: return_value_policy
 
-This is where things鏈€瀹规槗鍑洪棶棰樼殑鍦版柟鈥斺€?*璋佽礋璐ｉ噴鏀惧唴瀛橈紵**
+This is where things最容易出问题的地方——**谁负责释放内存？**
 
 C++ and Python have completely different memory management models: C++ uses `delete`/destructors (RAII), Python uses reference counting/GC. When a pointer to a C++ object is passed to the Python side, pybind11 must know which "passport" to use:
 
@@ -298,15 +298,15 @@ C++ and Python have completely different memory management models: C++ uses `del
 
 In Python, `bytes` objects, `bytearray`, `memoryview`, and most importantly the **NumPy `ndarray`** all implement an interface called the **Buffer Protocol**.
 
-The **Buffer Protocol** can be thought of as a "memory sharing contract": any object implementing this protocol exposes a pointer and layout information (dimensions, strides, data type) of its underlying raw memory to the outside. Other libraries can directly read and write that memory after obtaining the pointer鈥?*without copying any bytes.**
+The **Buffer Protocol** can be thought of as a "memory sharing contract": any object implementing this protocol exposes a pointer and layout information (dimensions, strides, data type) of its underlying raw memory to the outside. Other libraries can directly read and write that memory after obtaining the pointer—**without copying any bytes.**
 
 ```
 C++ vector<float>                     NumPy ndarray
-     data 鈻衡攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€ shared memory region 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈻?.data
+     data ►──────── shared memory region ───────► .data
      size                               .shape[0]
 ```
 
-pybind11 interacts with the Buffer Protocol through the **`py::array_t<T>`** type. `py::array_t<T>` is pybind11's C++ wrapper for NumPy's `ndarray`鈥擿T` is the element type (e.g., `float`, `int32`). When you use `py::array_t<float>` as a function parameter, pybind11 checks at runtime whether the passed Python object implements the Buffer Protocol, and if so, directly obtains its memory pointer.
+pybind11 interacts with the Buffer Protocol through the **`py::array_t<T>`** type. `py::array_t<T>` is pybind11's C++ wrapper for NumPy's `ndarray`—`T` is the element type (e.g., `float`, `int32`). When you use `py::array_t<float>` as a function parameter, pybind11 checks at runtime whether the passed Python object implements the Buffer Protocol, and if so, directly obtains its memory pointer.
 
 ```cpp
 #include <pybind11/numpy.h>
@@ -314,11 +314,11 @@ pybind11 interacts with the Buffer Protocol through the **`py::array_t<T>`** typ
 // Receive numpy arrays, zero-copy
 float l2_distance(py::array_t<float> a, py::array_t<float> b) {
     // .request() returns py::buffer_info, containing:
-    //   .ptr     鈥?raw pointer to underlying memory (void*)
-    //   .ndim    鈥?number of array dimensions (1D = 1, 2D = 2, ...)
-    //   .shape   鈥?size of each dimension (e.g., {1024} means a 1D array of length 1024)
-    //   .strides 鈥?byte stride of each dimension (e.g., {4} means each float is 4 bytes)
-    //   .itemsize鈥?bytes per element (float = 4, double = 8)
+    //   .ptr     — raw pointer to underlying memory (void*)
+    //   .ndim    — number of array dimensions (1D = 1, 2D = 2, ...)
+    //   .shape   — size of each dimension (e.g., {1024} means a 1D array of length 1024)
+    //   .strides — byte stride of each dimension (e.g., {4} means each float is 4 bytes)
+    //   .itemsize— bytes per element (float = 4, double = 8)
     py::buffer_info a_info = a.request();
     py::buffer_info b_info = b.request();
 
@@ -345,11 +345,11 @@ float l2_distance(py::array_t<float> a, py::array_t<float> b) {
 **Yes, but with one prerequisite: the numpy array must be C-contiguous (memory laid out contiguously, matching C's array memory layout).**
 
 NumPy supports multiple memory layouts:
-- **C-contiguous** (row-major): the last dimension changes fastest鈥擿arr[i][j]` has `j` as contiguous in memory
+- **C-contiguous** (row-major): the last dimension changes fastest—`arr[i][j]` has `j` as contiguous in memory
 - **Fortran-contiguous** (column-major): the first dimension changes fastest
 - **Non-contiguous**: sliced views (`arr[::2]`), transposes (`arr.T`), etc.
 
-If the numpy array is C-contiguous and `dtype=float32`, `a_info.ptr` directly points to numpy's underlying memory鈥攝ero-copy. If non-contiguous or non-float32, pybind11 copies first, incurring overhead. You can check with `a.flags['C_CONTIGUOUS']`.
+If the numpy array is C-contiguous and `dtype=float32`, `a_info.ptr` directly points to numpy's underlying memory—zero-copy. If non-contiguous or non-float32, pybind11 copies first, incurring overhead. You can check with `a.flags['C_CONTIGUOUS']`.
 
 ### 3.3 Performance Comparison: The Numbers Speak
 
@@ -358,10 +358,10 @@ If the numpy array is C-contiguous and `dtype=float32`, `a_info.ptr` directly po
 ```
 Operation: Vector addition, dimension=1024, 10000 calls
 
-Pure Python (list comprehension):  450 ms   鈫?interpreter loop + boxing/unboxing
-NumPy (vectorized, a + b):         8 ms   鈫?optimized C loops
-pybind11 (STL vector copy):       25 ms   鈫?copy 4KB every call
-pybind11 (numpy zero-copy):        4 ms   鈫?pure C++ speed, no copy
+Pure Python (list comprehension):  450 ms   ← interpreter loop + boxing/unboxing
+NumPy (vectorized, a + b):         8 ms   ← optimized C loops
+pybind11 (STL vector copy):       25 ms   ← copy 4KB every call
+pybind11 (numpy zero-copy):        4 ms   ← pure C++ speed, no copy
 ```
 
 ### 3.4 Advanced: Custom Buffer Provider
@@ -405,11 +405,11 @@ template<> struct type_caster<VectorStorage> {
 
 > **At any given moment, only one thread can execute Python bytecode.**
 
-The GIL exists for historical reasons. CPython's memory management is based on **Reference Counting**鈥攅very `PyObject` has an internal `ob_refcnt` integer field. When you write `x = []`, the empty list's reference count is 1. When `x` is reassigned or leaves scope, the reference count decrements by one. When it reaches zero, CPython calls the object's destructor to free memory.
+The GIL exists for historical reasons. CPython's memory management is based on **Reference Counting**—every `PyObject` has an internal `ob_refcnt` integer field. When you write `x = []`, the empty list's reference count is 1. When `x` is reassigned or leaves scope, the reference count decrements by one. When it reaches zero, CPython calls the object's destructor to free memory.
 
-**The problem: reference counting is not thread-safe.** `ob_refcnt++` and `ob_refcnt--` are not atomic operations. If two threads simultaneously `++count` and `--count`, you get a **Data Race**鈥攖wo machine instructions interleaving, corrupting the reference count. The result could be:
-- Reference count never reaches zero 鈫?memory leak
-- Reference count reaches zero prematurely 鈫?object freed early 鈫?subsequent access triggers a segmentation fault
+**The problem: reference counting is not thread-safe.** `ob_refcnt++` and `ob_refcnt--` are not atomic operations. If two threads simultaneously `++count` and `--count`, you get a **Data Race**—two machine instructions interleaving, corrupting the reference count. The result could be:
+- Reference count never reaches zero → memory leak
+- Reference count reaches zero prematurely → object freed early → subsequent access triggers a segmentation fault
 
 GIL is the simple solution CPython chose: **add a global lock, ensuring only one thread executes Python code at a time.** This way reference counts can't be modified concurrently.
 
@@ -425,7 +425,7 @@ t1 = threading.Thread(target=compute)
 t2 = threading.Thread(target=compute)
 ```
 
-For **I/O-bound** programs (network requests, file I/O), GIL doesn't matter much鈥攖hreads spend most of their time waiting for I/O, releasing the GIL. But for **CPU-bound** programs (vector search, matrix computation), GIL is a disaster鈥攎ultithreading becomes "taking turns running."
+For **I/O-bound** programs (network requests, file I/O), GIL doesn't matter much—threads spend most of their time waiting for I/O, releasing the GIL. But for **CPU-bound** programs (vector search, matrix computation), GIL is a disaster—multithreading becomes "taking turns running."
 
 > **Note:** Python 3.12 introduced Free-threaded CPython (PEP 703), experimentally removing the GIL. But in 2025, the GIL is still the default and the reality you must face when writing pybind11 code.
 
@@ -434,13 +434,13 @@ For **I/O-bound** programs (network requests, file I/O), GIL doesn't matter much
 **Rule: Release the GIL whenever you don't touch any Python objects.**
 
 ```cpp
-// Wrong: holding GIL during intensive computation 鈥?all Python threads frozen for 200ms
+// Wrong: holding GIL during intensive computation — all Python threads frozen for 200ms
 py::array_t<float> search_bad(py::array_t<float> query, Database& db) {
     // Python thread blocked for 200ms
     return db.heavy_search(query);  // Takes 200ms
 }
 
-// Correct: three-step approach 鈥?unpack, release lock, re-pack
+// Correct: three-step approach — unpack, release lock, re-pack
 py::array_t<float> search_good(py::array_t<float> query, Database& db) {
     // Step 1: Hold GIL, read numpy data to C++ stack
     auto query_vec = numpy_to_vector(query);  // < 1ms
@@ -459,12 +459,12 @@ py::array_t<float> search_good(py::array_t<float> query, Database& db) {
 
 ### 4.3 How pybind11::gil_scoped_release Works
 
-`gil_scoped_release` is an **RAII (Resource Acquisition Is Initialization)** object鈥攖he classic C++ pattern for managing resource lifetimes: acquire in constructor, release in destructor, guaranteeing exception safety.
+`gil_scoped_release` is an **RAII (Resource Acquisition Is Initialization)** object—the classic C++ pattern for managing resource lifetimes: acquire in constructor, release in destructor, guaranteeing exception safety.
 
-- **Constructor** calls `PyEval_SaveThread()` 鈥?releases GIL, saves current thread state
-- **Destructor** calls `PyEval_RestoreThread()` 鈥?re-acquires GIL, restores thread state
+- **Constructor** calls `PyEval_SaveThread()` — releases GIL, saves current thread state
+- **Destructor** calls `PyEval_RestoreThread()` — re-acquires GIL, restores thread state
 
-Why RAII? Because if `heavy_search` in the middle throws a C++ exception, stack unwinding will **automatically** call `gil_scoped_release`'s destructor, and the GIL is safely re-acquired鈥攏o "lock never recovered" deadlock.
+Why RAII? Because if `heavy_search` in the middle throws a C++ exception, stack unwinding will **automatically** call `gil_scoped_release`'s destructor, and the GIL is safely re-acquired—no "lock never recovered" deadlock.
 
 ### 4.4 GIL State Diagram
 
@@ -498,7 +498,7 @@ public:
 
         for (size_t i = 0; i < queries.size(); i++) {
             threads.emplace_back([&, i]() {
-                // Each thread only operates on C++ objects鈥攏o GIL needed
+                // Each thread only operates on C++ objects—no GIL needed
                 // If the outer layer (pybind11) has already released GIL, this is true multi-core parallelism
                 results[i] = index_->search(queries[i], top_k);
             });
@@ -513,14 +513,14 @@ PYBIND11_MODULE(db, m) {
     py::class_<ParallelSearcher>(m, "ParallelSearcher")
         .def("batch_search", [](ParallelSearcher& self,
                                  py::array_t<float> queries) {
-            // 1. Hold GIL: numpy 鈫?C++ (must operate on Python objects)
+            // 1. Hold GIL: numpy → C++ (must operate on Python objects)
             auto qvecs = numpy_to_batch(queries);
 
             // 2. Release GIL: multithreaded C++ search (doesn't touch Python at all)
             py::gil_scoped_release release;
             auto results = self.batch_search(qvecs, 10);
 
-            // 3. Re-acquire GIL: C++ 鈫?numpy
+            // 3. Re-acquire GIL: C++ → numpy
             py::gil_scoped_acquire acq;
             return batch_to_numpy(results);
         });
@@ -531,25 +531,25 @@ PYBIND11_MODULE(db, m) {
 
 ## 5. Type Conversions
 
-### 5.1 STL 鈫?Python Built-in Types
+### 5.1 STL ↔ Python Built-in Types
 
 ```cpp
-#include <pybind11/stl.h>       // vector 鈫?list, map 鈫?dict, pair 鈫?tuple
+#include <pybind11/stl.h>       // vector ↔ list, map ↔ dict, pair ↔ tuple
 #include <pybind11/stl_bind.h>  // Two-way binding, O(1) access, avoids intermediate copies
 
 // Automatic conversion table:
-//   std::vector<int>    鈫? Python list
-//   std::vector<float>  鈫? Python list
-//   std::map<K,V>       鈫? Python dict
-//   std::pair<A,B>      鈫? Python tuple
-//   std::set<T>         鈫? Python set
-//   std::optional<T>    鈫? T or None
+//   std::vector<int>    ↔  Python list
+//   std::vector<float>  ↔  Python list
+//   std::map<K,V>       ↔  Python dict
+//   std::pair<A,B>      ↔  Python tuple
+//   std::set<T>         ↔  Python set
+//   std::optional<T>    ↔  T or None
 
 // Two-way binding (better performance, C++ modifications visible in Python):
 PYBIND11_MAKE_OPAQUE(std::vector<float>);
 ```
 
-### 5.2 Exception Translation: C++ Exceptions 鈫?Python Exceptions
+### 5.2 Exception Translation: C++ Exceptions → Python Exceptions
 
 Without exception translation, a `std::runtime_error` thrown in C++ appears as a vague `RuntimeError` in Python. Exception translation gives you precise control:
 
@@ -579,7 +579,7 @@ PYBIND11_MODULE(db, m) {
 
 ## 6. CMake + scikit-build-core Build
 
-> 馃搸 **Reference**: For CMake fundamentals and build environment setup, see [Build Environment Configuration](../prerequisites/01_鏋勫缓鐜閰嶇疆_en.md).
+> 📎 **Reference**: For CMake fundamentals and build environment setup, see [Build Environment Configuration](../prerequisites/01_构建环境配置_en.md).
 
 ### 6.1 What Is scikit-build-core?
 
@@ -591,7 +591,7 @@ PYBIND11_MODULE(db, m) {
 
 ```cmake
 cmake_minimum_required(VERSION 3.16)
-project(deepvector-py VERSION 0.1.0 LANGUAGES CXX)
+project(DeepVector-py VERSION 0.1.0 LANGUAGES CXX)
 
 find_package(pybind11 REQUIRED)
 find_package(Python COMPONENTS Interpreter Development NumPy REQUIRED)
@@ -641,18 +641,18 @@ pip install dist/lumen_db-0.1.0-cp310-cp310-linux_x86_64.whl
 
 ### 7.1 What Is LangChain?
 
-**LangChain** is currently the most popular LLM (Large Language Model) application development framework. Its core philosophy is "composition"鈥攕titching together various AI components like LEGO blocks.
+**LangChain** is currently the most popular LLM (Large Language Model) application development framework. Its core philosophy is "composition"—stitching together various AI components like LEGO blocks.
 
 LangChain's core abstractions:
 - **Document Loaders**: Load documents from PDFs, web pages, databases
 - **Text Splitters**: Split long documents into semantically related paragraphs
 - **Embeddings**: Convert text to vectors (calling OpenAI/local models)
-- **VectorStores**: Store and retrieve vectors鈥攖his is DeepVector's entry point
+- **VectorStores**: Store and retrieve vectors—this is DeepVector's entry point
 - **Chains**: Connect multiple components into a pipeline
 
 ### 7.2 VectorStore Interface Pattern
 
-LangChain's `VectorStore` is an **Abstract Base Class (ABC)** that defines what a vector database should do. This pattern is called **Interface Isolation**鈥擫angChain doesn't care whether your vector database is written in C++ or Python; as long as you implement this interface, it can seamlessly integrate into any LangChain **RAG (Retrieval-Augmented Generation)** pipeline.
+LangChain's `VectorStore` is an **Abstract Base Class (ABC)** that defines what a vector database should do. This pattern is called **Interface Isolation**—LangChain doesn't care whether your vector database is written in C++ or Python; as long as you implement this interface, it can seamlessly integrate into any LangChain **RAG (Retrieval-Augmented Generation)** pipeline.
 
 ```python
 from abc import ABC, abstractmethod
@@ -760,7 +760,7 @@ In a bound function, simulate a 500ms computation (`std::this_thread::sleep_for`
 Write `CMakeLists.txt` and `pyproject.toml` for `libfastmath`, use scikit-build-core to build a `.whl`. Install in a clean venv and verify.
 
 ### Exercise 5: LangChain Integration (Optional, 30 min)
-Write pybind11 bindings for the HNSW index, wrap it as a `BaseRetriever` subclass. Combine with `sentence-transformers` for embedding to implement a simple RAG system鈥攊nput a natural language question, retrieve relevant paragraphs from a local document store.
+Write pybind11 bindings for the HNSW index, wrap it as a `BaseRetriever` subclass. Combine with `sentence-transformers` for embedding to implement a simple RAG system—input a natural language question, retrieve relevant paragraphs from a local document store.
 
 ---
 
@@ -768,12 +768,12 @@ Write pybind11 bindings for the HNSW index, wrap it as a `BaseRetriever` subclas
 
 | Key Point | Description |
 |-----------|-------------|
-| **pybind11 Positioning** | C++ engine + Python workbench 鈥?the bridge connecting two ecosystems |
+| **pybind11 Positioning** | C++ engine + Python workbench — the bridge connecting two ecosystems |
 | **Core API** | `PYBIND11_MODULE`, `class_`, `def`, `enum_`, `py::array_t<T>` |
 | **Zero-Copy** | Buffer Protocol + `py::array_t<T>` directly access numpy memory, performance approaches native C++ |
-| **GIL Management** | Three-step approach: unpack 鈫?`gil_scoped_release` 鈫?compute 鈫?`gil_scoped_acquire` 鈫?re-pack |
-| **Lifetime Management** | `return_value_policy` controls ownership transfer across the C++鈫擯ython boundary |
-| **Build System** | scikit-build-core + CMake + pyproject.toml 鈫?one-click .whl generation |
-| **Ecosystem Integration** | Implement LangChain VectorStore interface 鈫?integrate into any RAG pipeline |
+| **GIL Management** | Three-step approach: unpack → `gil_scoped_release` → compute → `gil_scoped_acquire` → re-pack |
+| **Lifetime Management** | `return_value_policy` controls ownership transfer across the C++↔Python boundary |
+| **Build System** | scikit-build-core + CMake + pyproject.toml → one-click .whl generation |
+| **Ecosystem Integration** | Implement LangChain VectorStore interface → integrate into any RAG pipeline |
 
 > Next chapter: [Chapter 10: HTTP Server Design](../ch10_http_server/README.md)

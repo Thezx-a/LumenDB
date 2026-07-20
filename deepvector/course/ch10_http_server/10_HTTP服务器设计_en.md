@@ -1,10 +1,10 @@
-﻿# Chapter 10: HTTP Server Design
+# Chapter 10: HTTP Server Design
 
 ## Prerequisites
 
 This chapter assumes familiarity with the following concepts. Review these shared documents before proceeding:
 
-> 馃搸 **Reference**: [Build Environment Configuration](../prerequisites/01_鏋勫缓鐜閰嶇疆_en.md) 鈥?Build tools and CMake setup
+> 📎 **Reference**: [Build Environment Configuration](../prerequisites/01_构建环境配置_en.md) — Build tools and CMake setup
 
 ---
 
@@ -29,15 +29,15 @@ This chapter assumes familiarity with the following concepts. Review these share
 
 ### 1989-1991: The Birth of the Web
 
-In March 1989, **Tim Berners-Lee**, a British scientist working at **CERN** (Conseil Europ茅en pour la Recherche Nucl茅aire, the European Organization for Nuclear Research in Geneva), submitted a proposal titled "Information Management: A Proposal." His goal: let physicists share research documents across a network of computers at CERN and beyond.
+In March 1989, **Tim Berners-Lee**, a British scientist working at **CERN** (Conseil Européen pour la Recherche Nucléaire, the European Organization for Nuclear Research in Geneva), submitted a proposal titled "Information Management: A Proposal." His goal: let physicists share research documents across a network of computers at CERN and beyond.
 
 By the end of 1991, Berners-Lee had created three foundational technologies:
 
-- **HTTP** (HyperText Transfer Protocol) 鈥?a simple request-response protocol for fetching documents
-- **HTML** (HyperText Markup Language) 鈥?a formatting language for documents with hyperlinks
-- **URL** (Uniform Resource Locator) 鈥?a naming scheme for addressing documents on the network
+- **HTTP** (HyperText Transfer Protocol) — a simple request-response protocol for fetching documents
+- **HTML** (HyperText Markup Language) — a formatting language for documents with hyperlinks
+- **URL** (Uniform Resource Locator) — a naming scheme for addressing documents on the network
 
-The first version, **HTTP/0.9** (1991), was absurdly simple by modern standards. It had exactly one method 鈥?`GET` 鈥?and responses were raw HTML with no headers:
+The first version, **HTTP/0.9** (1991), was absurdly simple by modern standards. It had exactly one method — `GET` — and responses were raw HTML with no headers:
 
 ```
 GET /index.html\r\n
@@ -52,26 +52,26 @@ There were no status codes, no headers, no versioning. A client connected, sent 
 The release of **Mosaic** (1993), the first graphical web browser, ignited the web. Suddenly everyone wanted to be on the internet. HTTP needed to grow up.
 
 **HTTP/1.0** (formalized as RFC 1945 in 1996) added:
-- **Request and response headers** 鈥?metadata like `Content-Type`, `Content-Length`, `Date`
-- **Status codes** 鈥?numeric results like `200 OK`, `404 Not Found`
-- **Multiple methods** 鈥?`GET`, `POST`, `HEAD`
-- **A version string** 鈥?`HTTP/1.0` in the request line
+- **Request and response headers** — metadata like `Content-Type`, `Content-Length`, `Date`
+- **Status codes** — numeric results like `200 OK`, `404 Not Found`
+- **Multiple methods** — `GET`, `POST`, `HEAD`
+- **A version string** — `HTTP/1.0` in the request line
 
-But HTTP/1.0 had a critical flaw: **every request required a new TCP connection**. A browser loading a page with 20 images needed 21 separate TCP connections. Each connection required a TCP three-way handshake (SYN 鈫?SYN-ACK 鈫?ACK), consuming roughly **1.5 round-trip times (RTT)** before any data could flow. On a 100ms connection, that's 150ms wasted per request just for connection setup.
+But HTTP/1.0 had a critical flaw: **every request required a new TCP connection**. A browser loading a page with 20 images needed 21 separate TCP connections. Each connection required a TCP three-way handshake (SYN → SYN-ACK → ACK), consuming roughly **1.5 round-trip times (RTT)** before any data could flow. On a 100ms connection, that's 150ms wasted per request just for connection setup.
 
 ### 1997: HTTP/1.1 and Keep-Alive
 
 **HTTP/1.1** (RFC 2068, later updated by RFC 2616 and RFC 7230) fixed this with **persistent connections** (`Connection: keep-alive` by default). Now a single TCP connection could carry dozens of sequential requests. This was the version that would dominate the web for two decades.
 
 HTTP/1.1 also added:
-- **Host header** 鈥?required in every request, enabling virtual hosting (multiple domains on one IP)
-- **Chunked transfer encoding** 鈥?streaming responses without knowing the total size upfront
-- **Content negotiation** 鈥?client and server agree on format (language, encoding, media type)
-- **Cache control** 鈥?`Cache-Control`, `ETag`, `If-None-Match` headers
+- **Host header** — required in every request, enabling virtual hosting (multiple domains on one IP)
+- **Chunked transfer encoding** — streaming responses without knowing the total size upfront
+- **Content negotiation** — client and server agree on format (language, encoding, media type)
+- **Cache control** — `Cache-Control`, `ETag`, `If-None-Match` headers
 
 ### 2000: REST and the API Revolution
 
-In 2000, **Roy Fielding** 鈥?one of the principal authors of HTTP/1.1 鈥?published his doctoral dissertation, "Architectural Styles and the Design of Network-based Software Architectures." In it, he formally described **REST** (REpresentational State Transfer), an architectural style he'd derived from studying the web itself.
+In 2000, **Roy Fielding** — one of the principal authors of HTTP/1.1 — published his doctoral dissertation, "Architectural Styles and the Design of Network-based Software Architectures." In it, he formally described **REST** (REpresentational State Transfer), an architectural style he'd derived from studying the web itself.
 
 REST wasn't invented from scratch. Fielding was *describing* what already worked about the web: resources identified by URIs, stateless request-response interactions, a uniform interface of HTTP methods. He gave a name to the implicit architecture that had evolved organically at CERN and beyond.
 
@@ -85,7 +85,7 @@ REST became the dominant paradigm for web APIs, replacing the chaos of proprieta
 
 ### Why This Matters for Your HTTP Server
 
-You'll implement HTTP/1.1 鈥?the simplest version that's still universally supported. Understanding the history gives you context for every design decision: why headers exist, why keep-alive matters, why status codes are three-digit numbers, and why the protocol looks the way it does.
+You'll implement HTTP/1.1 — the simplest version that's still universally supported. Understanding the history gives you context for every design decision: why headers exist, why keep-alive matters, why status codes are three-digit numbers, and why the protocol looks the way it does.
 
 ---
 
@@ -93,7 +93,7 @@ You'll implement HTTP/1.1 鈥?the simplest version that's still universally supp
 
 ### The Telephone Analogy
 
-A **socket** is a network communication endpoint 鈥?an abstraction that lets two programs on different machines exchange data. The best analogy is a telephone:
+A **socket** is a network communication endpoint — an abstraction that lets two programs on different machines exchange data. The best analogy is a telephone:
 
 | Telephone Analogy | Socket Operation | System Call |
 |-------------------|------------------|-------------|
@@ -104,21 +104,21 @@ A **socket** is a network communication endpoint 鈥?an abstraction that lets tw
 | Talk to the caller | Exchange data | `send()` / `recv()` |
 | Hang up | Close the connection | `close()` |
 
-This interface was designed by **Bill Joy** at UC Berkeley in 1983 for the **4.2BSD Unix** operating system, and is known as the **Berkeley Sockets API**. It is so fundamental that every operating system 鈥?Linux, Windows (as Winsock), macOS, FreeBSD, even mobile platforms 鈥?implements nearly the same API. Four decades later, `socket()`, `bind()`, `listen()`, `accept()`, `send()`, `recv()`, `close()` remain the universal vocabulary of network programming.
+This interface was designed by **Bill Joy** at UC Berkeley in 1983 for the **4.2BSD Unix** operating system, and is known as the **Berkeley Sockets API**. It is so fundamental that every operating system — Linux, Windows (as Winsock), macOS, FreeBSD, even mobile platforms — implements nearly the same API. Four decades later, `socket()`, `bind()`, `listen()`, `accept()`, `send()`, `recv()`, `close()` remain the universal vocabulary of network programming.
 
 ### Socket Types
 
 There are two main socket types you'll encounter:
 
-- **SOCK_STREAM** (TCP) 鈥?Reliable, ordered, connection-oriented byte stream. Like a phone call: you establish a connection, then exchange a stream of bytes. The kernel guarantees delivery and ordering. Used for HTTP, SSH, SMTP, and most application protocols.
+- **SOCK_STREAM** (TCP) — Reliable, ordered, connection-oriented byte stream. Like a phone call: you establish a connection, then exchange a stream of bytes. The kernel guarantees delivery and ordering. Used for HTTP, SSH, SMTP, and most application protocols.
 
-- **SOCK_DGRAM** (UDP) 鈥?Unreliable, unordered, connectionless datagrams. Like postal mail: you send a letter with an address, and it may arrive, may arrive out of order, or may not arrive at all. Used for DNS lookups, video streaming, VoIP, and games where speed matters more than reliability.
+- **SOCK_DGRAM** (UDP) — Unreliable, unordered, connectionless datagrams. Like postal mail: you send a letter with an address, and it may arrive, may arrive out of order, or may not arrive at all. Used for DNS lookups, video streaming, VoIP, and games where speed matters more than reliability.
 
 ### Address Families
 
-- **AF_INET** 鈥?IPv4 addresses (32-bit, e.g., `192.168.1.1`). The classic internet address format.
-- **AF_INET6** 鈥?IPv6 addresses (128-bit, e.g., `2001:0db8::1`). The successor to IPv4, with a vastly larger address space.
-- **AF_UNIX** 鈥?Unix domain sockets. Communication between processes on the *same machine* using filesystem paths (e.g., `/var/run/docker.sock`). Faster than TCP because there's no network stack overhead.
+- **AF_INET** — IPv4 addresses (32-bit, e.g., `192.168.1.1`). The classic internet address format.
+- **AF_INET6** — IPv6 addresses (128-bit, e.g., `2001:0db8::1`). The successor to IPv4, with a vastly larger address space.
+- **AF_UNIX** — Unix domain sockets. Communication between processes on the *same machine* using filesystem paths (e.g., `/var/run/docker.sock`). Faster than TCP because there's no network stack overhead.
 
 ---
 
@@ -126,19 +126,26 @@ There are two main socket types you'll encounter:
 
 ### "Everything is a File"
 
-Unix has a famous philosophical principle: **"Everything is a file"**. A disk file, a pipe (inter-process communication channel), a network socket, a terminal, even `/dev/random` (a random number generator) 鈥?all are accessed through the same set of system calls: `open()`, `read()`, `write()`, `close()`.
+Unix has a famous philosophical principle: **"Everything is a file"**. A disk file, a pipe (inter-process communication channel), a network socket, a terminal, even `/dev/random` (a random number generator) — all are accessed through the same set of system calls: `open()`, `read()`, `write()`, `close()`.
 
 The abstraction that unifies them all is the **file descriptor** (often abbreviated **fd**): a small non-negative integer that represents an open I/O resource within a process.
 
 ### The File Descriptor Table
 
-Every process has a **file descriptor table** 鈥?a per-process array managed by the kernel:
+Every process has a **file descriptor table** — a per-process array managed by the kernel:
 
 ```
 File Descriptor Table (per process):
-鈹屸攢鈹€鈹€鈹€鈹€鈹攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?鈹? 0  鈹? stdin  (standard input)     鈹?  鈫?automatically opened by the C runtime
-鈹? 1  鈹? stdout (standard output)    鈹?鈹? 2  鈹? stderr (standard error)     鈹?鈹? 3  鈹? server socket (port 8080)   鈹?  鈫?socket() returns the lowest available fd
-鈹? 4  鈹? client connection 1         鈹?鈹? 5  鈹? client connection 2         鈹?鈹?... 鈹? ...                         鈹?鈹斺攢鈹€鈹€鈹€鈹€鈹粹攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?```
+┌─────┬──────────────────────┐
+│  0  │  stdin  (standard input)     │   ← automatically opened by the C runtime
+│  1  │  stdout (standard output)    │
+│  2  │  stderr (standard error)     │
+│  3  │  server socket (port 8080)   │   ← socket() returns the lowest available fd
+│  4  │  client connection 1         │
+│  5  │  client connection 2         │
+│ ... │  ...                         │
+└─────┴──────────────────────┘
+```
 
 Key properties:
 - **File descriptors are integers**, not pointers. They're indices into an in-kernel table.
@@ -148,7 +155,7 @@ Key properties:
 
 ### Why This Matters
 
-When you call `socket()`, you get back an `int`. When you call `accept()`, you get back another `int`. When you call `recv(fd, ...)` or `send(fd, ...)`, you pass that `int`. Everything in network programming revolves around managing these integers. Understanding file descriptors is the foundation of understanding how event loops work 鈥?because `select()`, `poll()`, and `epoll()` all take arrays of file descriptors as input.
+When you call `socket()`, you get back an `int`. When you call `accept()`, you get back another `int`. When you call `recv(fd, ...)` or `send(fd, ...)`, you pass that `int`. Everything in network programming revolves around managing these integers. Understanding file descriptors is the foundation of understanding how event loops work — because `select()`, `poll()`, and `epoll()` all take arrays of file descriptors as input.
 
 ---
 
@@ -162,10 +169,10 @@ Let's trace the complete lifecycle of a TCP connection from the moment a user ty
 
 Before any client connects, the server has already:
 
-1. Created a socket: `socket(AF_INET, SOCK_STREAM, 0)` 鈥?returns fd 3
-2. Set `SO_REUSEADDR` 鈥?allows rebinding to a port immediately after restart
-3. Bound to an address: `bind(fd, "0.0.0.0:8080")` 鈥?"listen on all network interfaces, port 8080"
-4. Started listening: `listen(fd, 128)` 鈥?"queue up to 128 pending connections, the rest get rejected"
+1. Created a socket: `socket(AF_INET, SOCK_STREAM, 0)` — returns fd 3
+2. Set `SO_REUSEADDR` — allows rebinding to a port immediately after restart
+3. Bound to an address: `bind(fd, "0.0.0.0:8080")` — "listen on all network interfaces, port 8080"
+4. Started listening: `listen(fd, 128)` — "queue up to 128 pending connections, the rest get rejected"
 
 The server now sits in a loop, calling `accept()` which blocks (sleeps) until a client connects.
 
@@ -175,12 +182,17 @@ When the browser's TCP stack initiates a connection, the **three-way handshake**
 
 ```
 Browser                          Server
-  鈹?                               鈹?  鈹傗攢鈹€鈹€鈹€ SYN (seq=1000) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈻衡攤  "I want to connect"
-  鈹?                               鈹?  鈹傗梽鈹€鈹€鈹€ SYN-ACK (seq=3000, ack=1001) 鈹€鈹€鈹? "OK, I acknowledge your seq, here's mine"
-  鈹?                               鈹?  鈹傗攢鈹€鈹€鈹€ ACK (ack=3001) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈻衡攤  "I acknowledge your seq"
-  鈹?                               鈹?  鈹?    Connection ESTABLISHED     鈹?```
+  │                                │
+  │──── SYN (seq=1000) ──────────►│  "I want to connect"
+  │                                │
+  │◄─── SYN-ACK (seq=3000, ack=1001) ──│  "OK, I acknowledge your seq, here's mine"
+  │                                │
+  │──── ACK (ack=3001) ──────────►│  "I acknowledge your seq"
+  │                                │
+  │     Connection ESTABLISHED     │
+```
 
-This handshake consumes **1.5 RTT** (one and a half round-trip times). On a 50ms connection, that's 75ms before any HTTP data flows. This is why keep-alive matters 鈥?you only pay this cost once per connection.
+This handshake consumes **1.5 RTT** (one and a half round-trip times). On a 50ms connection, that's 75ms before any HTTP data flows. This is why keep-alive matters — you only pay this cost once per connection.
 
 After the handshake, the kernel moves the connection from the listen queue to an "established" queue. `accept()` wakes up, removes the connection from the queue, and returns a **new file descriptor** representing this specific client connection.
 
@@ -221,11 +233,15 @@ With `Connection: close`, the server initiates a **TCP four-way teardown**:
 
 ```
 Browser                          Server
-  鈹?                               鈹?  鈹傗梽鈹€鈹€鈹€ FIN 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹? "I'm done sending"
-  鈹傗攢鈹€鈹€鈹€ ACK 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈻衡攤  "Acknowledged"
-  鈹?                               鈹?  鈹傗攢鈹€鈹€鈹€ FIN 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈻衡攤  "I'm done too"
-  鈹傗梽鈹€鈹€鈹€ ACK 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹? "Acknowledged"
-  鈹?                               鈹?  鈹?    Connection CLOSED          鈹?```
+  │                                │
+  │◄─── FIN ──────────────────────│  "I'm done sending"
+  │──── ACK ─────────────────────►│  "Acknowledged"
+  │                                │
+  │──── FIN ──────────────────────►│  "I'm done too"
+  │◄─── ACK ──────────────────────│  "Acknowledged"
+  │                                │
+  │     Connection CLOSED          │
+```
 
 The server closes the file descriptor, and the kernel reclaims the connection resources.
 
@@ -252,7 +268,7 @@ sequenceDiagram
 
 ### SO_REUSEADDR: Why You Need It
 
-When a TCP connection closes, it enters a **TIME_WAIT** state for twice the **Maximum Segment Lifetime (MSL)** 鈥?typically 60 seconds on Linux. During TIME_WAIT, the kernel refuses to let another socket bind to the same port.
+When a TCP connection closes, it enters a **TIME_WAIT** state for twice the **Maximum Segment Lifetime (MSL)** — typically 60 seconds on Linux. During TIME_WAIT, the kernel refuses to let another socket bind to the same port.
 
 Why? Because old packets from the previous connection might still be in transit. If you immediately started a new server on the same port, those stale packets could be misinterpreted as belonging to the new connection, causing data corruption. TIME_WAIT prevents this.
 
@@ -270,15 +286,16 @@ Why? Because old packets from the previous connection might still be in transit.
 // Blocking recv: if the client doesn't send data, this line never returns
 char buf[4096];
 ssize_t n = recv(client_fd, buf, sizeof(buf), 0);
-//    鈻?//    鈹斺攢鈹€ Thread sleeps here, waiting for the kernel to say "data arrived"
+//    ▲
+//    └── Thread sleeps here, waiting for the kernel to say "data arrived"
 printf("received %zd bytes\n", n);
 ```
 
-**The core problem with blocking I/O**: a thread blocked on one connection cannot handle any other connection. If you have 10,000 clients, you need 10,000 threads. Each thread costs ~1MB of stack memory (10GB total), and the kernel must context-switch between them 鈥?which is expensive.
+**The core problem with blocking I/O**: a thread blocked on one connection cannot handle any other connection. If you have 10,000 clients, you need 10,000 threads. Each thread costs ~1MB of stack memory (10GB total), and the kernel must context-switch between them — which is expensive.
 
 ### Non-Blocking I/O: Don't Sleep, Tell Me Immediately
 
-**Non-blocking I/O** tells the OS: "If data isn't ready, don't put me to sleep 鈥?return an error immediately so I can do other work."
+**Non-blocking I/O** tells the OS: "If data isn't ready, don't put me to sleep — return an error immediately so I can do other work."
 
 ```cpp
 #include <fcntl.h>
@@ -309,7 +326,7 @@ if (n < 0) {
 The natural impulse with non-blocking I/O is to poll in a tight loop:
 
 ```cpp
-// BAD: Busy polling 鈥?burns 100% CPU doing nothing useful
+// BAD: Busy polling — burns 100% CPU doing nothing useful
 while (true) {
     for (int fd : all_clients) {
         char buf[4096];
@@ -319,7 +336,7 @@ while (true) {
 }
 ```
 
-This is called **busy polling** or **spinning**. The CPU cycles through all file descriptors checking if any have data ready. Most of the time, none of them do 鈥?so you're burning CPU for nothing.
+This is called **busy polling** or **spinning**. The CPU cycles through all file descriptors checking if any have data ready. Most of the time, none of them do — so you're burning CPU for nothing.
 
 The solution: let the **kernel** tell you which file descriptors are ready. That's I/O multiplexing.
 
@@ -349,7 +366,7 @@ The event-driven model is what nginx, Node.js, and Redis use. It's the industry 
 
 In 1999, software engineer **Dan Kegel** published a landmark essay titled "The C10K Problem." He asked: **how do you build a server that handles 10,000 simultaneous connections?**
 
-At the time, the dominant model was "one thread per connection" 鈥?Apache HTTP Server's default. Ten thousand threads needed ~80GB of stack space and caused enormous context-switch overhead. Kegel's analysis showed that the thread-per-connection model couldn't scale, and the industry needed event-driven architectures.
+At the time, the dominant model was "one thread per connection" — Apache HTTP Server's default. Ten thousand threads needed ~80GB of stack space and caused enormous context-switch overhead. Kegel's analysis showed that the thread-per-connection model couldn't scale, and the industry needed event-driven architectures.
 
 The C10K problem drove the development of scalable I/O multiplexing mechanisms: `epoll` on Linux, `kqueue` on FreeBSD/macOS, and IOCP on Windows.
 
@@ -431,7 +448,7 @@ void event_loop_select(int server_fd) {
 
 `FD_SETSIZE` is a macro defined in `<sys/select.h>`. On Linux, it defaults to **1024**. Here's why:
 
-`fd_set` is a fixed-size bitmask 鈥?typically a `long` array of 1024 bits (128 bytes on 64-bit systems). This bitmask is allocated on the **stack** in `fd_set read_fds`. Since each bit corresponds to one file descriptor, and there are only 1024 bits, you cannot monitor file descriptors numbered 1023 or higher.
+`fd_set` is a fixed-size bitmask — typically a `long` array of 1024 bits (128 bytes on 64-bit systems). This bitmask is allocated on the **stack** in `fd_set read_fds`. Since each bit corresponds to one file descriptor, and there are only 1024 bits, you cannot monitor file descriptors numbered 1023 or higher.
 
 The value is hardcoded at compile time as a macro:
 ```c
@@ -444,12 +461,12 @@ You could theoretically redefine it before including `<sys/select.h>`, but you'd
 **Additional select() problems:**
 1. **O(n) complexity**: Every call scans all registered fds, even if only one is ready.
 2. **fd_set is rebuilt every call**: You must call `FD_ZERO` and `FD_SET` before every `select()`, because the kernel modifies the bitmask in place.
-3. **No event types**: `select()` only tells you "readable," "writable," or "exception" 鈥?not *what* event triggered.
+3. **No event types**: `select()` only tells you "readable," "writable," or "exception" — not *what* event triggered.
 4. **Thread safety**: The same fd_set cannot be shared between threads.
 
 ### poll(): Removing the Limit, Keeping the Scan
 
-`poll()` replaces the bitmask with an array of `struct pollfd`, removing the 1024 limit. But it still requires scanning the entire array on every call 鈥?O(n) where n is the total number of fds.
+`poll()` replaces the bitmask with an array of `struct pollfd`, removing the 1024 limit. But it still requires scanning the entire array on every call — O(n) where n is the total number of fds.
 
 ```cpp
 struct pollfd {
@@ -465,9 +482,9 @@ struct pollfd {
 
 Instead of copying a bitmask to the kernel on every call, epoll uses three system calls:
 
-1. **`epoll_create1(0)`** 鈥?Create an epoll instance (returns an fd for the epoll controller)
-2. **`epoll_ctl(EPOLL_CTL_ADD, fd, events)`** 鈥?Register a file descriptor with the epoll instance (this happens once, when the fd is first added)
-3. **`epoll_wait(events, max, timeout)`** 鈥?Block until one or more registered fds are ready, then return only the ready ones
+1. **`epoll_create1(0)`** — Create an epoll instance (returns an fd for the epoll controller)
+2. **`epoll_ctl(EPOLL_CTL_ADD, fd, events)`** — Register a file descriptor with the epoll instance (this happens once, when the fd is first added)
+3. **`epoll_wait(events, max, timeout)`** — Block until one or more registered fds are ready, then return only the ready ones
 
 ```mermaid
 flowchart TD
@@ -561,11 +578,11 @@ public:
 };
 ```
 
-**Why epoll is O(1)**: The kernel maintains a **ready list** internally. When a file descriptor's state changes (e.g., data arrives on a socket), the kernel adds it to the ready list. `epoll_wait()` simply returns whatever is on the ready list 鈥?no scanning required. For a server with 10,000 connections where only 5 are active, `select()` checks all 10,000 every time, while `epoll_wait()` returns only the 5.
+**Why epoll is O(1)**: The kernel maintains a **ready list** internally. When a file descriptor's state changes (e.g., data arrives on a socket), the kernel adds it to the ready list. `epoll_wait()` simply returns whatever is on the ready list — no scanning required. For a server with 10,000 connections where only 5 are active, `select()` checks all 10,000 every time, while `epoll_wait()` returns only the 5.
 
 ### kqueue: The BSD Equivalent
 
-**kqueue** (kernel queue) is epoll's counterpart on BSD systems (FreeBSD, OpenBSD, NetBSD, and macOS). It was introduced in FreeBSD 4.1 in 2000 鈥?two years before epoll. kqueue uses a similar register-once-monitor-forever model, but with a unified API for all event types (not just I/O 鈥?also file changes, signals, process events). If you're targeting macOS, kqueue is the native choice.
+**kqueue** (kernel queue) is epoll's counterpart on BSD systems (FreeBSD, OpenBSD, NetBSD, and macOS). It was introduced in FreeBSD 4.1 in 2000 — two years before epoll. kqueue uses a similar register-once-monitor-forever model, but with a unified API for all event types (not just I/O — also file changes, signals, process events). If you're targeting macOS, kqueue is the native choice.
 
 ### LT vs ET: Two Trigger Modes
 
@@ -573,11 +590,11 @@ epoll supports two notification modes. Understanding the difference is critical 
 
 | Mode | Name | Behavior | When to Use |
 |------|------|----------|-------------|
-| **LT** | Level-Triggered (default) | Notifies you whenever the buffer has data, even if you didn't read it all last time | Simple and safe 鈥?won't miss events |
+| **LT** | Level-Triggered (default) | Notifies you whenever the buffer has data, even if you didn't read it all last time | Simple and safe — won't miss events |
 | **ET** | Edge-Triggered | Notifies you only once per state change (from "no data" to "has data") | High performance, fewer syscalls, but more complex |
 
 **The water tank analogy:**
-- **LT (Level-Triggered)**: A float sensor that alarms whenever the water level is above 0. Even if you don't empty the tank completely, it keeps alarming until the tank is empty. Safe 鈥?you never miss water.
+- **LT (Level-Triggered)**: A float sensor that alarms whenever the water level is above 0. Even if you don't empty the tank completely, it keeps alarming until the tank is empty. Safe — you never miss water.
 - **ET (Edge-Triggered)**: A flow sensor that only alarms when water *starts* flowing in. If you don't empty the tank completely on the first alarm, the remaining water is invisible until new water arrives. You must drain the tank completely on each alarm.
 
 **The ET trap:**
@@ -585,8 +602,8 @@ epoll supports two notification modes. Understanding the difference is critical 
 ```
 Scenario: recv() reads 100 bytes, but the socket buffer still has 200 bytes
 
-LT: Next epoll_wait still notifies 鈹€鈹€ 鉁?Safe
-ET: No more notifications! 鈹€鈹€ 鉂?200 bytes unread forever (until new data arrives)
+LT: Next epoll_wait still notifies ── ✅ Safe
+ET: No more notifications! ── ❌ 200 bytes unread forever (until new data arrives)
 ```
 
 In ET mode, you **must** read in a loop until `errno == EAGAIN`:
@@ -625,31 +642,31 @@ Key characteristics:
 ### HTTP Request Anatomy
 
 ```
-POST /api/v1/search HTTP/1.1\r\n           鈫?Request line: method  path  version
-Host: localhost:8080\r\n                    鈫?Headers (key: value pairs)
+POST /api/v1/search HTTP/1.1\r\n           ← Request line: method  path  version
+Host: localhost:8080\r\n                    ← Headers (key: value pairs)
 Content-Type: application/json\r\n
 Content-Length: 45\r\n
 Authorization: Bearer token123\r\n
-\r\n                                        鈫?Empty line = end of headers
-{"query": [0.1, 0.2, 0.3], "top_k": 10}    鈫?Body (length = Content-Length bytes)
+\r\n                                        ← Empty line = end of headers
+{"query": [0.1, 0.2, 0.3], "top_k": 10}    ← Body (length = Content-Length bytes)
 ```
 
 Terminology:
 - **Method**: What the client wants to do. `GET` (read), `POST` (create), `PUT` (replace), `PATCH` (update), `DELETE` (remove).
 - **Path/URI**: The resource identifier. `/api/v1/search` identifies the search endpoint.
-- **Version**: `HTTP/1.1` 鈥?tells the server which protocol version the client supports.
+- **Version**: `HTTP/1.1` — tells the server which protocol version the client supports.
 - **Headers**: Key-value metadata. `Content-Type` says the body is JSON. `Content-Length` says the body is 45 bytes. `Authorization` carries the authentication token.
 - **Body**: Arbitrary data payload. GET requests have no body. POST/PUT requests typically carry data.
 
 ### HTTP Response Anatomy
 
 ```
-HTTP/1.1 200 OK\r\n                         鈫?Status line: version  status code  reason phrase
-Content-Type: application/json\r\n          鈫?Headers
+HTTP/1.1 200 OK\r\n                         ← Status line: version  status code  reason phrase
+Content-Type: application/json\r\n          ← Headers
 Content-Length: 62\r\n
 Connection: keep-alive\r\n
-\r\n                                        鈫?Empty line = end of headers
-{"results": [{"id": 42, "score": 0.95}]}   鈫?Body
+\r\n                                        ← Empty line = end of headers
+{"results": [{"id": 42, "score": 0.95}]}   ← Body
 ```
 
 Terminology:
@@ -696,9 +713,9 @@ Status codes are standardized by **IANA** (Internet Assigned Numbers Authority) 
 
 Why is RTT (Round-Trip Time) so expensive? Because TCP's three-way handshake requires a full round trip before data can flow:
 
-1. Client 鈫?Server: `SYN` ("I want to connect")
-2. Server 鈫?Client: `SYN-ACK` ("OK, I'm ready")
-3. Client 鈫?Server: `ACK` ("Good, here's my HTTP request")
+1. Client → Server: `SYN` ("I want to connect")
+2. Server → Client: `SYN-ACK` ("OK, I'm ready")
+3. Client → Server: `ACK` ("Good, here's my HTTP request")
 
 Only after step 3 does the actual HTTP request data start flowing. The `ACK` and the first byte of the HTTP request can be sent together (piggybacked), saving one more half-RTT. So the minimum overhead is **1 RTT** for connection setup.
 
@@ -715,13 +732,13 @@ These are two ways to tell the receiver "how much body data to expect":
 HTTP/1.1 200 OK\r\n
 Transfer-Encoding: chunked\r\n
 \r\n
-1A\r\n                    鈫?Hex 1A = 26 bytes
-{"results": [{"id": 1}   鈫?Chunk 1 (26 bytes)
+1A\r\n                    ← Hex 1A = 26 bytes
+{"results": [{"id": 1}   ← Chunk 1 (26 bytes)
 \r\n
-0D\r\n                    鈫?Hex 0D = 13 bytes
-, {"id": 2}]}\r\n        鈫?Chunk 2 (13 bytes)
+0D\r\n                    ← Hex 0D = 13 bytes
+, {"id": 2}]}\r\n        ← Chunk 2 (13 bytes)
 \r\n
-0\r\n                     鈫?Size 0 = end of chunks
+0\r\n                     ← Size 0 = end of chunks
 \r\n
 
 ```
@@ -755,7 +772,7 @@ Headers carry everything that isn't the body. Key headers to know:
 These terms are often confused:
 
 - **URI** (Uniform Resource Identifier): The broadest term. Any string that identifies a resource. `/api/v1/health` is a URI.
-- **URL** (Uniform Resource Locator): A URI that includes *how to access* the resource 鈥?scheme, host, path. `http://localhost:8080/api/health` is a URL.
+- **URL** (Uniform Resource Locator): A URI that includes *how to access* the resource — scheme, host, path. `http://localhost:8080/api/health` is a URL.
 - **URN** (Uniform Resource Name): A URI that names a resource without specifying location. `urn:isbn:0451450523` is a URN.
 
 All URLs are URIs, but not all URIs are URLs. In practice, people say "URL" when they mean "URI."
@@ -766,7 +783,7 @@ All URLs are URIs, but not all URIs are URLs. In practice, people say "URL" when
 
 ```
 GET /api/v1/search?q=hello&top_k=10&threshold=0.8 HTTP/1.1
-     鈹€鈹€鈹€鈹€鈹€鈹€鈹€ 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+     ─────── ─────────────────────────────────
      path    query string (everything after ?)
 ```
 
@@ -788,12 +805,12 @@ The query string is parsed by the server: `q=hello`, `top_k=10`, `threshold=0.8`
 ```
 
 JSON maps directly to data structures in most languages:
-- **Object** `{}` 鈫?C++ `std::map<string, T>` or struct
-- **Array** `[]` 鈫?C++ `std::vector<T>`
-- **String** `""` 鈫?C++ `std::string`
-- **Number** 鈫?C++ `int` or `double`
-- **Boolean** 鈫?C++ `bool`
-- **null** 鈫?`nullptr` or `std::nullopt`
+- **Object** `{}` → C++ `std::map<string, T>` or struct
+- **Array** `[]` → C++ `std::vector<T>`
+- **String** `""` → C++ `std::string`
+- **Number** → C++ `int` or `double`
+- **Boolean** → C++ `bool`
+- **null** → `nullptr` or `std::nullopt`
 
 **Serialization** is the process of converting in-memory objects to JSON strings (and back). The C++ library `nlohmann/json` is the de facto standard: `json j = {{"key", "value"}}; std::string s = j.dump();` and `json parsed = json::parse(s);`.
 
@@ -808,8 +825,8 @@ JSON maps directly to data structures in most languages:
 REST's core constraints:
 
 1. **Resources identified by URIs**: Every entity has a unique identifier. `/api/v1/vectors/42` is the vector with ID 42.
-2. **Uniform interface**: Operations use HTTP methods 鈥?GET (read), POST (create), PUT (replace), PATCH (update), DELETE (remove).
-3. **Stateless**: Each request contains all information the server needs. The server doesn't remember "the previous request." This makes horizontal scaling trivial 鈥?any server can handle any request.
+2. **Uniform interface**: Operations use HTTP methods — GET (read), POST (create), PUT (replace), PATCH (update), DELETE (remove).
+3. **Stateless**: Each request contains all information the server needs. The server doesn't remember "the previous request." This makes horizontal scaling trivial — any server can handle any request.
 4. **Representation**: Resources are transmitted as representations (JSON, XML, etc.). The same resource can have multiple representations.
 5. **Layered system**: Intermediaries (load balancers, caches, proxies) can sit between client and server without the client knowing.
 
@@ -898,7 +915,7 @@ Access-Control-Allow-Headers: Content-Type, Authorization
 Access-Control-Max-Age: 86400
 ```
 
-For APIs (not browser-based), CORS is irrelevant 鈥?browsers enforce it, but `curl`, mobile apps, and server-to-server calls don't. However, if your API is consumed by a web frontend, you'll need CORS headers.
+For APIs (not browser-based), CORS is irrelevant — browsers enforce it, but `curl`, mobile apps, and server-to-server calls don't. However, if your API is consumed by a web frontend, you'll need CORS headers.
 
 ---
 
@@ -919,7 +936,7 @@ Authentication comes first; authorization follows.
 Authorization: Bearer sk-lumen-test-token
 ```
 
-"Bearer" means "whoever bears (holds) this token is treated as the authenticated user." The token is essentially a password 鈥?anyone who has it can impersonate you. This is why HTTPS is mandatory in production: without encryption, anyone sniffing the network can steal the token.
+"Bearer" means "whoever bears (holds) this token is treated as the authenticated user." The token is essentially a password — anyone who has it can impersonate you. This is why HTTPS is mandatory in production: without encryption, anyone sniffing the network can steal the token.
 
 ```cpp
 std::string extract_token(const HttpRequest& req) {
@@ -947,13 +964,14 @@ An **API key** is a long, random string generated by the server and given to the
 
 ```
 eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyMTIzIiwiZXhwIjoxNjkwMDg2NDAwfQ.abc123def456
-鈹溾攢鈹€ Header 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹も敎鈹€鈹€ Payload 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹も敎鈹€鈹€ Signature 鈹€鈹€鈹€鈹?```
+├── Header ──────────┤├── Payload ───────────────────────────┤├── Signature ───┤
+```
 
 - **Header**: Signing algorithm (e.g., `{"alg": "HS256", "typ": "JWT"}`)
-- **Payload**: Claims 鈥?user ID, expiration, permissions, any custom data
+- **Payload**: Claims — user ID, expiration, permissions, any custom data
 - **Signature**: HMAC or RSA signature over `base64(header) + "." + base64(payload)`, using a secret key
 
-**Advantage**: The server doesn't need to look up the token in a database. It just verifies the signature with its secret key. Any service with the secret key can independently validate the token 鈥?perfect for distributed systems.
+**Advantage**: The server doesn't need to look up the token in a database. It just verifies the signature with its secret key. Any service with the secret key can independently validate the token — perfect for distributed systems.
 
 **Weakness**: Once issued, a JWT cannot be revoked before expiration. If a user is banned, their JWT remains valid until it expires. Solutions include short expiration times (5-15 minutes) plus a refresh token mechanism, or maintaining a server-side blocklist (which negates the stateless benefit).
 
@@ -988,11 +1006,11 @@ When the access token expires, the client sends the refresh token to a dedicated
 **Graceful shutdown** ensures the server finishes processing in-flight requests before exiting, rather than abruptly cutting off clients:
 
 ```
-1. Receive SIGTERM 鈹€鈹€鈻?Set a flag: g_running = false
-2. close(listen_fd) 鈹€鈹€鈻?Stop accepting new connections
-3. Drain in-flight requests 鈹€鈹€鈻?Let current requests finish (grace period, usually 10-30s)
-4. Persist state 鈹€鈹€鈻?Flush indexes to disk, write WAL
-5. exit(0) 鈹€鈹€鈻?Clean exit
+1. Receive SIGTERM ──► Set a flag: g_running = false
+2. close(listen_fd) ──► Stop accepting new connections
+3. Drain in-flight requests ──► Let current requests finish (grace period, usually 10-30s)
+4. Persist state ──► Flush indexes to disk, write WAL
+5. exit(0) ──► Clean exit
 ```
 
 In Docker, `docker stop` sends SIGTERM, waits 10 seconds (configurable), then sends SIGKILL. Your process **must** finish cleanup within the grace period or it will be killed ungracefully.
@@ -1072,7 +1090,7 @@ nginx is both a **reverse proxy** (forwarding requests to backend application se
 
 Key differences from nginx:
 - Written in **C++17** (nginx is C)
-- Dynamic configuration via xDS API 鈥?no restarts needed for config changes
+- Dynamic configuration via xDS API — no restarts needed for config changes
 - First-class observability (distributed tracing, metrics, logging)
 - Designed for microservice-to-microservice communication, not end-user-facing serving
 
@@ -1088,7 +1106,7 @@ The event-driven model won because:
 3. **Predictable latency**: No context switches, no lock contention
 4. **Efficient memory usage**: One stack instead of thousands
 
-The tradeoff: code is more complex. You can't make blocking calls (database queries, file reads, DNS lookups) in the event loop 鈥?they'll block all other connections. Solutions include thread pools, asynchronous I/O, and non-blocking libraries.
+The tradeoff: code is more complex. You can't make blocking calls (database queries, file reads, DNS lookups) in the event loop — they'll block all other connections. Solutions include thread pools, asynchronous I/O, and non-blocking libraries.
 
 ---
 
@@ -1117,17 +1135,17 @@ The tradeoff: code is more complex. You can't make blocking calls (database quer
 ### Exercise 1: Single-Threaded epoll HTTP Server (35 min)
 
 Build an HTTP server from scratch using epoll (ET mode), supporting:
-- `GET /health` 鈫?`200 OK {"status":"ok"}`
-- `POST /echo` 鈫?returns the request body
+- `GET /health` → `200 OK {"status":"ok"}`
+- `POST /echo` → returns the request body
 - Manual HTTP request parsing (no HTTP libraries)
 
 ### Exercise 2: Full REST API (30 min)
 
 Implement CRUD REST API for the vector database:
-- `POST /vectors` 鈥?insert a vector (`{"id": 1, "vector": [...]}`)
-- `GET /vectors/{id}` 鈥?retrieve a vector
-- `POST /search` 鈥?KNN search (`{"vector": [...], "k": 10}`)
-- `DELETE /vectors/{id}` 鈥?delete a vector
+- `POST /vectors` — insert a vector (`{"id": 1, "vector": [...]}`)
+- `GET /vectors/{id}` — retrieve a vector
+- `POST /search` — KNN search (`{"vector": [...], "k": 10}`)
+- `DELETE /vectors/{id}` — delete a vector
 
 ### Exercise 3: Authentication Middleware (20 min)
 
@@ -1137,7 +1155,7 @@ Implement Bearer token authentication middleware that intercepts all `/api/v1/*`
 
 Add to your server:
 1. Keep-Alive support (multiple HTTP requests per connection)
-2. SIGTERM handling (stop accept 鈫?drain requests 鈫?set `Connection: close` to notify clients 鈫?close 鈫?exit)
+2. SIGTERM handling (stop accept → drain requests → set `Connection: close` to notify clients → close → exit)
 
 ### Exercise 5: Stress Testing (20 min)
 
@@ -1153,11 +1171,11 @@ Report QPS, P50/P99 latency. Analyze the bottleneck: parsing? I/O? Search?
 
 | Layer | Core Technology | Key Concepts |
 |-------|-----------------|--------------|
-| **Transport** | Berkeley Sockets API | fd, socket() 鈫?bind() 鈫?listen() 鈫?accept() 鈫?send()/recv() 鈫?close() |
-| **Multiplexing** | select 鈫?poll 鈫?epoll/kqueue | C10K problem; LT vs ET; O(1) event notification |
+| **Transport** | Berkeley Sockets API | fd, socket() → bind() → listen() → accept() → send()/recv() → close() |
+| **Multiplexing** | select → poll → epoll/kqueue | C10K problem; LT vs ET; O(1) event notification |
 | **Protocol** | HTTP/1.1 | Request line + headers + body; Keep-Alive; Content-Length vs chunked |
 | **Application** | REST API | Resource URIs + HTTP methods (CRUD); unified JSON responses; status codes |
 | **Security** | Authentication | Bearer Token; JWT three-part structure; authentication vs authorization |
-| **Operations** | Signal handling | SIGTERM 鈫?drain requests 鈫?persist 鈫?exit; grace period |
+| **Operations** | Signal handling | SIGTERM → drain requests → persist → exit; grace period |
 
 > Next chapter: [Chapter 11: C++20 Coroutines & SkyNet](../ch11_coroutines/README.md)

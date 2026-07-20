@@ -1,5 +1,5 @@
-﻿"""
-MCP Client Demo 鈥?shows how to call DeepVector via the MCP protocol.
+"""
+MCP Client Demo — shows how to call DeepVector via the MCP protocol.
 
 This demonstrates the MCP server capabilities for agent frameworks.
 """
@@ -37,7 +37,7 @@ async def demo_mcp_client():
         print("\nExample usage:")
         print("""
   # Via mcp CLI:
-  mcp call lumendb vector_search '{"query": "What is RAG?", "k": 5}'
+  mcp call deepvector vector_search '{"query": "What is RAG?", "k": 5}'
 
   # Via Python SDK:
   result = await client.call_tool("vector_search", {

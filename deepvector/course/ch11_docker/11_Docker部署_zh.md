@@ -1,56 +1,61 @@
-﻿# 绗崄涓€绔狅細Docker 涓庨儴缃?
-> 瀹瑰櫒鍖?DeepVector + Agent 鐢熶骇閮ㄧ讲鏂规銆?
-## 鍓嶇疆鐭ヨ瘑
+# 第十一章：Docker 与部署
 
-> 馃搸 **鍙傝€?*: [Docker瀹瑰櫒鍖朷(../prerequisites/03_Docker瀹瑰櫒鍖朹zh.md) | [鏋勫缓鐜閰嶇疆](../prerequisites/01_鏋勫缓鐜閰嶇疆_zh.md)
+> 容器化 DeepVector + Agent 生产部署方案。
+
+## 前置知识
+
+> 📎 **参考**: [Docker容器化](../prerequisites/03_Docker容器化_zh.md) | [构建环境配置](../prerequisites/01_构建环境配置_zh.md)
 
 ---
 
-## 瀛︿範鐩爣
+## 学习目标
 
-- 鐞嗚В澶氶樁娈?Docker 鏋勫缓
-- 鎺屾彙 docker-compose 澶氭湇鍔＄紪鎺?- 瀛︿細鐢熶骇閮ㄧ讲妫€鏌ユ竻鍗?
+- 理解多阶段 Docker 构建
+- 掌握 docker-compose 多服务编排
+- 学会生产部署检查清单
+
 ---
 
-## 11.1 澶氶樁娈垫瀯寤?
+## 11.1 多阶段构建
+
 ```mermaid
 flowchart LR
-    subgraph Build["鏋勫缓闃舵"]
+    subgraph Build["构建阶段"]
         G[g++-12 + cmake] --> B["cmake --build"]
-        B --> L["lumendb_server 浜岃繘鍒?]
+        B --> L["deepvector_server 二进制"]
     end
-    subgraph Runtime["杩愯闃舵"]
-        U["ubuntu:22.04 slim"] --> C["鎷疯礉浜岃繘鍒?]
-        C --> S["/usr/local/bin/lumendb_server"]
+    subgraph Runtime["运行阶段"]
+        U["ubuntu:22.04 slim"] --> C["拷贝二进制"]
+        C --> S["/usr/local/bin/deepvector_server"]
     end
     Build --> Runtime
 ```
 
 ```dockerfile
-# Stage 1: 鏋勫缓 / Build
+# Stage 1: 构建 / Build
 FROM ubuntu:22.04 AS builder
 RUN apt-get install -y g++-12 cmake ninja-build
 COPY . .
-RUN cmake -B build && cmake --build build --target lumendb_server
+RUN cmake -B build && cmake --build build --target deepvector_server
 
-# Stage 2: 杩愯 / Runtime
+# Stage 2: 运行 / Runtime
 FROM ubuntu:22.04
-COPY --from=builder /build/build/lumendb_server /usr/local/bin/
+COPY --from=builder /build/build/deepvector_server /usr/local/bin/
 EXPOSE 8080
-CMD ["lumendb_server", "--port", "8080"]
+CMD ["deepvector_server", "--port", "8080"]
 ```
 
 ---
 
-## 11.2 Docker Compose 缂栨帓
+## 11.2 Docker Compose 编排
 
 ```yaml
 version: "3.9"
 services:
-  lumendb:
+  deepvector:
     build:
       context: .
-      target: lumendb-runtime
+      target: deepvector-runtime
     ports: ["8080:8080"]
     volumes: ["./data:/data"]
     healthcheck:
@@ -62,7 +67,7 @@ services:
       target: agent-runtime
     ports: ["8090:8090"]
     depends_on:
-      lumendb:
+      deepvector:
         condition: service_healthy
     environment:
       - AGENTICDB_LLM_PROVIDER=${LLM_PROVIDER:-ollama}
@@ -76,26 +81,29 @@ services:
 
 ---
 
-## 11.3 鐢熶骇妫€鏌ユ竻鍗?
-| 绫诲埆 | 妫€鏌ラ」 | 璇存槑 |
+## 11.3 生产检查清单
+
+| 类别 | 检查项 | 说明 |
 |------|--------|------|
-| 瀹夊叏 | API Key | DeepVector `--api-key` 闃叉鏈巿鏉?|
-| 瀹夊叏 | HTTPS | Let's Encrypt 鍙嶅悜浠ｇ悊 |
-| 鍙潬鎬?| 鑷姩閲嶅惎 | systemd/docker restart policy |
-| 鍙潬鎬?| 鍋ュ悍妫€鏌?| Docker HEALTHCHECK |
-| 鐩戞帶 | 鏃ュ織 | 鏃ュ織杞浆 (logrotate) |
-| 鐩戞帶 | 鍛婅 | 鎼滅储寤惰繜 P99 > 500ms |
-| 鎬ц兘 | 璧勬簮闄愬埗 | CPU/Memory cgroups |
-| 鏁版嵁 | 澶囦唤 | 瀹氭湡澶囦唤 data 鐩綍 |
+| 安全 | API Key | DeepVector `--api-key` 防止未授权 |
+| 安全 | HTTPS | Let's Encrypt 反向代理 |
+| 可靠性 | 自动重启 | systemd/docker restart policy |
+| 可靠性 | 健康检查 | Docker HEALTHCHECK |
+| 监控 | 日志 | 日志轮转 (logrotate) |
+| 监控 | 告警 | 搜索延迟 P99 > 500ms |
+| 性能 | 资源限制 | CPU/Memory cgroups |
+| 数据 | 备份 | 定期备份 data 目录 |
 
 ---
 
-## 鎬濊€冮
+## 思考题
 
-1. 澶氶樁娈垫瀯寤轰腑锛屼负浠€涔?builder 闃舵涓嶇洿鎺ヤ娇鐢?`python:3.11` 鑰岀敤 `ubuntu:22.04`锛?2. docker-compose 鐨?`profiles` 鍙傛暟鏈変粈涔堢敤锛?full" profile 閫傚悎浠€涔堝満鏅紵
-3. 濡備綍瀹炵幇闆跺仠鏈洪儴缃诧紵涓や釜瀹瑰櫒杞祦鍗囩骇锛?
-## 鍔ㄦ墜缁冧範
+1. 多阶段构建中，为什么 builder 阶段不直接使用 `python:3.11` 而用 `ubuntu:22.04`？
+2. docker-compose 的 `profiles` 参数有什么用？"full" profile 适合什么场景？
+3. 如何实现零停机部署？两个容器轮流升级？
 
-1. 缁?Docker 闀滃儚娣诲姞鍋ュ悍妫€鏌ワ紝纭繚 lumendb 鍚姩鍚庡啀鍚姩 agent
-2. 鍒涘缓涓€涓?`.env.example` 鏂囦欢锛屽垪鍑烘墍鏈夊彲鐢ㄧ殑鐜鍙橀噺
-3. 缂栧啓涓€涓?`docker-compose.prod.yml`锛屾坊鍔犺祫婧愰檺鍒跺拰鏃ュ織閰嶇疆
+## 动手练习
+
+1. 给 Docker 镜像添加健康检查，确保 deepvector 启动后再启动 agent
+2. 创建一个 `.env.example` 文件，列出所有可用的环境变量
+3. 编写一个 `docker-compose.prod.yml`，添加资源限制和日志配置

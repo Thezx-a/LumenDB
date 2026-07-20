@@ -1,4 +1,4 @@
-﻿# DeepVector API Reference
+# DeepVector API Reference
 
 Complete reference for C++, HTTP, and Python APIs.
 
@@ -9,10 +9,10 @@ Complete reference for C++, HTTP, and Python APIs.
 ### Headers
 
 ```cpp
-#include <dv/deepvector.h>        // Includes types.h + collection.h
-#include <dv/filter.h>         // FilterNode, evaluateFilter
-#include <dv/server/server.h>  // DeepVectorServer, ServerConfig, ServerStats
-#include <dv/storage/document_store.h> // DocumentMeta
+#include <deepvector/deepvector.h>        // Includes types.h + collection.h
+#include <deepvector/filter.h>         // FilterNode, evaluateFilter
+#include <deepvector/server/server.h>  // DeepVectorServer, ServerConfig, ServerStats
+#include <deepvector/storage/document_store.h> // DocumentMeta
 ```
 
 ### CollectionConfig
@@ -23,7 +23,7 @@ Configuration for `Collection`. All fields have sensible defaults.
 |-------|------|---------|-------------|
 | `dim` | `Dimension` (uint32_t) | `0` | Vector dimension. Must be set before creating Collection. |
 | `metric` | `DistanceMetric` | `L2` | Distance metric: `L2`, `InnerProduct`, or `Cosine`. |
-| `hnsw_m` | `size_t` | `16` | Max neighbors per node (layer 1+). Layer 0 uses `2 脳 hnsw_m`. Higher = better recall, more memory. |
+| `hnsw_m` | `size_t` | `16` | Max neighbors per node (layer 1+). Layer 0 uses `2 × hnsw_m`. Higher = better recall, more memory. |
 | `hnsw_ef_construction` | `size_t` | `200` | Beam width during index construction. Higher = better graph quality, slower insertion. |
 | `hnsw_ef_search` | `size_t` | `50` | Beam width during search. Higher = better recall, slower search. Can be changed at search time. |
 | `max_elements` | `size_t` | `0` | Pre-reserve capacity. `0` = unlimited (grow as needed). |
@@ -44,13 +44,13 @@ enum class DistanceMetric : uint8_t {
 
 - **L2**: Standard Euclidean. Always non-negative. Good default.
 - **InnerProduct**: Returns `-dot(a,b)`. Use when vectors are unnormalized and you want maximum inner product search. To use as "maximum cosine similarity", normalize vectors first and use InnerProduct.
-- **Cosine**: Returns `1 - cosine_similarity`. Range [0, 2]. Requires computing norms at query time for each candidate 鈥?slightly slower than L2 for queries (but norms can be pre-stored for stored vectors).
+- **Cosine**: Returns `1 - cosine_similarity`. Range [0, 2]. Requires computing norms at query time for each candidate — slightly slower than L2 for queries (but norms can be pre-stored for stored vectors).
 
 ### SearchResult
 
 ```cpp
 struct SearchResult {
-    VectorID id;       // uint64_t 鈥?1-based vector ID (0 = invalid)
+    VectorID id;       // uint64_t — 1-based vector ID (0 = invalid)
     float distance;    // Distance according to the configured metric
 };
 ```
@@ -72,7 +72,7 @@ Main entry point. Manages vectors, HNSW index, metadata, and quantization.
 ```cpp
 class Collection {
 public:
-    // Constructor 鈥?opens or creates data at data_dir.
+    // Constructor — opens or creates data at data_dir.
     // If data_dir doesn't exist, creates it. If vectors.bin exists, loads it.
     explicit Collection(const CollectionConfig& config,
                         const std::string& data_dir = ".");
@@ -116,7 +116,7 @@ public:
     // Call explicitly after bulk insert if you need durability before shutdown.
     void save(const std::string& name);
 
-    // Load a collection by name. Currently returns nullptr 鈥?implementation pending.
+    // Load a collection by name. Currently returns nullptr — implementation pending.
     static std::unique_ptr<Collection> load(const std::string& name,
                                             const std::string& data_dir = ".");
 };
@@ -125,8 +125,8 @@ public:
 #### Example: Basic Usage
 
 ```cpp
-#include <dv/collection.h>
-using namespace lumendb;
+#include <deepvector/collection.h>
+using namespace deepvector;
 
 CollectionConfig cfg;
 cfg.dim = 768;
@@ -201,9 +201,9 @@ struct FilterNode {
 ```
 
 Available metadata fields for filtering:
-- `"text"` 鈥?Document text content
-- `"tags"` 鈥?Comma-separated tags
-- `"timestamp"` 鈥?Integer timestamp (supports numeric comparison)
+- `"text"` — Document text content
+- `"tags"` — Comma-separated tags
+- `"timestamp"` — Integer timestamp (supports numeric comparison)
 
 #### Example: Filter Expressions
 
@@ -253,7 +253,7 @@ struct ServerConfig {
     int port = 8080;                // Listen port
     size_t num_threads = 4;         // Reserved for future thread pool
     size_t max_connections = 10000; // FD limit hint
-    std::string data_dir = "./lumendb_data";  // Data storage directory
+    std::string data_dir = "./deepvector_data";  // Data storage directory
     std::string api_key = "";       // Bearer token. Empty = no auth.
 };
 ```
@@ -280,7 +280,7 @@ public:
                            std::unique_ptr<Collection> collection);
     ~DeepVectorServer();  // Calls stop(), then destructs Collection (which flushes).
 
-    // Start the server thread. Non-blocking 鈥?returns immediately.
+    // Start the server thread. Non-blocking — returns immediately.
     void start();
 
     // Stop the server thread. Blocks until server thread exits.
@@ -295,12 +295,12 @@ public:
 #### Example: Embedded Server
 
 ```cpp
-#include <dv/collection.h>
-#include <dv/server/server.h>
+#include <deepvector/collection.h>
+#include <deepvector/server/server.h>
 #include <csignal>
 
-using namespace lumendb;
-using namespace dv::server;
+using namespace deepvector;
+using namespace deepvector::server;
 
 std::atomic<bool> running{true};
 void handle_signal(int) { running = false; }
@@ -393,9 +393,9 @@ K-nearest-neighbor search.
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `vector` | float[] | Yes | 鈥?| Query vector, length must match collection dim |
+| `vector` | float[] | Yes | — | Query vector, length must match collection dim |
 | `k` | integer | No | `10` | Number of results to return |
-| `filter` | object | No | 鈥?| Filter expression (see Filter Format below) |
+| `filter` | object | No | — | Filter expression (see Filter Format below) |
 
 **Filter Format**:
 
@@ -504,7 +504,7 @@ Soft-delete a vector.
 ## Python API
 
 ```python
-import lumendb
+import deepvector
 import numpy as np
 ```
 
@@ -576,14 +576,14 @@ class FilterNode:
 
 ### NumPy Type Annotations
 
-All vector parameters accept `np.ndarray[np.float32]` with C-contiguous layout. The bindings use `forcecast` to auto-convert compatible dtypes (float64 鈫?float32), but passing `np.float32` directly avoids a copy.
+All vector parameters accept `np.ndarray[np.float32]` with C-contiguous layout. The bindings use `forcecast` to auto-convert compatible dtypes (float64 → float32), but passing `np.float32` directly avoids a copy.
 
 ```python
 # Preferred: float32, no conversion needed
 vec = np.random.randn(768).astype(np.float32)
 coll.add(vec)
 
-# Works but copies: float64 鈫?float32 conversion
+# Works but copies: float64 → float32 conversion
 vec = np.random.randn(768)  # float64
 coll.add(vec)  # implicit conversion
 
@@ -599,7 +599,7 @@ coll.add(np.ascontiguousarray(vec))
 
 ```python
 import numpy as np
-import lumendb
+import deepvector
 
 cfg = deepvector.CollectionConfig()
 cfg.dim = 768
@@ -607,7 +607,7 @@ cfg.metric = deepvector.DistanceMetric.Cosine
 cfg.hnsw_m = 32
 cfg.hnsw_ef_search = 100
 
-coll = deepvector.Collection(cfg, "/tmp/lumendb_demo")
+coll = deepvector.Collection(cfg, "/tmp/deepvector_demo")
 
 # Insert with metadata
 for i in range(100):
@@ -647,28 +647,28 @@ print(f"Filtered: {len(filtered)} results")
 
 | Parameter | Lower Value | Higher Value | Guidance |
 |-----------|-------------|-------------|----------|
-| `hnsw_m` | Less memory, lower recall | Better recall, more memory | Start at 16. Double for each 10脳 increase in dataset size. |
-| `hnsw_ef_construction` | Faster inserts | Better graph quality | Set to 2脳 `ef_search` for production. Set lower for bulk loading. |
-| `hnsw_ef_search` | Faster queries, lower recall | Better recall, slower | Set to `k 脳 4` as baseline, increase until recall meets SLA. |
+| `hnsw_m` | Less memory, lower recall | Better recall, more memory | Start at 16. Double for each 10× increase in dataset size. |
+| `hnsw_ef_construction` | Faster inserts | Better graph quality | Set to 2× `ef_search` for production. Set lower for bulk loading. |
+| `hnsw_ef_search` | Faster queries, lower recall | Better recall, slower | Set to `k × 4` as baseline, increase until recall meets SLA. |
 
 ### ef_search Tuning Table (M=16, 768-dim, 1M vectors)
 
 | ef_search | P50 Latency | P99 Latency | Recall@10 | Memory Impact |
 |-----------|-------------|-------------|-----------|---------------|
-| 16 | 80 碌s | 250 碌s | 92% | None |
-| 50 | 150 碌s | 500 碌s | 97% | None |
-| 100 | 250 碌s | 800 碌s | 98.5% | None |
-| 200 | 450 碌s | 1.5 ms | 99.2% | None |
-| 400 | 800 碌s | 3.0 ms | 99.5% | None |
+| 16 | 80 µs | 250 µs | 92% | None |
+| 50 | 150 µs | 500 µs | 97% | None |
+| 100 | 250 µs | 800 µs | 98.5% | None |
+| 200 | 450 µs | 1.5 ms | 99.2% | None |
+| 400 | 800 µs | 3.0 ms | 99.5% | None |
 
 ### PQ Configuration Table (768-dim)
 
 | pq_M | Subspace Dim | Compression | Code Memory/Vector | Recall@10 (est.) |
 |------|-------------|-------------|---------------------|-------------------|
-| 48 | 16 | 48脳 | 48 bytes | 99% |
-| 96 | 8 | 32脳 | 96 bytes | 97% |
-| 192 | 4 | 16脳 | 192 bytes | 95% |
-| 384 | 2 | 8脳 | 384 bytes | 92% |
+| 48 | 16 | 48× | 48 bytes | 99% |
+| 96 | 8 | 32× | 96 bytes | 97% |
+| 192 | 4 | 16× | 192 bytes | 95% |
+| 384 | 2 | 8× | 384 bytes | 92% |
 
 Higher `pq_M` = more subspaces = higher compression = lower recall. The subspace dimension (`dim / pq_M`) determines the granularity of quantization. Very small subspaces (2-dim) lose too much information.
 
@@ -676,7 +676,7 @@ Higher `pq_M` = more subspaces = higher compression = lower recall. The subspace
 
 | Parameter | Value | Compression | Quality Loss |
 |-----------|-------|-------------|-------------|
-| Per-dim int8 | 鈥?| 4脳 | <1% recall loss for most datasets |
+| Per-dim int8 | — | 4× | <1% recall loss for most datasets |
 
 SQ is nearly lossless for vectors with values distributed within a bounded range. Works well for normalized embeddings (all values in [-1, 1]).
 
@@ -685,7 +685,7 @@ SQ is nearly lossless for vectors with values distributed within a bounded range
 Choose `ef_search` to compensate for PQ recall loss:
 
 ```
-Target recall = PQ_base_recall 脳 (1 - ef_penalty)
+Target recall = PQ_base_recall × (1 - ef_penalty)
 ```
 
 | pq_M | Base Recall | ef_search for 99% | ef_search for 95% |

@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # Start script for AgenticDB + DeepVector
 # This script starts both the DeepVector C++ server and the Python agent server
 
@@ -20,12 +20,12 @@ DIM=${DIM:-768}
 API_KEY=${API_KEY:-""}
 
 # Check if DeepVector binary exists
-DEEPVECTOR_BIN="$PROJECT_DIR/build/server/lumendb_server"
+DEEPVECTOR_BIN="$PROJECT_DIR/build/server/deepvector_server"
 if [ ! -f "$DEEPVECTOR_BIN" ]; then
     echo "[WARN] DeepVector binary not found. Building..."
     cd "$PROJECT_DIR"
     cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++-12
-    cmake --build build --target lumendb_server
+    cmake --build build --target deepvector_server
 fi
 
 # Start DeepVector server

@@ -1,10 +1,10 @@
-﻿# Chapter 8: MCP Server
+# Chapter 8: MCP Server
 
-> MCP (Model Context Protocol) 鈥?plug-and-play DeepVector for any Agent framework.
+> MCP (Model Context Protocol) — plug-and-play DeepVector for any Agent framework.
 
 ## Prerequisites
 
-> 馃搸 **Reference**: [Python Environment](../prerequisites/02_Python鐜_en.md)
+> 📎 **Reference**: [Python Environment](../prerequisites/02_Python环境_en.md)
 
 ---
 
@@ -22,12 +22,14 @@ MCP is the "USB standard" for the AI Agent ecosystem.
 
 ```
 Traditional:
-  Agent Framework 鈫?Adapter 鈫?DeepVector SDK 鈫?DeepVector
-                      鈫?                One per framework
+  Agent Framework → Adapter → DeepVector SDK → DeepVector
+                      ↑
+                One per framework
 
 MCP Way:
-  Agent Framework 鈫?MCP Client 鈫?MCP Server 鈫?DeepVector
-                                    鈫?                          Write once, use everywhere
+  Agent Framework → MCP Client → MCP Server → DeepVector
+                                    ↑
+                          Write once, use everywhere
 ```
 
 ---
@@ -65,7 +67,7 @@ executor = AgentExecutor(agent=agent, tools=mcp_tools)
 
 1. When to use MCP stdio transport vs. SSE transport?
 2. How should Agent frameworks handle MCP Server errors?
-3. Who should validate tool parameters 鈥?Server or Client side?
+3. Who should validate tool parameters — Server or Client side?
 
 ## Hands-on Exercises
 

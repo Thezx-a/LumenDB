@@ -1,10 +1,10 @@
-﻿# Chapter 10: C++ Core Enhancements
+# Chapter 10: C++ Core Enhancements
 
 > New DeepVector server endpoints and persistence support.
 
 ## Prerequisites
 
-> 馃搸 **Reference**: [Build Environment](../prerequisites/01_鏋勫缓鐜閰嶇疆_en.md) | [Testing](../prerequisites/04_娴嬭瘯妗嗘灦_en.md)
+> 📎 **Reference**: [Build Environment](../prerequisites/01_构建环境配置_en.md) | [Testing](../prerequisites/04_测试框架_en.md)
 
 ---
 

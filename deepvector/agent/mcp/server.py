@@ -1,16 +1,21 @@
-﻿"""
-MCP Server 鈥?灏?DeepVector 浣滀负 MCP 宸ュ叿鏆撮湶 / Expose DeepVector as MCP tools.
+"""
+MCP Server — 将 DeepVector 作为 MCP 工具暴露 / Expose DeepVector as MCP tools.
 
-MCP (Model Context Protocol) 鏄?AI 浠ｇ悊妗嗘灦涓庡閮ㄥ伐鍏蜂箣闂寸殑鏍囧噯鍗忚銆?閫氳繃 MCP Server, 浠讳綍鏀寔 MCP 鐨?Agent 妗嗘灦 (LangChain, AutoGen, etc.)
-閮藉彲浠ュ嵆鎻掑嵆鐢ㄥ湴灏?DeepVector 浣滀负鍚戦噺鎼滅储宸ュ叿璋冪敤銆?
-鍗忚瀹炵幇 / Protocol Implementation:
-  鍩轰簬 JSON-RPC 2.0, 鏀寔 stdio 鍜?SSE 涓ょ浼犺緭妯″紡銆?  璇﹁: https://modelcontextprotocol.io
+MCP (Model Context Protocol) 是 AI 代理框架与外部工具之间的标准协议。
+通过 MCP Server, 任何支持 MCP 的 Agent 框架 (LangChain, AutoGen, etc.)
+都可以即插即用地将 DeepVector 作为向量搜索工具调用。
 
-宸ュ叿娓呭崟 / Available Tools:
-  1. vector_search       鈥?璇箟鍚戦噺鎼滅储
-  2. filtered_search     鈥?甯﹀厓鏁版嵁杩囨护鐨勬悳绱?  3. add_documents       鈥?鎵归噺娣诲姞鏂囨。 (鑷姩宓屽叆绱㈠紩)
-  4. get_collection_info 鈥?闆嗗悎淇℃伅缁熻
-  5. list_collections    鈥?鍒楀嚭鎵€鏈夐泦鍚?  6. delete_document     鈥?鍒犻櫎鏂囨。
+协议实现 / Protocol Implementation:
+  基于 JSON-RPC 2.0, 支持 stdio 和 SSE 两种传输模式。
+  详见: https://modelcontextprotocol.io
+
+工具清单 / Available Tools:
+  1. vector_search       — 语义向量搜索
+  2. filtered_search     — 带元数据过滤的搜索
+  3. add_documents       — 批量添加文档 (自动嵌入索引)
+  4. get_collection_info — 集合信息统计
+  5. list_collections    — 列出所有集合
+  6. delete_document     — 删除文档
 """
 
 import json
@@ -22,15 +27,15 @@ import httpx
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# MCP 宸ュ叿瀹氫箟 / MCP Tool Definitions
-#   姣忎釜宸ュ叿鍖呭惈 name, description, inputSchema (JSON Schema 鏍煎紡)
+# MCP 工具定义 / MCP Tool Definitions
+#   每个工具包含 name, description, inputSchema (JSON Schema 格式)
 # ---------------------------------------------------------------------------
 
 MCP_TOOLS = [
     {
         "name": "vector_search",
         "description": (
-            "鍦?DeepVector 涓悳绱笌鏌ヨ璇箟鐩镐技鐨勬枃妗ｃ€傝繑鍥炴渶鐩稿叧鐨勭粨鏋溿€?
+            "在 DeepVector 中搜索与查询语义相似的文档。返回最相关的结果。"
             "Search DeepVector for documents semantically similar to a query."
             " Returns the top-k most relevant documents."
         ),
@@ -39,16 +44,16 @@ MCP_TOOLS = [
             "properties": {
                 "query": {
                     "type": "string",
-                    "description": "鎼滅储鏌ヨ鏂囨湰 / The search query text",
+                    "description": "搜索查询文本 / The search query text",
                 },
                 "k": {
                     "type": "integer",
-                    "description": "杩斿洖缁撴灉鏁伴噺 (榛樿 10) / Number of results",
+                    "description": "返回结果数量 (默认 10) / Number of results",
                     "default": 10,
                 },
                 "collection": {
                     "type": "string",
-                    "description": "闆嗗悎鍚嶇О (榛樿 'default') / Collection name",
+                    "description": "集合名称 (默认 'default') / Collection name",
                     "default": "default",
                 },
             },
@@ -58,18 +63,18 @@ MCP_TOOLS = [
     {
         "name": "filtered_search",
         "description": (
-            "甯﹀厓鏁版嵁杩囨护鐨勬悳绱€傚綋闇€瑕佹寜鏍囩銆佺被鍒垨瀛楁绛涢€夌粨鏋滄椂浣跨敤銆?
+            "带元数据过滤的搜索。当需要按标签、类别或字段筛选结果时使用。"
             "Search with metadata filters. Use to narrow results by fields."
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "query": {"type": "string", "description": "鎼滅储鏌ヨ鏂囨湰"},
+                "query": {"type": "string", "description": "搜索查询文本"},
                 "k": {"type": "integer", "default": 10},
                 "filter": {
                     "type": "object",
                     "description": (
-                        "杩囨护鏍戙€傜ず渚? {'op': 'eq', 'field': 'tags', 'value': 'RAG'}"
+                        "过滤树。示例: {'op': 'eq', 'field': 'tags', 'value': 'RAG'}"
                     ),
                 },
                 "collection": {"type": "string", "default": "default"},
@@ -80,7 +85,7 @@ MCP_TOOLS = [
     {
         "name": "add_documents",
         "description": (
-            "鍚戞暟鎹簱娣诲姞鏂囨。銆傛枃鏈皢琚嚜鍔ㄥ祵鍏ュ拰绱㈠紩銆?
+            "向数据库添加文档。文本将被自动嵌入和索引。"
             "Add documents to the database. Texts will be automatically embedded."
         ),
         "inputSchema": {
@@ -89,12 +94,12 @@ MCP_TOOLS = [
                 "texts": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "瑕佹坊鍔犵殑鏂囨湰鍒楄〃 / List of texts to add",
+                    "description": "要添加的文本列表 / List of texts to add",
                 },
                 "metadatas": {
                     "type": "array",
                     "items": {"type": "object"},
-                    "description": "鍙€夌殑鍏冩暟鎹? 涓?texts 涓€涓€瀵瑰簲 / Optional metadata",
+                    "description": "可选的元数据, 与 texts 一一对应 / Optional metadata",
                 },
                 "collection": {"type": "string", "default": "default"},
             },
@@ -103,7 +108,7 @@ MCP_TOOLS = [
     },
     {
         "name": "get_collection_info",
-        "description": "鑾峰彇闆嗗悎淇℃伅 (澶у皬銆佺淮搴︾瓑) / Get collection information.",
+        "description": "获取集合信息 (大小、维度等) / Get collection information.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -113,16 +118,16 @@ MCP_TOOLS = [
     },
     {
         "name": "list_collections",
-        "description": "鍒楀嚭鎵€鏈夊彲鐢ㄩ泦鍚?/ List all available collections.",
+        "description": "列出所有可用集合 / List all available collections.",
         "inputSchema": {"type": "object", "properties": {}},
     },
     {
         "name": "delete_document",
-        "description": "鎸?ID 鍒犻櫎鏂囨。 / Delete a document by ID.",
+        "description": "按 ID 删除文档 / Delete a document by ID.",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "id": {"type": "integer", "description": "鏂囨。 ID / Document ID"},
+                "id": {"type": "integer", "description": "文档 ID / Document ID"},
                 "collection": {"type": "string", "default": "default"},
             },
             "required": ["id"],
@@ -133,24 +138,26 @@ MCP_TOOLS = [
 
 class DeepVectorMCPTools:
     """
-    DeepVector MCP 宸ュ叿瀹炵幇 / DeepVector MCP Tool Implementations.
+    DeepVector MCP 工具实现 / DeepVector MCP Tool Implementations.
 
-    姣忎釜鏂规硶瀵瑰簲涓€涓?MCP 宸ュ叿, 閫氳繃 HTTP 璋冪敤 DeepVector C++ Server銆?
-    娉ㄦ剰: 褰撳墠 DeepVector 閮ㄥ垎 API 灏氫笉鏀寔 (濡?/embed, /collections),
-    杩欎簺宸ュ叿灏嗛殢 DeepVector Server 澧炲己鑰岄€愭瀹屽杽銆?    """
+    每个方法对应一个 MCP 工具, 通过 HTTP 调用 DeepVector C++ Server。
 
-    def __init__(self, lumendb_url: str = "http://localhost:8080"):
+    注意: 当前 DeepVector 部分 API 尚不支持 (如 /embed, /collections),
+    这些工具将随 DeepVector Server 增强而逐步完善。
+    """
+
+    def __init__(self, deepvector_url: str = "http://localhost:8080"):
         """
-        鍒濆鍖?MCP 宸ュ叿 / Initialize MCP tools.
+        初始化 MCP 工具 / Initialize MCP tools.
 
         Args:
-            lumendb_url: DeepVector C++ Server 鐨?HTTP 鍦板潃
+            deepvector_url: DeepVector C++ Server 的 HTTP 地址
         """
-        self.lumendb_url = lumendb_url
+        self.deepvector_url = deepvector_url
         self._client: httpx.AsyncClient | None = None
 
     async def _ensure_client(self):
-        """纭繚 HTTP 瀹㈡埛绔凡鍒濆鍖?/ Ensure HTTP client is initialized."""
+        """确保 HTTP 客户端已初始化 / Ensure HTTP client is initialized."""
         if self._client is None or self._client.is_closed:
             self._client = httpx.AsyncClient(timeout=30.0)
 
@@ -158,28 +165,28 @@ class DeepVectorMCPTools:
         self, query: str, k: int = 10, collection: str = "default"
     ) -> str:
         """
-        璇箟鍚戦噺鎼滅储 / Semantic vector search.
+        语义向量搜索 / Semantic vector search.
 
-        娴佺▼: 宓屽叆鏌ヨ 鈫?POST /search 鈫?杩斿洖 JSON 缁撴灉
+        流程: 嵌入查询 → POST /search → 返回 JSON 结果
 
         Args:
-            query: 鎼滅储鏌ヨ鏂囨湰
-            k: 杩斿洖缁撴灉鏁伴噺
-            collection: 闆嗗悎鍚嶇О
+            query: 搜索查询文本
+            k: 返回结果数量
+            collection: 集合名称
 
         Returns:
-            JSON 鏍煎紡鐨勭粨鏋滃瓧绗︿覆
+            JSON 格式的结果字符串
         """
         await self._ensure_client()
         embed_resp = await self._client.post(
-            f"{self.lumendb_url}/embed",
+            f"{self.deepvector_url}/embed",
             json={"text": query},
         )
         embed_resp.raise_for_status()
         vector = embed_resp.json()["vector"]
 
         resp = await self._client.post(
-            f"{self.lumendb_url}/search",
+            f"{self.deepvector_url}/search",
             json={"vector": vector, "k": k},
         )
         resp.raise_for_status()
@@ -195,27 +202,27 @@ class DeepVectorMCPTools:
         collection: str = "default",
     ) -> str:
         """
-        甯﹁繃婊ょ殑鎼滅储 / Search with metadata filters.
+        带过滤的搜索 / Search with metadata filters.
 
         Args:
-            query: 鎼滅储鏌ヨ鏂囨湰
-            filter: 杩囨护鏉′欢鏍?/ Filter condition tree
-            k: 杩斿洖缁撴灉鏁伴噺
-            collection: 闆嗗悎鍚嶇О
+            query: 搜索查询文本
+            filter: 过滤条件树 / Filter condition tree
+            k: 返回结果数量
+            collection: 集合名称
 
         Returns:
-            JSON 鏍煎紡鐨勭粨鏋滃瓧绗︿覆
+            JSON 格式的结果字符串
         """
         await self._ensure_client()
         embed_resp = await self._client.post(
-            f"{self.lumendb_url}/embed",
+            f"{self.deepvector_url}/embed",
             json={"text": query},
         )
         embed_resp.raise_for_status()
         vector = embed_resp.json()["vector"]
 
         resp = await self._client.post(
-            f"{self.lumendb_url}/search",
+            f"{self.deepvector_url}/search",
             json={"vector": vector, "k": k, "filter": filter},
         )
         resp.raise_for_status()
@@ -230,19 +237,19 @@ class DeepVectorMCPTools:
         collection: str = "default",
     ) -> str:
         """
-        鎵归噺娣诲姞鏂囨。 / Add documents to the database.
+        批量添加文档 / Add documents to the database.
 
         Args:
-            texts: 鏂囨湰鍒楄〃
-            metadatas: 鍏冩暟鎹垪琛?(鍙€?
-            collection: 闆嗗悎鍚嶇О
+            texts: 文本列表
+            metadatas: 元数据列表 (可选)
+            collection: 集合名称
 
         Returns:
-            JSON 鏍煎紡鐨勭粨鏋滃瓧绗︿覆
+            JSON 格式的结果字符串
         """
         await self._ensure_client()
         resp = await self._client.post(
-            f"{self.lumendb_url}/embed_and_insert",
+            f"{self.deepvector_url}/embed_and_insert",
             json={"texts": texts, "metadatas": metadatas},
         )
         resp.raise_for_status()
@@ -250,70 +257,75 @@ class DeepVectorMCPTools:
 
     async def get_collection_info(self, collection: str = "default") -> str:
         """
-        鑾峰彇闆嗗悎淇℃伅 / Get collection information.
+        获取集合信息 / Get collection information.
 
         Args:
-            collection: 闆嗗悎鍚嶇О
+            collection: 集合名称
 
         Returns:
-            JSON 鏍煎紡鐨勯泦鍚堜俊鎭?        """
+            JSON 格式的集合信息
+        """
         await self._ensure_client()
-        resp = await self._client.get(f"{self.lumendb_url}/health")
+        resp = await self._client.get(f"{self.deepvector_url}/health")
         resp.raise_for_status()
         return json.dumps(resp.json())
 
     async def list_collections(self) -> str:
         """
-        鍒楀嚭鎵€鏈夐泦鍚?/ List all collections.
+        列出所有集合 / List all collections.
 
         Returns:
-            JSON 鏍煎紡鐨勯泦鍚堝垪琛?        """
+            JSON 格式的集合列表
+        """
         await self._ensure_client()
-        resp = await self._client.get(f"{self.lumendb_url}/collections")
+        resp = await self._client.get(f"{self.deepvector_url}/collections")
         resp.raise_for_status()
         return json.dumps(resp.json())
 
     async def delete_document(self, id: int, collection: str = "default") -> str:
         """
-        鍒犻櫎鏂囨。 / Delete a document by ID.
+        删除文档 / Delete a document by ID.
 
         Args:
-            id: 鏂囨。 ID
-            collection: 闆嗗悎鍚嶇О
+            id: 文档 ID
+            collection: 集合名称
 
         Returns:
-            JSON 鏍煎紡鐨勫垹闄ょ粨鏋?        """
+            JSON 格式的删除结果
+        """
         await self._ensure_client()
-        resp = await self._client.delete(f"{self.lumendb_url}/vectors/{id}")
+        resp = await self._client.delete(f"{self.deepvector_url}/vectors/{id}")
         resp.raise_for_status()
         return json.dumps({"status": "deleted", "id": id})
 
     async def close(self):
-        """鍏抽棴 HTTP 瀹㈡埛绔?/ Close HTTP client."""
+        """关闭 HTTP 客户端 / Close HTTP client."""
         if self._client and not self._client.is_closed:
             await self._client.aclose()
 
 
-async def create_mcp_server(lumendb_url: str = "http://localhost:8080"):
+async def create_mcp_server(deepvector_url: str = "http://localhost:8080"):
     """
-    鍒涘缓 MCP 鏈嶅姟鍣ㄥ疄渚?/ Create an MCP server instance with DeepVector tools.
+    创建 MCP 服务器实例 / Create an MCP server instance with DeepVector tools.
 
-    浣跨敤瀹樻柟 mcp Python SDK 鍒涘缓鏍囧噯 MCP Server銆?    鎻愪緵宸ュ叿鍒楄〃鍜屽伐鍏疯皟鐢ㄥ鐞嗐€?
+    使用官方 mcp Python SDK 创建标准 MCP Server。
+    提供工具列表和工具调用处理。
+
     Args:
-        lumendb_url: DeepVector HTTP API 鍦板潃
+        deepvector_url: DeepVector HTTP API 地址
 
     Returns:
-        (MCP Server 瀹炰緥, MCP 宸ュ叿瀹炰緥) 鍏冪粍
+        (MCP Server 实例, MCP 工具实例) 元组
 
     Raises:
-        ImportError: 濡傛灉 mcp 鍖呮湭瀹夎
+        ImportError: 如果 mcp 包未安装
     """
     try:
         from mcp.server import Server
         from mcp.types import Tool, TextContent
 
-        server = Server("lumendb")
-        tools = DeepVectorMCPTools(lumendb_url)
+        server = Server("deepvector")
+        tools = DeepVectorMCPTools(deepvector_url)
 
         @server.list_tools()
         async def list_tools():

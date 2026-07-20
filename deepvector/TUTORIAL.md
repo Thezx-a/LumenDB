@@ -1,4 +1,4 @@
-﻿# DeepVector Tutorial: From Zero to RAG
+# DeepVector Tutorial: From Zero to RAG
 
 A complete, practical guide to building and running a RAG pipeline with DeepVector.
 
@@ -53,7 +53,7 @@ Expected output:
 [15/18] Building CXX object src/index/hnsw.cpp.o
 [16/18] Building CXX object src/collection.cpp.o
 [17/18] Linking CXX static library lib/libdeepvector.a
-[18/18] Linking CXX executable build/lumendb_server
+[18/18] Linking CXX executable build/deepvector_server
 ```
 
 ### 1.4 Run tests
@@ -85,7 +85,7 @@ cd python && pip install -e .
 
 Verify:
 ```bash
-python -c "import lumendb; print(dir(lumendb))"
+python -c "import deepvector; print(dir(deepvector))"
 ```
 
 ---
@@ -95,12 +95,12 @@ python -c "import lumendb; print(dir(lumendb))"
 Create `tutorial_part2.cpp`:
 
 ```cpp
-#include <dv/collection.h>
+#include <deepvector/collection.h>
 #include <iostream>
 #include <random>
 #include <cmath>
 
-using namespace lumendb;
+using namespace deepvector;
 
 int main() {
     // --- Configure ---
@@ -112,7 +112,7 @@ int main() {
     cfg.hnsw_ef_search = 50;
 
     // --- Create ---
-    Collection coll(cfg, "/tmp/lumendb_tutorial");
+    Collection coll(cfg, "/tmp/deepvector_tutorial");
     std::cout << "Created collection, dim=" << coll.dim() << std::endl;
 
     // --- Generate random vectors and insert ---
@@ -190,14 +190,14 @@ Self-search (one of the inserted vectors):
 Create `tutorial_part3.cpp`:
 
 ```cpp
-#include <dv/collection.h>
-#include <dv/filter.h>
-#include <dv/storage/document_store.h>
+#include <deepvector/collection.h>
+#include <deepvector/filter.h>
+#include <deepvector/storage/document_store.h>
 #include <iostream>
 #include <random>
 
-using namespace lumendb;
-using namespace dv::storage;
+using namespace deepvector;
+using namespace deepvector::storage;
 
 int main() {
     CollectionConfig cfg;
@@ -207,7 +207,7 @@ int main() {
     cfg.hnsw_ef_construction = 100;
     cfg.hnsw_ef_search = 40;
 
-    Collection coll(cfg, "/tmp/lumendb_tutorial_meta");
+    Collection coll(cfg, "/tmp/deepvector_tutorial_meta");
 
     // Insert with metadata
     std::mt19937 rng(123);
@@ -293,7 +293,7 @@ Ensure you built Python bindings in Part 1.5. Then create `tutorial_part4.py`:
 
 ```python
 import numpy as np
-import lumendb
+import deepvector
 
 # --- Configure ---
 cfg = deepvector.CollectionConfig()
@@ -304,7 +304,7 @@ cfg.hnsw_ef_construction = 200
 cfg.hnsw_ef_search = 50
 
 # --- Create ---
-coll = deepvector.Collection(cfg, "/tmp/lumendb_tutorial_py")
+coll = deepvector.Collection(cfg, "/tmp/deepvector_tutorial_py")
 
 # --- Insert 1000 random vectors ---
 rng = np.random.default_rng(42)
@@ -365,7 +365,7 @@ python tutorial_part4.py
 ### 5.1 Start the server
 
 ```bash
-./build/lumendb_server --host 0.0.0.0 --port 8080 --dim 128 --data-dir /tmp/lumendb_server_data
+./build/deepvector_server --host 0.0.0.0 --port 8080 --dim 128 --data-dir /tmp/deepvector_server_data
 ```
 
 Expected output:
@@ -419,21 +419,21 @@ curl -s http://localhost:8080/stats | python -m json.tool
 
 ```bash
 # Start server with API key
-./build/lumendb_server --api-key "my-secret-key" --port 8080 --dim 128
+./build/deepvector_server --api-key "my-secret-key" --port 8080 --dim 128
 
 # Request must include Authorization header
 curl -s -H "Authorization: Bearer my-secret-key" \
   http://localhost:8080/health
 
-# Without key 鈫?401
+# Without key → 401
 curl -s http://localhost:8080/health
 ```
 
 ### 5.6 Docker deployment
 
 ```bash
-docker build -t lumendb .
-docker run -p 8080:8080 -v $(pwd)/data:/data lumendb
+docker build -t deepvector .
+docker run -p 8080:8080 -v $(pwd)/data:/data deepvector
 ```
 
 Or with docker-compose:
@@ -451,17 +451,17 @@ A complete Retrieval-Augmented Generation pipeline using Python.
 ### 6.1 Install dependencies
 
 ```bash
-pip install lumendb numpy openai sentence-transformers langchain
+pip install deepvector numpy openai sentence-transformers langchain
 ```
 
 ### 6.2 Create `tutorial_rag.py`
 
 ```python
 """
-Full RAG Pipeline: Load documents 鈫?Chunk 鈫?Embed 鈫?Store 鈫?Query 鈫?Generate
+Full RAG Pipeline: Load documents → Chunk → Embed → Store → Query → Generate
 """
 import numpy as np
-import lumendb
+import deepvector
 
 # ============================================================
 # Step 1: Setup DeepVector
@@ -473,7 +473,7 @@ cfg.hnsw_m = 32
 cfg.hnsw_ef_construction = 200
 cfg.hnsw_ef_search = 100
 
-coll = deepvector.Collection(cfg, "/tmp/lumendb_rag")
+coll = deepvector.Collection(cfg, "/tmp/deepvector_rag")
 
 # ============================================================
 # Step 2: Load embedding model (offline, no API key needed)
@@ -612,16 +612,16 @@ print(f"  Generated answer: {response.choices[0].message.content}")
 | 32 | ~530 bytes | 99-99.5% | Moderate | High recall requirements |
 | 64 | ~1KB | 99.5%+ | Slower | Maximum recall, small datasets |
 
-Rule of thumb: `M = 4 脳 sqrt(dim)` for balanced performance. For 768-dim: `M = 4 脳 sqrt(768) 鈮?110` 鈥?but in practice, M=16-32 is sufficient because HNSW recall plateaus beyond a point.
+Rule of thumb: `M = 4 × sqrt(dim)` for balanced performance. For 768-dim: `M = 4 × sqrt(768) ≈ 110` — but in practice, M=16-32 is sufficient because HNSW recall plateaus beyond a point.
 
 ### 7.2 Choosing `ef_construction`
 
 | ef_construction | Build Time | Recall@10 | Note |
 |-----------------|------------|-----------|------|
-| 100 | 1脳 (baseline) | 95% | Fastest build |
-| 200 | 1.5脳 | 97-98% | **Default, good balance** |
-| 400 | 2.5脳 | 99% | High quality builds |
-| 800 | 5脳 | 99.5% | Maximum quality, 1M+ datasets |
+| 100 | 1× (baseline) | 95% | Fastest build |
+| 200 | 1.5× | 97-98% | **Default, good balance** |
+| 400 | 2.5× | 99% | High quality builds |
+| 800 | 5× | 99.5% | Maximum quality, 1M+ datasets |
 
 Higher `ef_construction` improves graph quality at build time. Search-time `ef_search` can compensate for lower `ef_construction` in many cases.
 
@@ -630,9 +630,9 @@ Higher `ef_construction` improves graph quality at build time. Search-time `ef_s
 | Scenario | Recommendation | Rationale |
 |----------|---------------|-----------|
 | <10K vectors | Raw (no PQ) | Memory is small enough |
-| 10K-100K vectors | SQ (4脳 compression) | Fast, low quality loss |
-| 100K-1M vectors | PQ M=dim/4, K=256 | 32脳 compression, 95%+ recall |
-| 1M-10M vectors | PQ M=dim/8, K=256 | 64脳 compression, ~90% recall |
+| 10K-100K vectors | SQ (4× compression) | Fast, low quality loss |
+| 100K-1M vectors | PQ M=dim/4, K=256 | 32× compression, 95%+ recall |
+| 1M-10M vectors | PQ M=dim/8, K=256 | 64× compression, ~90% recall |
 | >10M vectors | PQ + IVF or sharding | Beyond single-node capacity |
 
 Configure PQ:
@@ -651,27 +651,27 @@ PQ training is automatic: after `kPQTrainThreshold` (256) vectors are inserted, 
 ```
 Total memory = vector_data + index_overhead + metadata
 
-vector_data (raw)  = N 脳 dim 脳 4 bytes
-vector_data (PQ)   = N 脳 M bytes  (M = dim/4 鈫?32脳 compression)
-vector_data (SQ)   = N 脳 dim bytes (int8, 4脳 compression)
+vector_data (raw)  = N × dim × 4 bytes
+vector_data (PQ)   = N × M bytes  (M = dim/4 → 32× compression)
+vector_data (SQ)   = N × dim bytes (int8, 4× compression)
 
-index_overhead      = N 脳 (sizeof(HNSWNode) + avg_neighbors 脳 8)
-                    鈮?N 脳 (40 + M_max0_ 脳 8)  for M=16
-                    鈮?N 脳 296 bytes
+index_overhead      = N × (sizeof(HNSWNode) + avg_neighbors × 8)
+                    ≈ N × (40 + M_max0_ × 8)  for M=16
+                    ≈ N × 296 bytes
 
-metadata (MiniKV)   = N 脳 avg_meta_size 脳 1.2 (LSM overhead)
-                    鈮?N 脳 100 bytes (typical)
+metadata (MiniKV)   = N × avg_meta_size × 1.2 (LSM overhead)
+                    ≈ N × 100 bytes (typical)
 ```
 
-Example 鈥?1M vectors, 768-dim with PQ (M=96):
+Example — 1M vectors, 768-dim with PQ (M=96):
 ```
-vector_data:  1M 脳 96     = 96 MB
-index:        1M 脳 296    = 296 MB
-metadata:     1M 脳 100    = 100 MB
-Total:                    鈮?500 MB
+vector_data:  1M × 96     = 96 MB
+index:        1M × 296    = 296 MB
+metadata:     1M × 100    = 100 MB
+Total:                    ≈ 500 MB
 ```
 
-Same without PQ: `1M 脳 768 脳 4 = 3072 MB + 296 MB + 100 MB 鈮?3.5 GB`.
+Same without PQ: `1M × 768 × 4 = 3072 MB + 296 MB + 100 MB ≈ 3.5 GB`.
 
 ---
 
@@ -681,7 +681,7 @@ Same without PQ: `1M 脳 768 脳 4 = 3072 MB + 296 MB + 100 MB 鈮?3.5 GB`.
 |-------|-------|----------|
 | `undefined reference to minikv::DB::Open` | MiniKV not linked | Add `vendor/MiniKV/libminikv.a` to link line |
 | `error: 'mmap' was not declared` | Not on Linux/macOS | Use WSL2 or Docker |
-| `cannot open /tmp/lumendb_data/vectors.bin` | Permission denied | Use a writable directory |
+| `cannot open /tmp/deepvector_data/vectors.bin` | Permission denied | Use a writable directory |
 | `std::bad_alloc` | Out of memory | Reduce dim, use PQ, or lower N |
 | `pybind11 not found` | Python bindings not built | Run cmake with `-DENABLE_PYTHON=ON` |
 | `ImportError: No module named deepvector._deepvector` | Bindings not installed | `cd python && pip install -e .` |
@@ -692,7 +692,7 @@ Same without PQ: `1M 脳 768 脳 4 = 3072 MB + 296 MB + 100 MB 鈮?3.5 GB`.
 
 ## Next Steps
 
-- **API Reference**: [API_REFERENCE.md](API_REFERENCE.md) 鈥?Complete C++, HTTP, and Python API docs
-- **Architecture**: [ARCHITECTURE.md](ARCHITECTURE.md) 鈥?Deep dive into design decisions
-- **Interview Prep**: [INTERVIEW_QA.md](INTERVIEW_QA.md) 鈥?80+ Q&A for technical interviews
-- **Contributing**: [CONTRIBUTING.md](CONTRIBUTING.md) 鈥?How to contribute
+- **API Reference**: [API_REFERENCE.md](API_REFERENCE.md) — Complete C++, HTTP, and Python API docs
+- **Architecture**: [ARCHITECTURE.md](ARCHITECTURE.md) — Deep dive into design decisions
+- **Interview Prep**: [INTERVIEW_QA.md](INTERVIEW_QA.md) — 80+ Q&A for technical interviews
+- **Contributing**: [CONTRIBUTING.md](CONTRIBUTING.md) — How to contribute

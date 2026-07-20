@@ -1,49 +1,58 @@
-﻿# 绗叓绔狅細MCP 鏈嶅姟鍣?
-> MCP (Model Context Protocol) 鈥?璁?Agent 妗嗘灦鍗虫彃鍗崇敤 DeepVector銆?
-## 鍓嶇疆鐭ヨ瘑
+# 第八章：MCP 服务器
 
-> 馃搸 **鍙傝€?*: [Python鐜](../prerequisites/02_Python鐜_zh.md)
+> MCP (Model Context Protocol) — 让 Agent 框架即插即用 DeepVector。
 
----
+## 前置知识
 
-## 瀛︿範鐩爣
-
-- 鐞嗚В MCP 鍗忚鐨勬牳蹇冩蹇?- 鎺屾彙 MCP Server 鐨勫疄鐜?- 瀛︿細閫氳繃 MCP 闆嗘垚 Agent 妗嗘灦
+> 📎 **参考**: [Python环境](../prerequisites/02_Python环境_zh.md)
 
 ---
 
-## 8.1 浠€涔堟槸 MCP锛?
-MCP (Model Context Protocol) 鏄?AI Agent 棰嗗煙鐨?USB 鎺ュ彛"鏍囧噯鍗忚銆?
+## 学习目标
+
+- 理解 MCP 协议的核心概念
+- 掌握 MCP Server 的实现
+- 学会通过 MCP 集成 Agent 框架
+
+---
+
+## 8.1 什么是 MCP？
+
+MCP (Model Context Protocol) 是 AI Agent 领域的"USB 接口"标准协议。
+
 ```
-浼犵粺鏂瑰紡:
-  Agent Framework 鈫?閫傞厤鍣?鈫?DeepVector SDK 鈫?DeepVector
-                      鈫?                  姣忎釜妗嗘灦閮借鍐?
-MCP 鏂瑰紡:
-  Agent Framework 鈫?MCP Client 鈫?MCP Server 鈫?DeepVector
-                                    鈫?                              涓€娆″疄鐜帮紝鍒板浣跨敤
+传统方式:
+  Agent Framework → 适配器 → DeepVector SDK → DeepVector
+                      ↑
+                  每个框架都要写
+
+MCP 方式:
+  Agent Framework → MCP Client → MCP Server → DeepVector
+                                    ↑
+                              一次实现，到处使用
 ```
 
 ---
 
-## 8.2 MCP 宸ュ叿瀹氫箟
+## 8.2 MCP 工具定义
 
-AgenticDB 閫氳繃 MCP 鏆撮湶 6 涓伐鍏凤細
+AgenticDB 通过 MCP 暴露 6 个工具：
 
-| 宸ュ叿鍚?| 鍔熻兘 | 鍙傛暟 |
+| 工具名 | 功能 | 参数 |
 |--------|------|------|
-| vector_search | 璇箟鎼滅储 | query, k, collection |
-| filtered_search | 甯﹁繃婊ゆ悳绱?| query, filter, k, collection |
-| add_documents | 鎵归噺娣诲姞 | texts, metadatas, collection |
-| get_collection_info | 闆嗗悎淇℃伅 | collection |
-| list_collections | 鍒楀嚭闆嗗悎 | - |
-| delete_document | 鍒犻櫎鏂囨。 | id, collection |
+| vector_search | 语义搜索 | query, k, collection |
+| filtered_search | 带过滤搜索 | query, filter, k, collection |
+| add_documents | 批量添加 | texts, metadatas, collection |
+| get_collection_info | 集合信息 | collection |
+| list_collections | 列出集合 | - |
+| delete_document | 删除文档 | id, collection |
 
 ---
 
-## 8.3 鏍稿績瀹炵幇
+## 8.3 核心实现
 
 ```python
-# MCP 宸ュ叿瀹氫箟 (JSON Schema 鏍煎紡)
+# MCP 工具定义 (JSON Schema 格式)
 MCP_TOOLS = [
     {
         "name": "vector_search",
@@ -60,7 +69,7 @@ MCP_TOOLS = [
     },
 ]
 
-# 宸ュ叿璋冪敤澶勭悊
+# 工具调用处理
 async def call_tool(name: str, arguments: dict):
     if name == "vector_search":
         result = await tools.vector_search(
@@ -73,10 +82,10 @@ async def call_tool(name: str, arguments: dict):
 
 ---
 
-## 8.4 闆嗘垚绀轰緥
+## 8.4 集成示例
 
 ```python
-# LangChain 闆嗘垚
+# LangChain 集成
 from langchain.agents import AgentExecutor, create_openai_functions_agent
 from langchain_community.tools import Tool
 
@@ -94,12 +103,14 @@ agent_executor = AgentExecutor(agent=agent, tools=tools)
 
 ---
 
-## 鎬濊€冮
+## 思考题
 
-1. MCP 鐨?stdio 浼犺緭妯″紡鍜?SSE 浼犺緭妯″紡鍚勬湁浠€涔堥€傜敤鍦烘櫙锛?2. 濡傛灉 MCP Server 杩斿洖閿欒锛孉gent 妗嗘灦搴旇鎬庝箞澶勭悊锛?3. MCP 宸ュ叿鐨勫弬鏁版牎楠屽簲璇ョ敱璋佸仛锛烻erver 绔繕鏄?Client 绔紵
+1. MCP 的 stdio 传输模式和 SSE 传输模式各有什么适用场景？
+2. 如果 MCP Server 返回错误，Agent 框架应该怎么处理？
+3. MCP 工具的参数校验应该由谁做？Server 端还是 Client 端？
 
-## 鍔ㄦ墜缁冧範
+## 动手练习
 
-1. 鍚姩 MCP Server锛岀敤 `mcp` CLI 宸ュ叿璋冪敤 `vector_search`
-2. 娣诲姞涓€涓柊鐨?MCP 宸ュ叿 `batch_search`锛屾敮鎸佷竴娆℃悳绱㈠涓?query
-3. 鍦?LangChain 涓垱寤轰竴涓娇鐢?DeepVector MCP 宸ュ叿鐨?Agent
+1. 启动 MCP Server，用 `mcp` CLI 工具调用 `vector_search`
+2. 添加一个新的 MCP 工具 `batch_search`，支持一次搜索多个 query
+3. 在 LangChain 中创建一个使用 DeepVector MCP 工具的 Agent

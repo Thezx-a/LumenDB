@@ -1,4 +1,4 @@
-﻿name: DeepVector CI/CD
+name: DeepVector CI/CD
 on:
   push:
     branches: [main, develop]
@@ -73,7 +73,7 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ secrets.DOCKER_USERNAME }}/lumendb:latest
-            ${{ secrets.DOCKER_USERNAME }}/lumendb:${{ github.sha }}
+            ${{ secrets.DOCKER_USERNAME }}/deepvector:latest
+            ${{ secrets.DOCKER_USERNAME }}/deepvector:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

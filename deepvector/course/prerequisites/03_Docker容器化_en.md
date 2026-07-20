@@ -1,4 +1,4 @@
-﻿# Docker Containerization
+# Docker Containerization
 
 ## Install Docker
 
@@ -23,7 +23,7 @@ pip install docker-compose
 ## Common Commands
 
 ```bash
-docker compose build lumendb   # Build DeepVector image
+docker compose build deepvector   # Build DeepVector image
 docker compose up -d           # Start all services
 docker compose logs -f         # View logs
 docker compose down            # Stop all services
@@ -31,4 +31,4 @@ docker compose down            # Stop all services
 
 ## Related Chapters
 
-- 馃搸 **Ch11** [Docker & Deployment](../ch11_docker/11_Docker涓庨儴缃瞋en.md)
+- 📎 **Ch11** [Docker & Deployment](../ch11_docker/11_Docker与部署_en.md)

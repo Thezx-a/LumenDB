@@ -1,16 +1,16 @@
-﻿# =============================================================================
+# =============================================================================
 # AgenticDB + DeepVector Docker Compose
 # 
-# 瀹屾暣鍚姩 / Full startup:
+# 完整启动 / Full startup:
 #   docker compose up -d
 #
-# 浠呭惎鍔?DeepVector / DeepVector only:
-#   docker compose up -d lumendb
+# 仅启动 DeepVector / DeepVector only:
+#   docker compose up -d deepvector
 #
-# 浠呭惎鍔?Agent + DeepVector (鏃犻渶 Ollama):
-#   docker compose up -d lumendb agent
+# 仅启动 Agent + DeepVector (无需 Ollama):
+#   docker compose up -d deepvector agent
 #
-# 瀹屾暣鍚姩 (鍚?Ollama):
+# 完整启动 (含 Ollama):
 #   docker compose up -d
 # =============================================================================
 version: "3.9"
@@ -18,18 +18,18 @@ version: "3.9"
 services:
 
   # ===========================================================================
-  # DeepVector C++ 鍚戦噺鏁版嵁搴撴湇鍔?/ C++ Vector Database Service
+  # DeepVector C++ 向量数据库服务 / C++ Vector Database Service
   # ===========================================================================
-  lumendb:
+  deepvector:
     build:
       context: .
-      target: lumendb-runtime
+      target: deepvector-runtime
     ports:
       - "8080:8080"
     volumes:
-      - lumendb_data:/data
+      - deepvector_data:/data
     environment:
-      - DEEPVECTOR_DIM=384          # 鍚戦噺缁村害: 384 (all-MiniLM-L6-v2) 鎴?1536 (OpenAI)
+      - DEEPVECTOR_DIM=384          # 向量维度: 384 (all-MiniLM-L6-v2) 或 1536 (OpenAI)
       - DEEPVECTOR_PORT=8080
       - DEEPVECTOR_DATA_DIR=/data
       - DEEPVECTOR_API_KEY=${DEEPVECTOR_API_KEY:-}
@@ -50,7 +50,7 @@ services:
           memory: "1G"
 
   # ===========================================================================
-  # AgenticDB Python Agent 鏈嶅姟 / Python Agent Service
+  # AgenticDB Python Agent 服务 / Python Agent Service
   # ===========================================================================
   agent:
     build:
@@ -59,7 +59,7 @@ services:
     ports:
       - "8090:8090"
     environment:
-      - AGENTICDB_DEEPVECTOR_URL=http://lumendb:8080
+      - AGENTICDB_DEEPVECTOR_URL=http://deepvector:8080
       - AGENTICDB_AGENT_PORT=8090
       - AGENTICDB_LLM_PROVIDER=${LLM_PROVIDER:-ollama}
       - AGENTICDB_LLM_MODEL=${LLM_MODEL:-qwen2.5:3b}
@@ -70,7 +70,7 @@ services:
       - AGENTICDB_QUALITY_THRESHOLD=${QUALITY_THRESHOLD:-0.7}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
     depends_on:
-      lumendb:
+      deepvector:
         condition: service_healthy
     restart: unless-stopped
     deploy:
@@ -83,8 +83,8 @@ services:
           memory: "1G"
 
   # ===========================================================================
-  # Ollama 鏈湴 LLM 鏈嶅姟 (鍙€? / Local LLM Service (optional)
-  # 鍚敤鍓嶉渶瑕佸厛鎷夊彇妯″瀷: docker compose run ollama pull qwen2.5:3b
+  # Ollama 本地 LLM 服务 (可选) / Local LLM Service (optional)
+  # 启用前需要先拉取模型: docker compose run ollama pull qwen2.5:3b
   # ===========================================================================
   ollama:
     image: ollama/ollama:latest
@@ -98,8 +98,8 @@ services:
         reservations:
           memory: "8G"
     profiles:
-      - full  # 榛樿涓嶅惎鍔? 浣跨敤 `docker compose --profile full up -d`
+      - full  # 默认不启动, 使用 `docker compose --profile full up -d`
 
 volumes:
-  lumendb_data:
+  deepvector_data:
   ollama_data:

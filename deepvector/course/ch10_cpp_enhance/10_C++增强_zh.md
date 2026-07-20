@@ -1,33 +1,36 @@
-﻿# 绗崄绔狅細C++ 鏍稿績澧炲己
+# 第十章：C++ 核心增强
 
-> DeepVector 鏈嶅姟鍣ㄦ柊澧炵鐐瑰拰鎸佷箙鍖栨敮鎸併€?
-## 鍓嶇疆鐭ヨ瘑
+> DeepVector 服务器新增端点和持久化支持。
 
-> 馃搸 **鍙傝€?*: [鏋勫缓鐜閰嶇疆](../prerequisites/01_鏋勫缓鐜閰嶇疆_zh.md) | [娴嬭瘯妗嗘灦](../prerequisites/04_娴嬭瘯妗嗘灦_zh.md)
+## 前置知识
 
----
-
-## 瀛︿範鐩爣
-
-- 鎺屾彙 DeepVector C++ Server 鐨勭鐐硅璁?- 鐞嗚В Collection::load() 鎸佷箙鍖栧疄鐜?- 瀛︿細鍦?C++ 涓鐞?JSON 璇锋眰
+> 📎 **参考**: [构建环境配置](../prerequisites/01_构建环境配置_zh.md) | [测试框架](../prerequisites/04_测试框架_zh.md)
 
 ---
 
-## 10.1 鏂板绔偣
+## 学习目标
+
+- 掌握 DeepVector C++ Server 的端点设计
+- 理解 Collection::load() 持久化实现
+- 学会在 C++ 中处理 JSON 请求
+
+---
+
+## 10.1 新增端点
 
 ```mermaid
 flowchart LR
-    subgraph Old["鍘熷绔偣"]
+    subgraph Old["原始端点"]
         H1["/health"]
         S1["/search"]
         I1["/insert"]
     end
-    subgraph New["鏂板绔偣"]
+    subgraph New["新增端点"]
         C1["/collections"]
         B1["/batch/search"]
         V1["/vector?id=1"]
     end
-    subgraph All["瀹屾暣 API"]
+    subgraph All["完整 API"]
         H2["/health"]
         S2["/search"]
         I2["/insert"]
@@ -40,15 +43,15 @@ flowchart LR
     New --> All
 ```
 
-| 绔偣 | 鏂规硶 | 璇存槑 |
+| 端点 | 方法 | 说明 |
 |------|------|------|
-| `/collections` | GET | 鍒楀嚭鎵€鏈夐泦鍚?|
-| `/batch/search` | POST | 鎵归噺鎼滅储 (涓€娆″涓?query) |
-| `/vector?id=` | GET | 鎸?ID 鑾峰彇鍚戦噺 |
+| `/collections` | GET | 列出所有集合 |
+| `/batch/search` | POST | 批量搜索 (一次多个 query) |
+| `/vector?id=` | GET | 按 ID 获取向量 |
 
 ---
 
-## 10.2 鎵归噺鎼滅储瀹炵幇
+## 10.2 批量搜索实现
 
 ```cpp
 if (path == "/batch/search" && method == "POST") {
@@ -78,34 +81,39 @@ if (path == "/batch/search" && method == "POST") {
 
 ---
 
-## 10.3 Collection::load() 鎸佷箙鍖?
+## 10.3 Collection::load() 持久化
+
 ```cpp
 std::unique_ptr<Collection> Collection::load(
     const std::string& name,
     const std::string& data_dir
 ) {
-    // 1. 浠?JSON 閰嶇疆鏂囦欢鎭㈠ CollectionConfig
-    // 2. 鍒涘缓 Collection 瀹炰緥 (鑷姩鍔犺浇 mmap 鏁版嵁)
-    // 3. 杩斿洖瀹炰緥 (HNSW 绱㈠紩闇€瑕侀噸鏂版瀯寤?
+    // 1. 从 JSON 配置文件恢复 CollectionConfig
+    // 2. 创建 Collection 实例 (自动加载 mmap 数据)
+    // 3. 返回实例 (HNSW 索引需要重新构建)
 
     CollectionConfig config;
     config.dim = 768;
-    // ... 瑙ｆ瀽 data_dir + name + ".cfg.json"
+    // ... 解析 data_dir + name + ".cfg.json"
 
     auto coll = std::make_unique<Collection>(config, data_dir + "/" + name);
     return coll;
 }
 ```
 
-> **娉ㄦ剰**: 褰撳墠 `load()` 杩斿洖鐨?Collection 涓嶅寘鍚?HNSW 绱㈠紩銆?> 鍚戦噺鏁版嵁 (mmap) 宸茶嚜鍔ㄥ姞杞斤紝浣嗘悳绱㈠姛鑳介渶瑕侀噸寤虹储寮曞悗鎵嶈兘浣跨敤銆?
+> **注意**: 当前 `load()` 返回的 Collection 不包含 HNSW 索引。
+> 向量数据 (mmap) 已自动加载，但搜索功能需要重建索引后才能使用。
+
 ---
 
-## 鎬濊€冮
+## 思考题
 
-1. `Collection::load()` 涓轰粈涔堜笉鑷姩閲嶅缓 HNSW 绱㈠紩锛熷鏋滆嚜鍔ㄩ噸寤猴紝搴旇鍦ㄤ粈涔堟椂鏈哄仛锛?2. 濡備綍璁?`/batch/search` 瀹炵幇鐪熸鐨勫苟琛屾悳绱?(澶氱嚎绋?锛?3. 濡傛灉 JSON 璇锋眰浣撳ぇ浜?64KB锛屽綋鍓嶇殑 HTTP Server 澶勭悊鏂瑰紡鏈変粈涔堥棶棰橈紵
+1. `Collection::load()` 为什么不自动重建 HNSW 索引？如果自动重建，应该在什么时机做？
+2. 如何让 `/batch/search` 实现真正的并行搜索 (多线程)？
+3. 如果 JSON 请求体大于 64KB，当前的 HTTP Server 处理方式有什么问题？
 
-## 鍔ㄦ墜缁冧範
+## 动手练习
 
-1. 缁?`/batch/search` 娣诲姞骞惰鐨?C++ 绾跨▼瀹炵幇
-2. 瀹炵幇 `Collection::load()` 鐨勭储寮曢噸寤?(閬嶅巻 mmap 閲嶆柊鎻掑叆 HNSW)
-3. 娣诲姞 `/save` 绔偣锛屾敮鎸侀€氳繃 API 瑙﹀彂鏁版嵁鎸佷箙鍖?
+1. 给 `/batch/search` 添加并行的 C++ 线程实现
+2. 实现 `Collection::load()` 的索引重建 (遍历 mmap 重新插入 HNSW)
+3. 添加 `/save` 端点，支持通过 API 触发数据持久化

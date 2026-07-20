@@ -1,5 +1,5 @@
-﻿"""
-AgenticDB Demo 鈥?showcases agent-powered natural language search.
+"""
+AgenticDB Demo — showcases agent-powered natural language search.
 """
 
 import asyncio

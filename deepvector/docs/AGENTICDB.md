@@ -1,6 +1,6 @@
-﻿# AgenticDB 鈥?Agent-Native Vector Database
+# AgenticDB — Agent-Native Vector Database
 
-> 璁╁悜閲忔暟鎹簱鑷繁浼氭€濊€?/ Making vector databases think for themselves.
+> 让向量数据库自己会思考 / Making vector databases think for themselves.
 
 AgenticDB extends [DeepVector](https://github.com/Thezx-a/DeepVector) from a passive vector store into an **agent-native database** that can understand natural language queries, autonomously plan multi-round retrieval strategies, and self-evaluate result quality.
 
@@ -12,7 +12,7 @@ AgenticDB extends [DeepVector](https://github.com/Thezx-a/DeepVector) from a pas
 
 ```mermaid
 flowchart TB
-    User["鐢ㄦ埛 / User<br/>'甯垜鎵?RAG 鐩稿叧鐨勮鏂?"]
+    User["用户 / User<br/>'帮我找 RAG 相关的论文'"]
     
     subgraph Agent ["Agent Server (Python, port 8090)"]
         API["HTTP API<br/>/query /ask /plan"]
@@ -20,22 +20,22 @@ flowchart TB
         Embed["Embedding Service<br/>Local | OpenAI"]
         
         subgraph Engine ["MultiRound Engine"]
-            Planner["QueryPlanner<br/>绛栫暐閫夋嫨"]
-            MR["MultiRound<br/>澶氳疆妫€绱?]
-            Eval["ResultEvaluator<br/>璐ㄩ噺璇勫垎"]
-            Reform["QueryReformulator<br/>鏌ヨ閲嶆瀯"]
-            Gen["AnswerGenerator<br/>绛旀鐢熸垚"]
+            Planner["QueryPlanner<br/>策略选择"]
+            MR["MultiRound<br/>多轮检索"]
+            Eval["ResultEvaluator<br/>质量评分"]
+            Reform["QueryReformulator<br/>查询重构"]
+            Gen["AnswerGenerator<br/>答案生成"]
         end
         
-        MCP["MCP Server<br/>Agent 妗嗘灦闆嗘垚"]
+        MCP["MCP Server<br/>Agent 框架集成"]
     end
     
     subgraph DeepVector ["DeepVector (C++, port 8080)"]
-        HNSW["HNSW Index<br/>杩戜技鏈€杩戦偦鎼滅储"]
-        MMAP["VectorStore<br/>mmap 闆舵嫹璐?]
-        MINIKV["DocumentStore<br/>MiniKV 鍏冩暟鎹?]
-        FILTER["Filter Engine<br/>AST 杩囨护鏍?]
-        QUANT["Quantization<br/>PQ / SQ 鍘嬬缉"]
+        HNSW["HNSW Index<br/>近似最近邻搜索"]
+        MMAP["VectorStore<br/>mmap 零拷贝"]
+        MINIKV["DocumentStore<br/>MiniKV 元数据"]
+        FILTER["Filter Engine<br/>AST 过滤树"]
+        QUANT["Quantization<br/>PQ / SQ 压缩"]
     end
     
     User --> API
@@ -87,7 +87,7 @@ sequenceDiagram
     L-->>MR: [12 docs, merged]
     
     MR->>EV: evaluate(question, results)
-    EV-->>MR: score=0.55 鉁?br/>"covers HNSW, missing IVF"
+    EV-->>MR: score=0.55 ✗<br/>"covers HNSW, missing IVF"
     
     Note over MR: Reformulate
     MR->>RF: reformulate(feedback)
@@ -99,7 +99,7 @@ sequenceDiagram
     L-->>MR: [+5 new docs]
     
     MR->>EV: evaluate(question, results)
-    EV-->>MR: score=0.82 鉁?br/>"sufficient coverage"
+    EV-->>MR: score=0.82 ✓<br/>"sufficient coverage"
     
     MR->>G: generate(question, docs)
     G-->>U: "HNSW achieves O(log n)..."
@@ -118,8 +118,8 @@ sequenceDiagram
 | **LLM Prompts** | `llm/prompts.py` | 4 system prompts: planning, evaluation, reformulation, answering |
 | **Embedding** | `embedding/service.py` | Text embedding: local sentence-transformers or OpenAI API |
 | **Strategy** | `engine/strategy.py` | 4 search strategies + RetrievalPlan data structures |
-| **Query Planner** | `engine/query_planner.py` | LLM-powered: question 鈫?strategy + plan |
-| **Multi-Round** | `engine/multi_round.py` | Core orchestration: plan 鈫?execute 鈫?evaluate 鈫?reformulate |
+| **Query Planner** | `engine/query_planner.py` | LLM-powered: question → strategy + plan |
+| **Multi-Round** | `engine/multi_round.py` | Core orchestration: plan → execute → evaluate → reformulate |
 | **Evaluator** | `engine/result_evaluator.py` | LLM-based quality assessment (relevance/coverage/sufficiency) |
 | **Reformulator** | `engine/query_reformulator.py` | Generate improved queries when results are insufficient |
 | **Agent Server** | `server/app.py` | FastAPI HTTP server: /query, /ask, /plan endpoints |
@@ -142,9 +142,9 @@ sequenceDiagram
 
 ```mermaid
 quadrantChart
-    title 绛栫暐閫夋嫨鐭╅樀 / Strategy Selection Matrix
-    x-axis "鏌ヨ绠€鍗?/ Simple Query" --> "鏌ヨ澶嶆潅 / Complex Query"
-    y-axis "鏃犺繃婊?/ No Filter" --> "鏈夎繃婊?/ With Filter"
+    title 策略选择矩阵 / Strategy Selection Matrix
+    x-axis "查询简单 / Simple Query" --> "查询复杂 / Complex Query"
+    y-axis "无过滤 / No Filter" --> "有过滤 / With Filter"
     quadrant-1 "FILTERED"
     quadrant-2 "HIERARCHICAL + FILTERED"
     quadrant-3 "DIRECT"
@@ -164,11 +164,21 @@ quadrantChart
 
 ```
 User: "What is RAG?"
-  鈹?  鈻?[QueryPlanner]  鈫? Strategy: DIRECT, Query: "RAG overview"
-  鈹?  鈻?[Embedder]  鈫? vector[384]
-  鈹?  鈻?[DeepVector /search]  鈫? top-10 results (distance: 0.12 ~ 0.45)
-  鈹?  鈻?[ResultEvaluator]  鈫? score: 0.85 鉁?(threshold 鈮?0.7 鈫?STOP)
-  鈹?  鈻?[AnswerGenerator]  鈫? "RAG is Retrieval-Augmented Generation..."
+  │
+  ▼
+[QueryPlanner]  →  Strategy: DIRECT, Query: "RAG overview"
+  │
+  ▼
+[Embedder]  →  vector[384]
+  │
+  ▼
+[DeepVector /search]  →  top-10 results (distance: 0.12 ~ 0.45)
+  │
+  ▼
+[ResultEvaluator]  →  score: 0.85 ✗ (threshold ≥ 0.7 → STOP)
+  │
+  ▼
+[AnswerGenerator]  →  "RAG is Retrieval-Augmented Generation..."
                                Total: ~3s, 1 round
 ```
 
@@ -176,18 +186,30 @@ User: "What is RAG?"
 
 ```
 User: "Compare HNSW and IVF for vector search"
-  鈹?  鈻?[QueryPlanner]  鈫? Strategy: MULTI_QUERY
-  鈹溾攢 Query 1: "HNSW architecture performance"
-  鈹斺攢 Query 2: "IVF inverted file index search"
-  鈹?  鈻?Round 1 (~4s)
-[MultiRoundEngine]  鈫? Execute both queries 鈫?12 docs merged
-  鈹?  鈻?[ResultEvaluator]  鈫? score: 0.55 鉁?(covers HNSW, missing IVF details)
-  鈹?  鈻?[QueryReformulator]  鈫? Query 3: "IVF vs HNSW comparison benchmarks"
-  鈹?  鈻?Round 2 (~3s)
-[MultiRoundEngine]  鈫? Execute query 3 鈫?+5 new docs (17 total)
-  鈹?  鈻?[ResultEvaluator]  鈫? score: 0.82 鉁?(threshold met)
-  鈹?  鈻?[AnswerGenerator]
-  鈫? "HNSW achieves O(log n) search time with higher memory cost.
+  │
+  ▼
+[QueryPlanner]  →  Strategy: MULTI_QUERY
+  ├─ Query 1: "HNSW architecture performance"
+  └─ Query 2: "IVF inverted file index search"
+  │
+  ▼ Round 1 (~4s)
+[MultiRoundEngine]  →  Execute both queries → 12 docs merged
+  │
+  ▼
+[ResultEvaluator]  →  score: 0.55 ✗ (covers HNSW, missing IVF details)
+  │
+  ▼
+[QueryReformulator]  →  Query 3: "IVF vs HNSW comparison benchmarks"
+  │
+  ▼ Round 2 (~3s)
+[MultiRoundEngine]  →  Execute query 3 → +5 new docs (17 total)
+  │
+  ▼
+[ResultEvaluator]  →  score: 0.82 ✓ (threshold met)
+  │
+  ▼
+[AnswerGenerator]
+  →  "HNSW achieves O(log n) search time with higher memory cost.
        IVF uses k-means clustering for partitioning, enabling
        faster index build at the expense of search accuracy..."
                                Total: ~7s, 2 rounds
@@ -198,7 +220,7 @@ User: "Compare HNSW and IVF for vector search"
 | Feature | OpenAI | Ollama |
 |---------|--------|--------|
 | **Default Model** | gpt-4o | qwen2.5:7b |
-| **Function Calling** | Native 鉁?| Experimental 鈿狅笍 |
+| **Function Calling** | Native ✅ | Experimental ⚠️ |
 | **Cost per query** | ~$0.01-0.03 | Free (local) |
 | **Latency** | 1-3s | 5-15s (CPU) |
 | **Requirements** | API Key + internet | 16GB RAM, ~5GB disk |
@@ -210,7 +232,7 @@ User: "Compare HNSW and IVF for vector search"
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/health` | GET | Server status + model info |
-| `/query` | POST | Full agent search: plan 鈫?multi-round 鈫?answer |
+| `/query` | POST | Full agent search: plan → multi-round → answer |
 | `/ask` | POST | Simple Q&A (same engine, simplified response) |
 | `/plan` | POST | Preview retrieval plan only (no execution) |
 
@@ -230,49 +252,49 @@ User: "Compare HNSW and IVF for vector search"
 
 ```
 DeepVector/
-鈹溾攢鈹€ agent/                    # Python Agent Layer (NEW)
-鈹?  鈹溾攢鈹€ __init__.py
-鈹?  鈹溾攢鈹€ config.py             # Configuration management
-鈹?  鈹溾攢鈹€ llm/                  # LLM integration
-鈹?  鈹?  鈹溾攢鈹€ router.py         # OpenAI/Ollama unified interface
-鈹?  鈹?  鈹溾攢鈹€ schemas.py        # Function calling schemas
-鈹?  鈹?  鈹斺攢鈹€ prompts.py        # System prompt templates
-鈹?  鈹溾攢鈹€ embedding/
-鈹?  鈹?  鈹斺攢鈹€ service.py        # Text embedding (local + OpenAI)
-鈹?  鈹溾攢鈹€ engine/               # Retrieval engine
-鈹?  鈹?  鈹溾攢鈹€ strategy.py       # Strategy definitions
-鈹?  鈹?  鈹溾攢鈹€ query_planner.py  # LLM-powered query planning
-鈹?  鈹?  鈹溾攢鈹€ multi_round.py    # Multi-round orchestration
-鈹?  鈹?  鈹溾攢鈹€ result_evaluator.py  # Quality assessment
-鈹?  鈹?  鈹斺攢鈹€ query_reformulator.py  # Query reformulation
-鈹?  鈹溾攢鈹€ server/               # HTTP server
-鈹?  鈹?  鈹溾攢鈹€ app.py            # FastAPI application
-鈹?  鈹?  鈹斺攢鈹€ routes.py         # Simple HTTP fallback
-鈹?  鈹斺攢鈹€ mcp/
-鈹?      鈹斺攢鈹€ server.py         # MCP protocol implementation
-鈹溾攢鈹€ src/                      # C++ DeepVector server
-鈹?  鈹溾攢鈹€ collection.cpp        # Core Collection API
-鈹?  鈹溾攢鈹€ filter.cpp            # Filter engine
-鈹?  鈹溾攢鈹€ index/                # HNSW index
-鈹?  鈹溾攢鈹€ quantize/             # PQ/SQ quantization
-鈹?  鈹溾攢鈹€ storage/              # mmap + MiniKV storage
-鈹?  鈹斺攢鈹€ server/               # HTTP server (enhanced)
-鈹溾攢鈹€ docs/                     # Documentation
-鈹?  鈹溾攢鈹€ AGENTICDB.md          # This file
-鈹?  鈹溾攢鈹€ OPERATIONS.md         # Operations manual
-鈹?  鈹溾攢鈹€ PRODUCTION_QA.md      # Interview Q&A
-鈹?  鈹斺攢鈹€ ...
-鈹溾攢鈹€ tests/agent/              # Agent unit tests (17 tests)
-鈹溾攢鈹€ examples/                 # Demo scripts
-鈹溾攢鈹€ scripts/                  # Utility scripts
-鈹斺攢鈹€ Dockerfile                # Multi-stage build
+├── agent/                    # Python Agent Layer (NEW)
+│   ├── __init__.py
+│   ├── config.py             # Configuration management
+│   ├── llm/                  # LLM integration
+│   │   ├── router.py         # OpenAI/Ollama unified interface
+│   │   ├── schemas.py        # Function calling schemas
+│   │   └── prompts.py        # System prompt templates
+│   ├── embedding/
+│   │   └── service.py        # Text embedding (local + OpenAI)
+│   ├── engine/               # Retrieval engine
+│   │   ├── strategy.py       # Strategy definitions
+│   │   ├── query_planner.py  # LLM-powered query planning
+│   │   ├── multi_round.py    # Multi-round orchestration
+│   │   ├── result_evaluator.py  # Quality assessment
+│   │   └── query_reformulator.py  # Query reformulation
+│   ├── server/               # HTTP server
+│   │   ├── app.py            # FastAPI application
+│   │   └── routes.py         # Simple HTTP fallback
+│   └── mcp/
+│       └── server.py         # MCP protocol implementation
+├── src/                      # C++ DeepVector server
+│   ├── collection.cpp        # Core Collection API
+│   ├── filter.cpp            # Filter engine
+│   ├── index/                # HNSW index
+│   ├── quantize/             # PQ/SQ quantization
+│   ├── storage/              # mmap + MiniKV storage
+│   └── server/               # HTTP server (enhanced)
+├── docs/                     # Documentation
+│   ├── AGENTICDB.md          # This file
+│   ├── OPERATIONS.md         # Operations manual
+│   ├── PRODUCTION_QA.md      # Interview Q&A
+│   └── ...
+├── tests/agent/              # Agent unit tests (17 tests)
+├── examples/                 # Demo scripts
+├── scripts/                  # Utility scripts
+└── Dockerfile                # Multi-stage build
 ```
 
 ## Quick Start
 
 ```bash
 # Terminal 1: Start DeepVector C++ server
-./build/server/lumendb_server --port 8080 --dim 384
+./build/server/deepvector_server --port 8080 --dim 384
 
 # Terminal 2: Start Python agent server
 python -m agent.server.app

@@ -1,21 +1,21 @@
-﻿version: "3.8"
+version: "3.8"
 
 services:
-  lumendb:
+  deepvector:
     build:
       context: .
       dockerfile: Dockerfile
-    image: lumendb:latest
-    container_name: lumendb
+    image: deepvector:latest
+    container_name: deepvector
     ports:
       - "8080:8080"
     volumes:
-      - lumendb_data:/var/lib/lumendb
-      - ./deepvector.json:/etc/lumendb/config.json:ro
+      - deepvector_data:/var/lib/deepvector
+      - ./deepvector.json:/etc/deepvector/config.json:ro
     environment:
       - DEEPVECTOR_LOG_LEVEL=info
       - DEEPVECTOR_MAX_MEMORY=2GB
-    command: ["--config", "/etc/lumendb/config.json"]
+    command: ["--config", "/etc/deepvector/config.json"]
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
@@ -44,7 +44,7 @@ services:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     depends_on:
-      lumendb:
+      deepvector:
         condition: service_healthy
 
   grafana:
@@ -59,6 +59,6 @@ services:
       - prometheus
 
 volumes:
-  lumendb_data:
+  deepvector_data:
   prometheus_data:
   grafana_data:

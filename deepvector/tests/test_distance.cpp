@@ -1,8 +1,8 @@
-﻿#include <gtest/gtest.h>
+#include <gtest/gtest.h>
 #include <cmath>
 #include <vector>
 #include <random>
-#include "dv/index/distance.h"
+#include "lumendb/index/distance.h"
 
 using namespace dv::index;
 

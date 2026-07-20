@@ -1,8 +1,8 @@
-﻿# Chapter 4: Zero-Copy Storage 鈥?Virtual Memory and mmap Persistence
+# Chapter 4: Zero-Copy Storage — Virtual Memory and mmap Persistence
 
 ## Prerequisites
 
-> 馃搸 **Reference**: [Build Environment Configuration](../prerequisites/01_鏋勫缓鐜閰嶇疆_en.md) 鈥?CMake build commands, compiler flags, and `CMAKE_BUILD_TYPE`
+> 📎 **Reference**: [Build Environment Configuration](../prerequisites/01_构建环境配置_en.md) — CMake build commands, compiler flags, and `CMAKE_BUILD_TYPE`
 
 ## Learning Objectives
 - Understand core virtual memory concepts: address space, pages, page tables, TLB, page faults
@@ -17,18 +17,18 @@
 
 ---
 
-## 4.0 The Starting Point: Reading a 1GB File 鈥?Why Must It Copy 1GB of Data?
+## 4.0 The Starting Point: Reading a 1GB File — Why Must It Copy 1GB of Data?
 
 When you study databases or any data-intensive program, a fundamental question repeatedly arises: **How do you get data from disk "to" the program for use?**
 
-The most intuitive approach is the `read()` system call (**syscall** 鈥?the formal interface by which a program requests the operating system kernel to perform operations, such as "help me read a file" or "help me allocate memory"). You call `read(fd, buf, size)`, and the OS moves the file contents from disk into the buffer you provided (a memory block you allocated with `malloc`).
+The most intuitive approach is the `read()` system call (**syscall** — the formal interface by which a program requests the operating system kernel to perform operations, such as "help me read a file" or "help me allocate memory"). You call `read(fd, buf, size)`, and the OS moves the file contents from disk into the buffer you provided (a memory block you allocated with `malloc`).
 
 But this raises a critical problem: **the data is copied twice**.
 
 ```
-First copy: Disk 鈫?OS kernel's "page cache" (a file data copy that the OS
+First copy: Disk → OS kernel's "page cache" (a file data copy that the OS
             automatically maintains in RAM, transparent to the program)
-Second copy: Page cache 鈫?your buf (user-space buffer)
+Second copy: Page cache → your buf (user-space buffer)
 ```
 
 If your database file is 1GB, then `read()` must move 1GB of data twice in memory. On DDR4-3200 memory (theoretical bandwidth ~25 GB/s), this wastes ~80ms of pure copy time and additionally consumes 1GB of physical memory (because both the page cache and your buf each hold a copy).
@@ -43,19 +43,30 @@ If your database file is 1GB, then `read()` must move 1GB of data twice in memor
 
 Before the 1970s, computer programs directly used **physical memory addresses** (real storage location numbers on RAM chips). The `0x0000A000` in `LOAD R1, [0x0000A000]` was a real location on the RAM chip. This design was simple but caused three serious problems:
 
-**Problem 1: No process isolation.** A **process** (a running program instance in the OS, with its own isolated memory space and resources) writes to address `0x00100000`, and process B also reads that address 鈥?B can peek at A's data. There is no hardware-level "my memory, you can't touch it" mechanism. It's like all tenants sharing a single room with zero privacy.
+**Problem 1: No process isolation.** A **process** (a running program instance in the OS, with its own isolated memory space and resources) writes to address `0x00100000`, and process B also reads that address — B can peek at A's data. There is no hardware-level "my memory, you can't touch it" mechanism. It's like all tenants sharing a single room with zero privacy.
 
-**Problem 2: External fragmentation.** **Fragmentation** (the free space between allocated memory blocks becomes too small to satisfy new allocation requests). Suppose you have 4GB of physical RAM. Process A requests 2GB, B requests 1GB, C requests 1.5GB. A takes addresses 0鈥?GB, B takes 2GB鈥?GB, C takes 3GB鈥?GB (not enough for 1.5GB!). But 1GB of physical memory remains 鈥?it's just fragmented by the already-allocated blocks, with no contiguous 1.5GB region available. It's like a parking lot full of small cars 鈥?the total space is enough, but a bus can't fit.
+**Problem 2: External fragmentation.** **Fragmentation** (the free space between allocated memory blocks becomes too small to satisfy new allocation requests). Suppose you have 4GB of physical RAM. Process A requests 2GB, B requests 1GB, C requests 1.5GB. A takes addresses 0–2GB, B takes 2GB–3GB, C takes 3GB–4GB (not enough for 1.5GB!). But 1GB of physical memory remains — it's just fragmented by the already-allocated blocks, with no contiguous 1.5GB region available. It's like a parking lot full of small cars — the total space is enough, but a bus can't fit.
 
-**Problem 3: No "lazy loading."** A process asks the OS for 1GB of memory, but 99% of that 1GB may never actually be read or written. In the direct-memory model, the OS must still immediately allocate 1GB of physical memory 鈥?because you never said "which parts I won't use."
+**Problem 3: No "lazy loading."** A process asks the OS for 1GB of memory, but 99% of that 1GB may never actually be read or written. In the direct-memory model, the OS must still immediately allocate 1GB of physical memory — because you never said "which parts I won't use."
 
 ### 4.1.2 The Virtual Memory Solution
 
-**Virtual Memory** is a hardware + OS collaborative mechanism introduced in the 1970s. It creates an "illusion" for each process 鈥?an independent, zero-based, enormous (2^64 bytes = 16 EB on 64-bit systems) **virtual address space** (the logical address range the process "sees," maintained jointly by the OS and CPU hardware, not directly corresponding to physical RAM). The process allocates memory freely within this virtual space, and the OS and CPU's **MMU** (Memory Management Unit 鈥?a hardware component on the CPU chip responsible for real-time translation of virtual addresses to physical addresses) translate virtual addresses to physical addresses behind the scenes.
+**Virtual Memory** is a hardware + OS collaborative mechanism introduced in the 1970s. It creates an "illusion" for each process — an independent, zero-based, enormous (2^64 bytes = 16 EB on 64-bit systems) **virtual address space** (the logical address range the process "sees," maintained jointly by the OS and CPU hardware, not directly corresponding to physical RAM). The process allocates memory freely within this virtual space, and the OS and CPU's **MMU** (Memory Management Unit — a hardware component on the CPU chip responsible for real-time translation of virtual addresses to physical addresses) translate virtual addresses to physical addresses behind the scenes.
 
 ```
 What your program sees:          Reality managed by OS and MMU:
-鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?   鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?鈹? 0x00007F0000000000 鈹?   鈹? 0x0000_0001_0000   鈹?鈹? 0x00007F0000001000 鈹?   鈹? (Page Frame 16)    鈹?鈹? 0x00007F0000002000 鈹?   鈹溾攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?鈹? ...                鈹?   鈹? 0x0000_0005_A000   鈹?鈹? 0x00007FFFFFF00000 鈹?   鈹? (Page Frame 90)    鈹?鈹? (Contiguous virtual addresses) 鈹?   鈹溾攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?鈹?                    鈹?   鈹? ...                鈹?鈹?                    鈹?   鈹? (Scattered physical pages) 鈹?鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?   鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?         鈫?                         鈫?    Virtual Address Space          Physical RAM (actual chip)
+┌─────────────────────┐    ┌─────────────────────┐
+│  0x00007F0000000000 │    │  0x0000_0001_0000   │
+│  0x00007F0000001000 │    │  (Page Frame 16)    │
+│  0x00007F0000002000 │    ├─────────────────────┤
+│  ...                │    │  0x0000_0005_A000   │
+│  0x00007FFFFFF00000 │    │  (Page Frame 90)    │
+│  (Contiguous virtual addresses) │    ├─────────────────────┤
+│                     │    │  ...                │
+│                     │    │  (Scattered physical pages) │
+└─────────────────────┘    └─────────────────────┘
+         ↑                          ↑
+    Virtual Address Space          Physical RAM (actual chip)
 ```
 
 **Key Insight**: The "contiguity" of virtual address space is completely decoupled from the "discontiguity" of physical RAM. Process B can "believe" its memory is one contiguous block, while in reality it's scattered across various locations in RAM. The OS memory manager only needs to maintain a translation table.
@@ -70,14 +81,14 @@ A **page** is the smallest management unit in the virtual memory system. Just as
 |---|---|---|
 | x86-64 (4-level paging) | 4 KB (4096 bytes) | 2 MB or 1 GB |
 | ARM64 | 4 KB, 16 KB, or 64 KB | Depends on configuration |
-| Apple M-series | 16 KB | 鈥?|
+| Apple M-series | 16 KB | — |
 
 Why 4KB? This is a historical compromise:
-- **Too small (e.g., 512B)**: Page table entries explode 鈥?recording 4GB of memory requires 8 million entries, and the page table itself would occupy ~64MB
-- **Too large (e.g., 64KB)**: Internal fragmentation (the allocated space is larger than what you actually need, and the excess cannot be used by others) is severe. Allocating 1 byte would still consume an entire 64KB page 鈥?the remaining 65,535 bytes cannot be used for other purposes
+- **Too small (e.g., 512B)**: Page table entries explode — recording 4GB of memory requires 8 million entries, and the page table itself would occupy ~64MB
+- **Too large (e.g., 64KB)**: Internal fragmentation (the allocated space is larger than what you actually need, and the excess cannot be used by others) is severe. Allocating 1 byte would still consume an entire 64KB page — the remaining 65,535 bytes cannot be used for other purposes
 - **4KB**: Page table size is acceptable (4GB / 4KB = 1 million pages, page table ~8MB), and internal fragmentation wastes at most 4KB - 1 byte (acceptable)
 
-**Analogy**: A page is like a page in a library book 鈥?you can't borrow just a corner of a page; you must borrow and return entire pages. When the OS "swaps" data between physical memory and disk, it does so in page-sized units.
+**Analogy**: A page is like a page in a library book — you can't borrow just a corner of a page; you must borrow and return entire pages. When the OS "swaps" data between physical memory and disk, it does so in page-sized units.
 
 ### 4.1.4 Page Table: The Dictionary from Virtual to Physical Address
 
@@ -86,19 +97,25 @@ A **Page Table** is essentially a hierarchical data structure (similar to a 4- o
 ```
 Translation process for virtual address 0x00007F00_12345678 (x86-64 4-level paging):
 
-鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?鈹?PML4 index   鈹?PDP index鈹?PD index 鈹?PT index 鈹?Page offset  鈹?鈹?(bits 47:39) 鈹?(38:30)  鈹?(29:21)  鈹?(20:12)  鈹?(11:0)       鈹?鈹?  9 bits     鈹? 9 bits  鈹? 9 bits  鈹? 9 bits  鈹?  12 bits    鈹?鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹攢鈹€鈹€鈹€鈹€鈹€鈹€鈹粹攢鈹€鈹€鈹€鈹攢鈹€鈹€鈹€鈹€鈹粹攢鈹€鈹€鈹€鈹攢鈹€鈹€鈹€鈹€鈹粹攢鈹€鈹€鈹€鈹攢鈹€鈹€鈹€鈹€鈹粹攢鈹€鈹€鈹€鈹€鈹€鈹攢鈹€鈹€鈹€鈹€鈹€鈹€鈹?       鈹?           鈹?         鈹?         鈹?           鈹?   Look up 1st level  Look up 2nd level  Look up 3rd level  Look up 4th level   Page offset (0-4095)
+┌──────────────┬──────────┬──────────┬──────────┬──────────────┐
+│ PML4 index   │ PDP index│ PD index │ PT index │ Page offset  │
+│ (bits 47:39) │ (38:30)  │ (29:21)  │ (20:12)  │ (11:0)       │
+│   9 bits     │  9 bits  │  9 bits  │  9 bits  │   12 bits    │
+└──────┬───────┴────┬─────┴────┬─────┴────┬─────┴──────┬───────┘
+       │            │          │          │            │
+   Look up 1st level  Look up 2nd level  Look up 3rd level  Look up 4th level   Page offset (0-4095)
    (PML4)       (PDP)     (PD)      (PT)        Used directly, no translation needed
 ```
 
 **Translation process (done automatically by hardware)**:
 1. CPU reads the physical base address of PML4 (1st-level page table) from the CR3 register
-2. Uses the PML4 index (bits 39鈥?7) to look up PML4 entry 鈫?gets the physical address of the 2nd-level page table
-3. Uses the PDP index (bits 30鈥?8) to look up level 2 鈫?gets the address of level 3
-4. Uses the PD index (bits 21鈥?9) to look up level 3 鈫?gets the address of level 4 (the Page Table itself)
-5. Uses the PT index (bits 12鈥?0) to look up level 4 鈫?gets the final physical page frame number
-6. Physical address = (page frame number << 12) + page offset (bits 0鈥?1)
+2. Uses the PML4 index (bits 39–47) to look up PML4 entry → gets the physical address of the 2nd-level page table
+3. Uses the PDP index (bits 30–38) to look up level 2 → gets the address of level 3
+4. Uses the PD index (bits 21–29) to look up level 3 → gets the address of level 4 (the Page Table itself)
+5. Uses the PT index (bits 12–20) to look up level 4 → gets the final physical page frame number
+6. Physical address = (page frame number << 12) + page offset (bits 0–11)
 
-The entire translation requires at most 4 additional memory accesses 鈥?if this were done every time, performance would degrade to unacceptable levels. This is why TLB exists.
+The entire translation requires at most 4 additional memory accesses — if this were done every time, performance would degrade to unacceptable levels. This is why TLB exists.
 
 **Key fields in a Page Table Entry (PTE)**:
 
@@ -106,10 +123,10 @@ The entire translation requires at most 4 additional memory accesses 鈥?if this
 Typical fields of a 64-bit PTE (x86-64):
 
 [Physical Page Frame Number (40 bits)] [Permissions] [Global] [Dirty] [Accessed] [Present] [...Present (bit 0):       1 = This page is in physical RAM, accessible normally
-                                  0 = This page is not in RAM 鈫?triggers a page fault
+                                  0 = This page is not in RAM → triggers a page fault
 
   Read/Write (bit 1):    1 = Readable and writable
-                                  0 = Read-only 鈫?writes trigger a protection fault
+                                  0 = Read-only → writes trigger a protection fault
 
   Dirty (bit 6):           1 = This page's contents have been modified (inconsistent with disk copy)
                                   0 = Not modified (clean page, no need to write back to disk when swapped out)
@@ -125,7 +142,7 @@ Typical fields of a 64-bit PTE (x86-64):
 
 ### 4.1.5 TLB: Translation Cache Inside the CPU
 
-**TLB** (Translation Lookaside Buffer) is a hardware cache inside the MMU that caches recently used virtual鈫抪hysical address translation results. Without TLB, every memory access would require a 4-level page table walk (as described above), meaning "reading a single byte" would actually require 5 memory accesses 鈥?a performance disaster.
+**TLB** (Translation Lookaside Buffer) is a hardware cache inside the MMU that caches recently used virtual→physical address translation results. Without TLB, every memory access would require a 4-level page table walk (as described above), meaning "reading a single byte" would actually require 5 memory accesses — a performance disaster.
 
 ```
 Real-world access latency data (approximate):
@@ -137,9 +154,9 @@ Real-world access latency data (approximate):
   In other words, each TLB miss costs the equivalent of 200-500 CPU cycles of idle waiting.
 ```
 
-TLB capacity is very limited (typically only 64鈥?56 entries), which is why "reducing memory footprint" directly improves performance 鈥?a smaller data set means more translated pages can simultaneously remain in the TLB.
+TLB capacity is very limited (typically only 64–256 entries), which is why "reducing memory footprint" directly improves performance — a smaller data set means more translated pages can simultaneously remain in the TLB.
 
-> **TLB Hit Rate**: Because programs exhibit **spatial locality** (if you accessed address X, you'll likely access X+1, X+2 soon 鈥?e.g., sequential array scanning) and **temporal locality** (if you recently used address Y, you may use it again soon 鈥?e.g., loop variables), most programs achieve TLB hit rates above 99%. Reducing a data set's memory footprint allows more page translations to stay in the TLB simultaneously 鈥?this is one of mmap's memory efficiency advantages.
+> **TLB Hit Rate**: Because programs exhibit **spatial locality** (if you accessed address X, you'll likely access X+1, X+2 soon — e.g., sequential array scanning) and **temporal locality** (if you recently used address Y, you may use it again soon — e.g., loop variables), most programs achieve TLB hit rates above 99%. Reducing a data set's memory footprint allows more page translations to stay in the TLB simultaneously — this is one of mmap's memory efficiency advantages.
 
 ### 4.1.6 Page Fault: What Happens When RAM Isn't Enough
 
@@ -176,14 +193,14 @@ flowchart TD
 ```
 Complete page fault handling process (using an mmap file as an example):
 
-1. Your program executes:  float x = data[5000];    鈫?Reading/writing mmap-mapped memory
+1. Your program executes:  float x = data[5000];    ← Reading/writing mmap-mapped memory
 2. CPU issues virtual address:  0x00007F000000_5000
     
 3. MMU checks TLB:
-   鈫?TLB miss
-   鈫?Walk page table (4 levels)
-   鈫?PT entry present bit = 0
-   鈫?Trigger page fault (int 14 / #PF)
+   → TLB miss
+   → Walk page table (4 levels)
+   → PT entry present bit = 0
+   → Trigger page fault (int 14 / #PF)
 
 4. CPU switches to kernel mode, jumps to page fault handler
 
@@ -200,18 +217,18 @@ Complete page fault handling process (using an mmap file as an example):
      d. Return to user mode, CPU re-executes the instruction that caused the page fault
 
    - If invalid (address was never allocated or mapped):
-     Send SIGSEGV signal 鈫?your program sees "Segmentation fault" 鈫?crashes
+     Send SIGSEGV signal → your program sees "Segmentation fault" → crashes
 ```
 
 **Performance difference between the two types of page faults**:
 
 | Type | Condition | Latency | Frequency |
 |---|---|---|---|
-| Minor (minor page fault) | Page is already in physical RAM (e.g., a shared library was already loaded by another process), but the current process's page table doesn't have the mapping. Only a page table update is needed. | ~1鈥?0 碌s | Common, normal operation |
-| Major (major page fault) | Page must be read from disk. Requires physical disk I/O. | ~5鈥?0 ms (SSD) / ~10鈥?0 ms (HDD) | Occurs heavily on first access to mmap file |
+| Minor (minor page fault) | Page is already in physical RAM (e.g., a shared library was already loaded by another process), but the current process's page table doesn't have the mapping. Only a page table update is needed. | ~1–10 µs | Common, normal operation |
+| Major (major page fault) | Page must be read from disk. Requires physical disk I/O. | ~5–20 ms (SSD) / ~10–50 ms (HDD) | Occurs heavily on first access to mmap file |
 | Invalid (illegal) | Access to unmapped address, e.g., `*(int*)nullptr`. | Process termination | Always a bug |
 
-> **Analogy**: A minor page fault is like borrowing a book from the library that **someone else is already reading in the building** 鈥?the librarian just needs to update the checkout record with your name. A major page fault is like **retrieving a book from the warehouse** 鈥?someone must find it among hundreds of thousands of books and deliver it to the reading room, taking thousands of times longer. This is why mmap's "lazy loading" cost is in the latency of the first access, while subsequent accesses have nearly zero overhead.
+> **Analogy**: A minor page fault is like borrowing a book from the library that **someone else is already reading in the building** — the librarian just needs to update the checkout record with your name. A major page fault is like **retrieving a book from the warehouse** — someone must find it among hundreds of thousands of books and deliver it to the reading room, taking thousands of times longer. This is why mmap's "lazy loading" cost is in the latency of the first access, while subsequent accesses have nearly zero overhead.
 
 ---
 
@@ -219,9 +236,9 @@ Complete page fault handling process (using an mmap file as an example):
 
 ### 4.2.1 What Is mmap?
 
-**mmap** (memory map) is a POSIX system call used to create a **memory-mapped region** in a process's virtual address space. This region can be accessed directly through pointers, with the underlying data automatically managed by the kernel 鈥?it may reside in physical RAM or on a disk file (loaded on demand by page faults).
+**mmap** (memory map) is a POSIX system call used to create a **memory-mapped region** in a process's virtual address space. This region can be accessed directly through pointers, with the underlying data automatically managed by the kernel — it may reside in physical RAM or on a disk file (loaded on demand by page faults).
 
-**Analogy**: Imagine you're in a library. The traditional `read()` is like photocopying an entire book and taking it home. mmap is like the library giving you a "seat card" 鈥?you can sit at a desk and read the original book directly, no photocopying needed. If the book is too thick, the library only places the few pages you need on the desk (on-demand loading), and when you've read past some pages, they can be taken away.
+**Analogy**: Imagine you're in a library. The traditional `read()` is like photocopying an entire book and taking it home. mmap is like the library giving you a "seat card" — you can sit at a desk and read the original book directly, no photocopying needed. If the book is too thick, the library only places the few pages you need on the desk (on-demand loading), and when you've read past some pages, they can be taken away.
 
 From the Linux man page, the signature:
 ```c
@@ -233,7 +250,7 @@ void* mmap(void* addr, size_t length, int prot, int flags,
 
 | Parameter | Meaning | Typical Value |
 |---|---|---|
-| `addr` | Suggested starting virtual address for the mapping | `NULL` (let the kernel choose 鈥?almost always the correct approach) |
+| `addr` | Suggested starting virtual address for the mapping | `NULL` (let the kernel choose — almost always the correct approach) |
 | `length` | Mapping size (in bytes) | Rounded up to a multiple of the page size |
 | `prot` | **Protection flags** (control access permissions for the mapped region) | `PROT_READ` (read-only), `PROT_WRITE` (write-only), `PROT_EXEC` (executable), combinable (`PROT_READ\|PROT_WRITE`) |
 | `flags` | Mapping type flags | See below: MAP_SHARED / MAP_PRIVATE |
@@ -270,7 +287,7 @@ sequenceDiagram
     end
 ```
 
-### 4.2.2 Why Is It Called "Zero-Copy"? 鈥?mmap vs read()
+### 4.2.2 Why Is It Called "Zero-Copy"? — mmap vs read()
 
 Understanding mmap's advantages requires first understanding the traditional `read()` data path.
 
@@ -282,12 +299,12 @@ Application code:
 
 What happens inside the kernel:
   Disk (SSD/HDD)
-      鈫?DMA (Direct Memory Access: peripherals write data directly to RAM without CPU involvement)
-  Kernel page cache  鈫?First data landing (associated with the file system)
-      鈫?memcpy executed by CPU (copy_to_user)
-  buf (user-space malloc buffer)  鈫?Second data landing
+      ↓ DMA (Direct Memory Access: peripherals write data directly to RAM without CPU involvement)
+  Kernel page cache  ← First data landing (associated with the file system)
+      ↓ memcpy executed by CPU (copy_to_user)
+  buf (user-space malloc buffer)  ← Second data landing
 
-  Data path: Disk 鈫?Page cache 鈫?User buffer (2 copies, 1 CPU involvement)
+  Data path: Disk → Page cache → User buffer (2 copies, 1 CPU involvement)
 ```
 
 **mmap data path (one copy, zero CPU copies)**:
@@ -298,18 +315,18 @@ Application code:
 
 What happens inside the kernel:
   Disk (SSD/HDD)
-      鈫?DMA
+      ↓ DMA
   Kernel page cache
-      鈫?Same physical page frame
+      ↑ Same physical page frame
   User virtual address space (mapped to the same physical page via page tables)
 
-  Data path: Disk 鈫?Page cache 鈫愨啋 User address space (1 copy, 0 CPU copies)
+  Data path: Disk → Page cache ←→ User address space (1 copy, 0 CPU copies)
   The data the user sees and the data in the page cache are the same block of physical memory.
 ```
 
-**"Zero-copy" (zero-copy)** is a somewhat exaggerated term 鈥?data still needs to be read from disk to RAM (there is a copy), but it **eliminates the second copy from kernel buffer to user buffer**. For a 3GB vector database file, eliminating one 3GB memcpy means:
+**"Zero-copy" (zero-copy)** is a somewhat exaggerated term — data still needs to be read from disk to RAM (there is a copy), but it **eliminates the second copy from kernel buffer to user buffer**. For a 3GB vector database file, eliminating one 3GB memcpy means:
 - Saving 3GB of memory bandwidth (DDR4-3200 bandwidth is precious)
-- Not wasting physical memory (no need for two copies to exist simultaneously 鈥?page cache and user buffer)
+- Not wasting physical memory (no need for two copies to exist simultaneously — page cache and user buffer)
 - Reducing CPU overhead (memcpy itself consists of CPU instructions that consume compute resources)
 
 ### 4.2.3 Real-World Performance Comparison: mmap vs read()
@@ -325,7 +342,7 @@ What happens inside the kernel:
 
 ### 4.2.4 What Is the "OS Page Cache"?
 
-The **OS Page Cache** is a cache maintained by the Linux kernel in physical RAM, associated with disk files. It's a transparent mechanism 鈥?you don't need to be aware of its existence, yet it has a massive impact on program performance.
+The **OS Page Cache** is a cache maintained by the Linux kernel in physical RAM, associated with disk files. It's a transparent mechanism — you don't need to be aware of its existence, yet it has a massive impact on program performance.
 
 ```
 Core properties of the page cache:
@@ -339,13 +356,13 @@ Core properties of the page cache:
    The kernel's pdflush/flush threads periodically (default within 30 seconds) write dirty pages back to disk
 
 4. Globally shared: If the same file is mmap'd by two processes, they share the same page cache
-   鈥?meaning both processes can see each other's writes (as long as MAP_SHARED is used)
+   — meaning both processes can see each other's writes (as long as MAP_SHARED is used)
 
 5. Reclamation: When free physical memory is insufficient, the kernel reclaims "clean" page cache pages
    from the LRU list. "Dirty" pages must be written back to disk before they can be reclaimed.
 ```
 
-The page cache size nearly fills all free physical RAM. Linux reports the current available memory for new allocations in `MemAvailable` (`/proc/meminfo`). If you have 32GB RAM and only 4GB of processes are running, the "free" 28GB is almost entirely occupied by the page cache 鈥?this is not waste; it's free performance: if certain file data is already in the page cache, subsequent access goes from disk speed to memory speed.
+The page cache size nearly fills all free physical RAM. Linux reports the current available memory for new allocations in `MemAvailable` (`/proc/meminfo`). If you have 32GB RAM and only 4GB of processes are running, the "free" 28GB is almost entirely occupied by the page cache — this is not waste; it's free performance: if certain file data is already in the page cache, subsequent access goes from disk speed to memory speed.
 
 **Cache friendliness and sequential access patterns**:
 
@@ -354,7 +371,7 @@ CPU caches (L1/L2/L3) and the page cache all operate on **cache lines** (the sma
 - The readahead mechanism preloads subsequent cache lines, allowing disk I/O and computation to overlap
 - Page translations cached in the TLB can cover a larger address range (each page 4KB = 64 cache lines)
 
-This is why database systems typically prefer **sequential I/O** 鈥?it can leverage all three cache layers: L1/L2 cache, TLB, and page cache. Random I/O invalidates all three cache layers, causing performance to plummet.
+This is why database systems typically prefer **sequential I/O** — it can leverage all three cache layers: L1/L2 cache, TLB, and page cache. Random I/O invalidates all three cache layers, causing performance to plummet.
 
 
 ### OS Memory Usage Patterns
@@ -373,17 +390,40 @@ This is the most important parameter choice in mmap, affecting write behavior.
 
 ```
 MAP_SHARED (Shared Mapping):
-  鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?  鈹?Writes directly affect pages in the page cache      鈹?  鈹?Dirty pages are eventually written back to disk                鈹?  鈹?Other processes mmap'ing the same file see the writes   鈹?  鈹?This is the most commonly used mode for persistent storage       鈹?  鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?
+  ┌─────────────────────────────────┐
+  │ Writes directly affect pages in the page cache      │
+  │ Dirty pages are eventually written back to disk                │
+  │ Other processes mmap'ing the same file see the writes   │
+  │ This is the most commonly used mode for persistent storage       │
+  └─────────────────────────────────┘
+
 MAP_PRIVATE (Private Mapping):
-  鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?  鈹?Reads: Same as SHARED, fetched from page cache 鈹?  鈹?Writes: Trigger Copy-on-Write (COW)          鈹?  鈹?  鈫?Kernel allocates a new physical page frame      鈹?  鈹?  鈫?Copies original page contents to the new frame    鈹?  鈹?  鈫?Updated page table points to the new frame          鈹?  鈹?  鈫?User's write goes into the new frame          鈹?  鈹?Original file unchanged, other processes don't see writes   鈹?  鈹?Suitable for: loading read-only data with occasional local modifications   鈹?  鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?
+  ┌─────────────────────────────────┐
+  │ Reads: Same as SHARED, fetched from page cache │
+  │ Writes: Trigger Copy-on-Write (COW)          │
+  │   → Kernel allocates a new physical page frame      │
+  │   → Copies original page contents to the new frame    │
+  │   → Updated page table points to the new frame          │
+  │   → User's write goes into the new frame          │
+  │ Original file unchanged, other processes don't see writes   │
+  │ Suitable for: loading read-only data with occasional local modifications   │
+  └─────────────────────────────────┘
+
 MAP_ANONYMOUS (Anonymous Mapping):
-  鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?  鈹?Not associated with any file                 鈹?  鈹?Pass -1 for fd parameter                     鈹?  鈹?Equivalent to the underlying implementation of malloc          鈹?  鈹?Initial contents are zero (zero pages)              鈹?  鈹?Used for: allocating large shared memory blocks, heap expansion    鈹?  鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?```
+  ┌─────────────────────────────────┐
+  │ Not associated with any file                 │
+  │ Pass -1 for fd parameter                     │
+  │ Equivalent to the underlying implementation of malloc          │
+  │ Initial contents are zero (zero pages)              │
+  │ Used for: allocating large shared memory blocks, heap expansion    │
+  └─────────────────────────────────┘
+```
 
 ### 4.2.6 Copy-on-Write (CoW)
 
-**Copy-on-Write (CoW)** is the key technology behind MAP_PRIVATE. It's also the foundation of the `fork()` system call 鈥?when a parent process forks a child process, the child's page tables point to the same physical pages as the parent, but all these pages are marked read-only. Only when either parent or child process first writes to a page does the kernel actually copy that page (allocate a new physical page frame + copy data + update the page table + mark as writable).
+**Copy-on-Write (CoW)** is the key technology behind MAP_PRIVATE. It's also the foundation of the `fork()` system call — when a parent process forks a child process, the child's page tables point to the same physical pages as the parent, but all these pages are marked read-only. Only when either parent or child process first writes to a page does the kernel actually copy that page (allocate a new physical page frame + copy data + update the page table + mark as writable).
 
-**The beauty of CoW**: Most `fork()` calls are immediately followed by `exec()` (replacing the process image), so the forked page data is discarded within microseconds. CoW avoids copying this large amount of useless data 鈥?only copying pages that "were actually modified."
+**The beauty of CoW**: Most `fork()` calls are immediately followed by `exec()` (replacing the process image), so the forked page data is discarded within microseconds. CoW avoids copying this large amount of useless data — only copying pages that "were actually modified."
 
 In the context of mmap MAP_PRIVATE, CoW means: if you only need to read a 1GB file and modify a few kilobytes, CoW saves you 999+ MB of physical memory and the time for memory copies.
 
@@ -393,11 +433,11 @@ In the context of mmap MAP_PRIVATE, CoW means: if you only need to read a 1GB fi
 
 ### 4.3.1 Writes Don't Immediately Reach Disk
 
-When you execute `ptr[i] = 42.0f` on mmap-mapped memory, the write enters the page cache page in RAM. The CPU marks the page as "dirty" (modifying the PTE/Dirty bit), and then the write instruction completes 鈥?this is typically a sub-microsecond operation.
+When you execute `ptr[i] = 42.0f` on mmap-mapped memory, the write enters the page cache page in RAM. The CPU marks the page as "dirty" (modifying the PTE/Dirty bit), and then the write instruction completes — this is typically a sub-microsecond operation.
 
 The actual disk write occurs in one of the following cases:
 1. **pdflush/flush kernel thread**: Periodically (`dirty_writeback_centisecs`, default 500, i.e., 5 seconds) scans dirty pages
-2. **Dirty page ratio exceeds threshold**: `dirty_background_ratio` (default 10%) 鈥?background writeback; `dirty_ratio` (default 20%) 鈥?blocks writes until dirty pages drop below the threshold
+2. **Dirty page ratio exceeds threshold**: `dirty_background_ratio` (default 10%) — background writeback; `dirty_ratio` (default 20%) — blocks writes until dirty pages drop below the threshold
 3. **Explicitly calling msync**: User program requests immediate writeback
 4. **Calling munmap + close**: Triggers final writeback when unmapping (but not absolutely guaranteed!)
 
@@ -407,11 +447,11 @@ The actual disk write occurs in one of the following cases:
 int msync(void* addr, size_t length, int flags);
 
 // flags:
-//   MS_ASYNC      鈥?Initiates a writeback request, returns immediately (does not guarantee data has been persisted)
+//   MS_ASYNC      — Initiates a writeback request, returns immediately (does not guarantee data has been persisted)
 //                    Equivalent to telling the kernel "write this data back when you have time"
-//   MS_SYNC       鈥?Blocks until dirty pages are written back to the storage device
+//   MS_SYNC       — Blocks until dirty pages are written back to the storage device
 //                    Equivalent to telling the kernel "I must know the data is on disk, I won't proceed otherwise"
-//   MS_INVALIDATE 鈥?Invalidates the cache of the current mapping, forcing the next access to reload from disk
+//   MS_INVALIDATE — Invalidates the cache of the current mapping, forcing the next access to reload from disk
 //                    Used for synchronization with other processes
 ```
 
@@ -436,7 +476,7 @@ These three concepts are easy to confuse, but their values may differ:
 | **Filesystem block** | 4 KB (ext4 default, configurable at mkfs time) | Smallest unit for filesystem space allocation. A small file still occupies an entire 4 KB block. |
 | **Memory page** | 4 KB (x86-64 standard page) | Smallest unit for MMU virtual memory management. The mmap offset parameter must be aligned to the page size. |
 
-These three are typically the same (4 KB), but they don't have to be. What matters is: when mmap maps, the filesystem and virtual memory system synchronize data at page granularity 鈥?one page fault loads 4KB of data from the corresponding offset in the file.
+These three are typically the same (4 KB), but they don't have to be. What matters is: when mmap maps, the filesystem and virtual memory system synchronize data at page granularity — one page fault loads 4KB of data from the corresponding offset in the file.
 
 ---
 
@@ -446,7 +486,7 @@ These three are typically the same (4 KB), but they don't have to be. What matte
 
 A good file format needs to satisfy:
 
-1. **Self-describing**: The first few bytes of the file contain a **magic number** (special bytes at the start of a file used to identify its file type 鈥?e.g., PDF starts with `%PDF`, PNG starts with `0x89504E47`) and a version number. When a program opens the file, it first validates these two fields 鈥?if the magic number is wrong, the file is corrupted or not a DeepVector file; if the version is incompatible, it can give a clear error message instead of crashing.
+1. **Self-describing**: The first few bytes of the file contain a **magic number** (special bytes at the start of a file used to identify its file type — e.g., PDF starts with `%PDF`, PNG starts with `0x89504E47`) and a version number. When a program opens the file, it first validates these two fields — if the magic number is wrong, the file is corrupted or not a DeepVector file; if the version is incompatible, it can give a clear error message instead of crashing.
 
 2. **Extensible**: Reserve blank fields in the header, allowing future versions to append information without breaking the layout of older structures. If you pack all fields tightly, adding a new field would require rewriting the entire file format.
 
@@ -478,18 +518,18 @@ Offset 0
 |                     |
 +=====================+  Offset 128
 |                     |
-| Index Graph (variable length)   |  Adjacency list [node_id(4B)][neighbor_count(4B)][neighbor_ids 脳 4B]
+| Index Graph (variable length)   |  Adjacency list [node_id(4B)][neighbor_count(4B)][neighbor_ids × 4B]
 |                     |
 +=====================+  Offset aligned to next page boundary (multiple of 4096)
 |                     |
-| Vector Data         |  [id(8B)][vec_0(4B)][vec_1(4B)]...[vec_D-1(4B)] 脳 N
-|                     |  Each vector entry: 8 (ID) + 4脳D (float) bytes
+| Vector Data         |  [id(8B)][vec_0(4B)][vec_1(4B)]...[vec_D-1(4B)] × N
+|                     |  Each vector entry: 8 (ID) + 4×D (float) bytes
 +=====================+
 ```
 
 **Design Decision Analysis**:
 
-- **Magic number `0x4C4D4442`**: Not random. `0x4C` = 'L', `0x4D` = 'M', `0x44` = 'D', `0x42` = 'B' 鈫?"LMDB". If the file doesn't start with this value, it's 100% not a valid DeepVector file 鈥?this is the simplest integrity check.
+- **Magic number `0x4C4D4442`**: Not random. `0x4C` = 'L', `0x4D` = 'M', `0x44` = 'D', `0x42` = 'B' → "LMDB". If the file doesn't start with this value, it's 100% not a valid DeepVector file — this is the simplest integrity check.
 
 - **Header 64-byte alignment**: Modern CPUs' L1/L2 caches read data in 64-byte "cache lines" (the smallest data transfer unit between CPU cache and main memory). Aligning the header to exactly 64 bytes means reading the header requires only one cache line load.
 
@@ -506,22 +546,22 @@ Offset 0
 
 **Feather format** (Arrow's disk storage format):
 - A Feather file is essentially an Arrow IPC (Inter-Process Communication) stream with a lightweight header
-- It is designed to be directly mmap-mapped 鈥?once mapped, column data is directly readable without parsing
-- Python's pandas reads Feather files 10鈥?00x faster than CSV, partly because it leverages mmap + zero-copy
+- It is designed to be directly mmap-mapped — once mapped, column data is directly readable without parsing
+- Python's pandas reads Feather files 10–100x faster than CSV, partly because it leverages mmap + zero-copy
 
 **Insights for DeepVector**:
 ```
 Traditional format (row-oriented):
   [row0_id, row0_vec, row1_id, row1_vec, ...]
-  鈫?Reading a column requires skipping other columns, cache-unfriendly
+  → Reading a column requires skipping other columns, cache-unfriendly
 
 Arrow/Feather format (columnar):
   [All IDs stored contiguously] [All vecs stored contiguously]
-  鈫?Reading a column is sequential access, cache-friendly
+  → Reading a column is sequential access, cache-friendly
 
 DeepVector's format:
   [Index graph data (hot)] [Vector data (cold)]
-  鈫?Graph traversal and vector computation can independently leverage cache
+  → Graph traversal and vector computation can independently leverage cache
 ```
 
 DeepVector's disk layout borrows Arrow's columnar separation philosophy: separating frequently accessed index graph data from occasionally accessed vector data, allowing the OS to manage cache more intelligently. In real-world vector database production environments, Arrow format is often used in the data exchange layer (e.g., query result return), while mmap format is used in the storage layer (e.g., persistent indexes).
@@ -532,7 +572,7 @@ DeepVector's disk layout borrows Arrow's columnar separation philosophy: separat
 
 ### 4.5.1 The Problem
 
-mmap specifies a `length` parameter at call time 鈥?a fixed size for the mapped region. If the file later grows (because more vectors were inserted), the old mapping won't automatically expand. Calling mmap again to cover the same address range will fail (address already occupied).
+mmap specifies a `length` parameter at call time — a fixed size for the mapped region. If the file later grows (because more vectors were inserted), the old mapping won't automatically expand. Calling mmap again to cover the same address range will fail (address already occupied).
 
 ### 4.5.2 Cross-Platform Solution: munmap + ftruncate + mmap
 
@@ -578,7 +618,7 @@ public:
         if (ptr == MAP_FAILED) { perror("mmap"); exit(1); }
         
         mapped_size = new_size;
-        // 鈿狅笍 Note: ptr may have changed! Cannot rely on old pointer
+        // ⚠️ Note: ptr may have changed! Cannot rely on old pointer
     }
 
     ~GrowableMmapFile() {
@@ -589,11 +629,11 @@ public:
 };
 ```
 
-**Critical risk**: After remapping, `ptr` may point to a different virtual address than before. If you saved pointers pointing into the middle of the mapping (e.g., `Node* p = &((Node*)ptr)[10]`), after remapping these become **dangling pointers** (pointers to freed or invalid memory 鈥?dereferencing causes undefined behavior) 鈥?the virtual addresses they point to may no longer map to anything, or may map to the wrong content. Solution: use offsets (indices) instead of absolute pointers.
+**Critical risk**: After remapping, `ptr` may point to a different virtual address than before. If you saved pointers pointing into the middle of the mapping (e.g., `Node* p = &((Node*)ptr)[10]`), after remapping these become **dangling pointers** (pointers to freed or invalid memory — dereferencing causes undefined behavior) — the virtual addresses they point to may no longer map to anything, or may map to the wrong content. Solution: use offsets (indices) instead of absolute pointers.
 
 ### 4.5.3 Linux's Efficient Alternative: mremap
 
-Linux provides the `mremap()` system call, which can expand a region without unmapping the old one. This is not a POSIX standard 鈥?it exists only on Linux.
+Linux provides the `mremap()` system call, which can expand a region without unmapping the old one. This is not a POSIX standard — it exists only on Linux.
 
 ```c
 #define _GNU_SOURCE    // mremap is a GNU extension, not POSIX
@@ -609,7 +649,7 @@ Using the `MREMAP_MAYMOVE` flag allows the kernel to move the mapping to a new v
 // Extend the file
 ftruncate(fd, new_size);
 
-// Extend the mapping 鈥?don't unmap old mapping, don't flush TLB
+// Extend the mapping — don't unmap old mapping, don't flush TLB
 void* new_ptr = mremap(old_ptr, old_sz, new_sz, MREMAP_MAYMOVE);
 if (new_ptr == MAP_FAILED) {
     perror("mremap");
@@ -627,7 +667,7 @@ mremap's advantage: it doesn't trigger TLB flushes, doesn't rebuild VMA (Virtual
 
 mmap's direct writes are a problem during crashes: the writes go to memory, but data in memory may not have been flushed to disk.
 
-**Scenario**: Your program executes `mmap_ptr[i] = new_vector`, updating an HNSW graph's edges. Then the OS powers off or the process is `kill -9`'d. Among the mmap-mapped pages, the vector data was fully written but the graph edges were only partially written 鈥?the data on disk is now in an inconsistent state.
+**Scenario**: Your program executes `mmap_ptr[i] = new_vector`, updating an HNSW graph's edges. Then the OS powers off or the process is `kill -9`'d. Among the mmap-mapped pages, the vector data was fully written but the graph edges were only partially written — the data on disk is now in an inconsistent state.
 
 **Write-Ahead Log (WAL)** is the standard method database systems use to solve this problem:
 
@@ -650,16 +690,16 @@ DeepVector WAL entry format:
 [8B: CRC32 checksum] [4B: op_type] [8B: data_len] [data_len bytes]
 
 op_type:
-  0x01 = INSERT   鈥?New vector record
-  0x02 = DELETE   鈥?Mark vector as deleted
-  0x03 = UPDATE   鈥?Modify vector data
-  0x04 = COMMIT   鈥?Transaction commit marker
-  0x05 = CHECKPOINT 鈥?Checkpoint marker (all prior WAL can be safely truncated)
+  0x01 = INSERT   — New vector record
+  0x02 = DELETE   — Mark vector as deleted
+  0x03 = UPDATE   — Modify vector data
+  0x04 = COMMIT   — Transaction commit marker
+  0x05 = CHECKPOINT — Checkpoint marker (all prior WAL can be safely truncated)
 ```
 
-The WAL file is **append-only** 鈥?new records are always written at the end of the file. This means that even if a crash occurs mid-write, the previously written WAL entries are intact (either fully written or not written at all 鈥?no "half-written" state). During recovery, you only need to check whether the last record's CRC32 matches 鈥?if it doesn't, it was truncated during the crash, and you simply ignore it.
+The WAL file is **append-only** — new records are always written at the end of the file. This means that even if a crash occurs mid-write, the previously written WAL entries are intact (either fully written or not written at all — no "half-written" state). During recovery, you only need to check whether the last record's CRC32 matches — if it doesn't, it was truncated during the crash, and you simply ignore it.
 
-> **Is WAL "zero-copy"?** No 鈥?WAL is itself an additional copy. This is a "safety vs. performance" tradeoff. If high performance is the only goal (e.g., a pure cache scenario), you can disable WAL and accept the possibility of losing a small amount of data on crash. DeepVector enables WAL by default but supports configuration to disable it.
+> **Is WAL "zero-copy"?** No — WAL is itself an additional copy. This is a "safety vs. performance" tradeoff. If high performance is the only goal (e.g., a pure cache scenario), you can disable WAL and accept the possibility of losing a small amount of data on crash. DeepVector enables WAL by default but supports configuration to disable it.
 
 ---
 
@@ -678,7 +718,7 @@ Implement a complete example in `ch04_mmap_storage/code/mmap_array.cpp`:
 #include <vector>
 #include <cassert>
 
-// File header format 鈥?64-byte aligned
+// File header format — 64-byte aligned
 struct Header {
     uint32_t magic;        // 0x4C4D4442 = "LMDB"
     uint32_t version;      // 1 (file format version)
@@ -773,7 +813,7 @@ public:
         float* data = reinterpret_cast<float*>(
             reinterpret_cast<char*>(ptr) + data_offset());
         data[header->count++] = val;
-        // 鈿狅笍 No immediate msync here 鈥?relying on destructor to flush
+        // ⚠️ No immediate msync here — relying on destructor to flush
     }
 
     float at(size_t i) const {
@@ -838,7 +878,7 @@ int main() {
         for (size_t i = 0; i < arr.size(); i++) {
             std::cout << "  [" << i << "] = " << arr.at(i) << std::endl;
         }
-    }  // Destructor runs msync 鈫?munmap 鈫?close
+    }  // Destructor runs msync → munmap → close
 
     // Round 2: Reopen file, verify persistence
     {
@@ -869,7 +909,7 @@ g++-12 -O3 -std=c++17 mmap_array.cpp -o mmap_array
 ./mmap_array
 ```
 
-The expected output shows that the second round of reopening correctly restores the data written in the first round 鈥?proving mmap's persistence capability.
+The expected output shows that the second round of reopening correctly restores the data written in the first round — proving mmap's persistence capability.
 
 ---
 
@@ -890,7 +930,7 @@ The expected output shows that the second round of reopening correctly restores 
 - [ ] Disk block vs filesystem block vs memory page: differences between the three concepts
 - [ ] Disk format design: magic number, version number, alignment, reserved fields
 - [ ] ftruncate: sets file size (zero-fills on extension, discards data on truncation)
-- [ ] Safe mmap extension: the order munmap 鈫?ftruncate 鈫?mmap
+- [ ] Safe mmap extension: the order munmap → ftruncate → mmap
 - [ ] mremap (Linux-specific): extends without unmapping, avoids TLB flush
 - [ ] WAL (Write-Ahead Log): append-only operation log + checkpoint + crash recovery
 - [ ] File path `unlink`: removes the filename; file content is deleted only when reference count reaches zero
@@ -903,8 +943,8 @@ The expected output shows that the second round of reopening correctly restores 
 1. Why doesn't `close(fd)` trigger msync? If you crash after `close(fd)`, will the unflushed dirty pages be lost?
    > Hint: Research kernel parameters `dirty_expire_centisecs` and `dirty_writeback_centisecs`, and the separation of file descriptor lifecycle from page cache lifecycle
 
-2. How does MAP_SHARED mmap maintain consistency with `read()` from other processes on the same file? If process A writes data via mmap and process B reads via `read()` at the same moment 鈥?can B see A's recent modifications?
-   > Hint: Consider the page cache's core property 鈥?all file I/O goes through the same page cache
+2. How does MAP_SHARED mmap maintain consistency with `read()` from other processes on the same file? If process A writes data via mmap and process B reads via `read()` at the same moment — can B see A's recent modifications?
+   > Hint: Consider the page cache's core property — all file I/O goes through the same page cache
 
 3. Why is mmap behavior on network file systems (NFS) complex? What is the fundamental difference between MAP_SHARED on NFS vs local filesystems?
    > Hint: NFS lacks the unified view of a local page cache; cache coherence is handled by the NFS protocol itself
@@ -921,7 +961,7 @@ The expected output shows that the second round of reopening correctly restores 
 
 1. Modify the `MmapFloatArray` above to add a "logical delete" operation (mark elements as deleted instead of physically removing them). Think about how to handle delete marks efficiently without moving data.
 
-2. Implement a basic WAL-based mmap storage. Flow: before writing, append to WAL 鈫?fdatasync WAL 鈫?modify mmap. Kill the process with `kill -9` during writes, and verify that WAL recovery works correctly after restart.
+2. Implement a basic WAL-based mmap storage. Flow: before writing, append to WAL → fdatasync WAL → modify mmap. Kill the process with `kill -9` during writes, and verify that WAL recovery works correctly after restart.
 
 3. Compare the performance difference between mmap and traditional `pread`/`pwrite` in large file random read scenarios:
    - Create a 1 GB file

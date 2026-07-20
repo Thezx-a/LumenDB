@@ -1,17 +1,17 @@
-﻿# Chapter 8 鈥?C++ Design Patterns in DeepVector
+# Chapter 8 — C++ Design Patterns in DeepVector
 
 ## Prerequisites
 
 This chapter assumes familiarity with the following concepts. Review these shared documents before proceeding:
 
-> 馃搸 **Reference**: [SIMD & Hardware Optimization](../prerequisites/06_SIMD涓庣‖浠朵紭鍖?md) 鈥?AVX2/SSE intrinsics used in SIMD dispatch pattern
-> 馃搸 **Reference**: [Vector Distance Metrics](../prerequisites/05_鍚戦噺璺濈搴﹂噺_en.md) 鈥?L2 distance used in type erasure and distance function examples
+> 📎 **Reference**: [SIMD & Hardware Optimization](../prerequisites/06_SIMD与硬件优化.md) — AVX2/SSE intrinsics used in SIMD dispatch pattern
+> 📎 **Reference**: [Vector Distance Metrics](../prerequisites/05_向量距离度量_en.md) — L2 distance used in type erasure and distance function examples
 
 ---
 
 ## Why Design Patterns Matter More in C++
 
-Every language has patterns, but C++ makes them *load-bearing* in ways that Java, Python, or Go do not. The reason is control. C++ gives you direct memory management, zero-cost abstractions, compile-time computation, and access to hardware intrinsics. These are powerful tools 鈥?but they are also traps. In a garbage-collected language, you can forget to release a resource and the runtime cleans up. In C++, you get a leak, a dangling pointer, or undefined behavior. In a managed language, you can't accidentally read memory from another thread without synchronization. In C++, you can, and the bug will manifest days later on a different machine.
+Every language has patterns, but C++ makes them *load-bearing* in ways that Java, Python, or Go do not. The reason is control. C++ gives you direct memory management, zero-cost abstractions, compile-time computation, and access to hardware intrinsics. These are powerful tools — but they are also traps. In a garbage-collected language, you can forget to release a resource and the runtime cleans up. In C++, you get a leak, a dangling pointer, or undefined behavior. In a managed language, you can't accidentally read memory from another thread without synchronization. In C++, you can, and the bug will manifest days later on a different machine.
 
 Design patterns in C++ are not decoration. They are survival strategies. RAII exists because C++ has no garbage collector and exceptions can fly at any point. PIMPL exists because C++ exposes implementation details in headers and the build system pays for every include. Type erasure exists because C++ templates generate a separate function body for every concrete type, and you need a way to say "I don't care what type you are, just call me."
 
@@ -21,15 +21,15 @@ This chapter covers the patterns that DeepVector actually uses. Each pattern is 
 
 ## 8.1 What Is a Design Pattern?
 
-A **design pattern** is a named, documented, reusable solution to a commonly occurring problem in software design. The term was popularized by the "Gang of Four" 鈥?Erich Gamma, Richard Helm, Ralph Johnson, and John Vlissides 鈥?in their 1994 book *Design Patterns: Elements of Reusable Object-Oriented Software*. But the patterns themselves predate the book. They were discovered, not invented. The book merely named and cataloged what experienced programmers already knew.
+A **design pattern** is a named, documented, reusable solution to a commonly occurring problem in software design. The term was popularized by the "Gang of Four" — Erich Gamma, Richard Helm, Ralph Johnson, and John Vlissides — in their 1994 book *Design Patterns: Elements of Reusable Object-Oriented Software*. But the patterns themselves predate the book. They were discovered, not invented. The book merely named and cataloged what experienced programmers already knew.
 
 Why bother naming them? Because shared vocabulary is powerful. Saying "use PIMPL here" is faster than explaining "hide your private members behind an opaque pointer so that changes to the implementation don't force recompilation of all dependent translation units." A good pattern name captures the problem, the solution, and the trade-offs in two words.
 
-This chapter covers the patterns that DeepVector actually uses 鈥?not a comprehensive catalog, but the ones that solve real problems in a real C++ codebase.
+This chapter covers the patterns that DeepVector actually uses — not a comprehensive catalog, but the ones that solve real problems in a real C++ codebase.
 
 ---
 
-## 8.2 RAII 鈥?Resource Acquisition Is Initialization
+## 8.2 RAII — Resource Acquisition Is Initialization
 
 ### The Problem
 
@@ -39,15 +39,15 @@ C doesn't help you here. `malloc` and `free` are entirely the programmer's respo
 
 ### The History
 
-**RAII** 鈥?**Resource Acquisition Is Initialization** 鈥?is arguably the single most important idiom in C++. The term was coined by Bjarne Stroustrup, the creator of C++, in his 1984 paper "Data Abstraction in C" and later formalized in *The C++ Programming Language* (1985, 1st edition). Stroustrup needed a way to manage resources without a garbage collector. His insight: the C++ language already guarantees that destructors run when objects go out of scope. If you acquire a resource in a constructor and release it in the destructor, you get automatic cleanup 鈥?no runtime overhead, no GC pauses, no programmer discipline required.
+**RAII** — **Resource Acquisition Is Initialization** — is arguably the single most important idiom in C++. The term was coined by Bjarne Stroustrup, the creator of C++, in his 1984 paper "Data Abstraction in C" and later formalized in *The C++ Programming Language* (1985, 1st edition). Stroustrup needed a way to manage resources without a garbage collector. His insight: the C++ language already guarantees that destructors run when objects go out of scope. If you acquire a resource in a constructor and release it in the destructor, you get automatic cleanup — no runtime overhead, no GC pauses, no programmer discipline required.
 
-This is unique to C++ for a subtle reason: C++ has deterministic destruction. In Java, when you call `close()` on a file, the runtime *eventually* runs the finalizer, but you don't know when. In C++, when an object goes out of scope, the destructor runs *immediately*, on the same stack frame. This determinism is what makes RAII safe under exceptions 鈥?the stack unwinding mechanism calls destructors in reverse order of construction, guaranteeing cleanup.
+This is unique to C++ for a subtle reason: C++ has deterministic destruction. In Java, when you call `close()` on a file, the runtime *eventually* runs the finalizer, but you don't know when. In C++, when an object goes out of scope, the destructor runs *immediately*, on the same stack frame. This determinism is what makes RAII safe under exceptions — the stack unwinding mechanism calls destructors in reverse order of construction, guaranteeing cleanup.
 
 No other mainstream language has this property to the same degree. Rust borrowed the concept (its `Drop` trait), but Rust doesn't have C++'s constructor/destructor symmetry. Python has `__del__`, but it's called by the garbage collector, which may run at any time or never.
 
 ### The Solution
 
-Tie resource lifetime to object lifetime: acquire the resource in the constructor, release it in the destructor. When the object goes out of scope 鈥?whether by normal return, early return, or exception 鈥?the destructor runs automatically and releases the resource.
+Tie resource lifetime to object lifetime: acquire the resource in the constructor, release it in the destructor. When the object goes out of scope — whether by normal return, early return, or exception — the destructor runs automatically and releases the resource.
 
 ### RAII Lifecycle
 
@@ -167,11 +167,11 @@ void ProcessFile(const std::string& path) {
 
 ---
 
-## 8.3 PIMPL 鈥?Pointer to Implementation
+## 8.3 PIMPL — Pointer to Implementation
 
 ### The Problem
 
-In C++, class definitions in header files must declare *everything* 鈥?public methods, private methods, private member variables. There's no way to say "these details are private, trust me." The compiler needs to know the size of every object to allocate it, and it can't compute the size without seeing all the members.
+In C++, class definitions in header files must declare *everything* — public methods, private methods, private member variables. There's no way to say "these details are private, trust me." The compiler needs to know the size of every object to allocate it, and it can't compute the size without seeing all the members.
 
 This means that if you change a private field in `collection.h`, every `.cpp` file that includes `collection.h` must be recompiled. In a large project, that could be hundreds of files. A 30-second edit becomes a 10-minute rebuild.
 
@@ -179,7 +179,7 @@ Worse, the private fields drag in their own headers. If `Collection` has a priva
 
 ### The History
 
-The PIMPL idiom 鈥?**Pointer to Implementation**, also called the **"Cheshire Cat"** idiom (after the grinning cat in *Alice in Wonderland* that fades away, leaving only its smile) 鈥?was first described by David Reed in 1992 and popularized by John Torjo in early C++ GUI frameworks. The name "Compiler Firewall" came later, emphasizing its role as a barrier between the public header and the private implementation.
+The PIMPL idiom — **Pointer to Implementation**, also called the **"Cheshire Cat"** idiom (after the grinning cat in *Alice in Wonderland* that fades away, leaving only its smile) — was first described by David Reed in 1992 and popularized by John Torjo in early C++ GUI frameworks. The name "Compiler Firewall" came later, emphasizing its role as a barrier between the public header and the private implementation.
 
 The idiom became essential as C++ codebases grew. In the 1990s, compile times of 30+ minutes were common for large projects. PIMPL was one of the first "build time optimization" patterns. It also solved a practical problem for library vendors: **binary compatibility** (also called **ABI stability**). If a library vendor ships a new version that changes a private member, all clients must relink. With PIMPL, changing the `Impl` class doesn't change the public header's layout, so clients don't need to recompile or relink.
 
@@ -223,7 +223,7 @@ classDiagram
     note for CollectionImpl "Implementation\n(all heavy includes)"
 ```
 
-Think of it like a diplomatic embassy. The public header is the embassy's front desk 鈥?anyone can see it, interact with it. The implementation file is the secure interior 鈥?only the embassy staff (the `.cpp` file) knows what's inside. Changing the interior layout doesn't affect what visitors see at the front desk.
+Think of it like a diplomatic embassy. The public header is the embassy's front desk — anyone can see it, interact with it. The implementation file is the secure interior — only the embassy staff (the `.cpp` file) knows what's inside. Changing the interior layout doesn't affect what visitors see at the front desk.
 
 ### The Before-and-After
 
@@ -242,7 +242,7 @@ public:
 After PIMPL:
 
 ```cpp
-// collection.h 鈥?PUBLIC HEADER (clean, minimal includes)
+// collection.h — PUBLIC HEADER (clean, minimal includes)
 #include <memory>
 #include <vector>
 
@@ -268,7 +268,7 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-// collection.cpp 鈥?IMPLEMENTATION (all the heavy includes live here)
+// collection.cpp — IMPLEMENTATION (all the heavy includes live here)
 #include "hnsw_index.h"
 #include "wal.h"
 #include "bloom_filter.h"
@@ -307,9 +307,9 @@ The savings are multiplicative: each of those 200 files might include other head
 - When you need ABI stability (changing `Impl` doesn't change the vtable layout).
 
 **No:**
-- Value types created millions of times. PIMPL requires a heap allocation 鈥?1 million PIMPL objects = 1 million heap allocations.
+- Value types created millions of times. PIMPL requires a heap allocation — 1 million PIMPL objects = 1 million heap allocations.
 - Internal classes with few dependents (one or two `.cpp` files include them).
-- Classes already behind an interface (virtual base class) 鈥?the vtable already provides the indirection.
+- Classes already behind an interface (virtual base class) — the vtable already provides the indirection.
 
 ### Costs of PIMPL
 
@@ -338,9 +338,9 @@ This forces users to subclass, prevents inline lambdas, and adds a vtable pointe
 
 ### The History
 
-**Type erasure** as a concept predates C++. The idea: store objects of different concrete types behind a uniform interface, where the concrete type is "erased" 鈥?the holder only knows about the interface. In C++, the technique was formalized by Kevlin Henney around 2000 and is the mechanism behind `std::function` (introduced in C++11, standardized 2011), `std::any` (C++17), and `std::packaged_task`.
+**Type erasure** as a concept predates C++. The idea: store objects of different concrete types behind a uniform interface, where the concrete type is "erased" — the holder only knows about the interface. In C++, the technique was formalized by Kevlin Henney around 2000 and is the mechanism behind `std::function` (introduced in C++11, standardized 2011), `std::any` (C++17), and `std::packaged_task`.
 
-The key insight: you don't need inheritance if you can dispatch through a function pointer stored alongside the object. The "vtable" isn't a class vtable 鈥?it's a pair of function pointers (one for the operation, one for destruction) stored in the type-erased wrapper.
+The key insight: you don't need inheritance if you can dispatch through a function pointer stored alongside the object. The "vtable" isn't a class vtable — it's a pair of function pointers (one for the operation, one for destruction) stored in the type-erased wrapper.
 
 ### How `std::function` Works Internally
 
@@ -372,11 +372,14 @@ sequenceDiagram
 
 ```
 std::function signature:
-鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?鈹? function pointer table (vptr)  鈹? 鈫?points to type-specific invoke/destroy/clone
-鈹溾攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?鈹? storage buffer (SBO or heap)   鈹? 鈫?holds the actual callable
-鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?```
+┌─────────────────────────────────┐
+│  function pointer table (vptr)  │  ← points to type-specific invoke/destroy/clone
+├─────────────────────────────────┤
+│  storage buffer (SBO or heap)   │  ← holds the actual callable
+└─────────────────────────────────┘
+```
 
-**Small Buffer Optimization (SBO)**: Most implementations reserve ~16鈥?2 bytes inside the `std::function` object itself. If the callable fits (a simple lambda with no captures, a function pointer), it's stored inline 鈥?no heap allocation. If it's larger (a lambda capturing a vector), it allocates on the heap and the buffer holds a pointer.
+**Small Buffer Optimization (SBO)**: Most implementations reserve ~16–32 bytes inside the `std::function` object itself. If the callable fits (a simple lambda with no captures, a function pointer), it's stored inline — no heap allocation. If it's larger (a lambda capturing a vector), it allocates on the heap and the buffer holds a pointer.
 
 You can measure this on your platform:
 ```cpp
@@ -434,13 +437,13 @@ DeepVector uses `std::function` for the distance metric in `Index`: set once at 
 
 ---
 
-## 8.5 shared_mutex 鈥?Reader-Writer Lock
+## 8.5 shared_mutex — Reader-Writer Lock
 
 ### Why Not Just `std::mutex`?
 
-A **`std::mutex`** (mutual exclusion lock) serializes all access. If 8 threads try to read the HNSW graph simultaneously, only one can hold the mutex at a time. The other 7 spin or sleep, wasting CPU cores. On a 32-core server handling 100 queries/second, this is a disaster 鈥?31 cores idle while one works.
+A **`std::mutex`** (mutual exclusion lock) serializes all access. If 8 threads try to read the HNSW graph simultaneously, only one can hold the mutex at a time. The other 7 spin or sleep, wasting CPU cores. On a 32-core server handling 100 queries/second, this is a disaster — 31 cores idle while one works.
 
-A **mutex** (from "mutual exclusion") is a synchronization primitive that ensures only one thread can access a critical section at a time. It's the simplest concurrency tool, but it treats all operations identically 鈥?reads and writes get the same lock.
+A **mutex** (from "mutual exclusion") is a synchronization primitive that ensures only one thread can access a critical section at a time. It's the simplest concurrency tool, but it treats all operations identically — reads and writes get the same lock.
 
 ### The Reader-Writer Pattern
 
@@ -452,7 +455,7 @@ A **reader-writer lock** (also called a **read-write lock**) distinguishes betwe
 This is the key insight: reads are commutative (multiple reads don't interfere), but writes are exclusive. A reader-writer lock exploits this asymmetry.
 
 **`std::shared_mutex`** (C++17) implements this pattern:
-- **Shared (read) lock** (`std::shared_lock`): multiple threads can hold it simultaneously. Use when you only need to read data 鈥?no mutations.
+- **Shared (read) lock** (`std::shared_lock`): multiple threads can hold it simultaneously. Use when you only need to read data — no mutations.
 - **Exclusive (write) lock** (`std::unique_lock`): only one thread can hold it. All other readers and writers are blocked.
 
 This is perfect for the HNSW index: searches are readers (check adjacency lists, compute distances), inserts are writers (add nodes, update edges). 100 concurrent searches all hold shared locks and run in parallel. When an insert comes along, it waits for all ongoing searches to finish, acquires the exclusive lock, modifies the graph, and releases.
@@ -461,7 +464,7 @@ This is perfect for the HNSW index: searches are readers (check adjacency lists,
 
 - **`std::shared_mutex`**: C++17 standard library class implementing a reader-writer lock. Supports `std::shared_lock` (read) and `std::unique_lock` (write).
 - **Spinlock**: A lock that busy-waits (spins) instead of sleeping. Faster for very short critical sections (nanoseconds) because it avoids the overhead of putting the thread to sleep and waking it. Worse for long waits because it burns CPU cycles. Linux's `spinlock_t` is an example.
-- **Lock-free**: A data structure or algorithm that guarantees at least one thread makes progress in a finite number of steps, even if other threads are suspended. Lock-free doesn't mean "no locks" 鈥?it means the algorithm doesn't use traditional locks (mutexes). It typically uses atomic operations instead.
+- **Lock-free**: A data structure or algorithm that guarantees at least one thread makes progress in a finite number of steps, even if other threads are suspended. Lock-free doesn't mean "no locks" — it means the algorithm doesn't use traditional locks (mutexes). It typically uses atomic operations instead.
 - **Concurrent data structure**: A data structure designed to be accessed by multiple threads simultaneously without external synchronization, or with minimal fine-grained synchronization. Examples: concurrent hash maps, lock-free queues, skip lists.
 
 ### The Code
@@ -479,7 +482,7 @@ public:
     }
 
     void Put(const Key& key, const Value& val) {
-        std::unique_lock lock(mutex_);  // exclusive 鈥?blocks everyone
+        std::unique_lock lock(mutex_);  // exclusive — blocks everyone
         cache_[key] = val;
     }
 
@@ -491,7 +494,7 @@ private:
 
 ### Writer Starvation
 
-There's a problem: if readers keep arriving, a writer may wait indefinitely. The C++ standard does not specify fairness guarantees for `std::shared_mutex`. Some implementations (MSVC) prioritize writers; others (libstdc++) may allow writer starvation 鈥?where a stream of readers prevents a writer from ever acquiring the lock.
+There's a problem: if readers keep arriving, a writer may wait indefinitely. The C++ standard does not specify fairness guarantees for `std::shared_mutex`. Some implementations (MSVC) prioritize writers; others (libstdc++) may allow writer starvation — where a stream of readers prevents a writer from ever acquiring the lock.
 
 DeepVector uses a custom **fair reader-writer lock** that prevents starvation:
 
@@ -527,7 +530,7 @@ public:
 };
 ```
 
-When a writer arrives, it increments `waiting_writers_`. New readers see this and block 鈥?"holding the door" for the waiting writer. When the writer finishes, it notifies the next writer (FIFO) or wakes all readers.
+When a writer arrives, it increments `waiting_writers_`. New readers see this and block — "holding the door" for the waiting writer. When the writer finishes, it notifies the next writer (FIFO) or wakes all readers.
 
 ---
 
@@ -537,15 +540,15 @@ When a writer arrives, it increments `waiting_writers_`. New readers see this an
 
 **Const-correctness** is the practice of marking variables, parameters, and member functions with `const` whenever they are not intended to be modified. It communicates intent to both human readers and the compiler. The compiler enforces it: if you declare a member function `const` and then try to modify a member, the compiler stops you.
 
-Why is this a "pattern" and not just a keyword? Because const permeates an entire codebase 鈥?you can't be "kinda const." Either every function that reads data is const, or the system doesn't work. It's an all-or-nothing discipline.
+Why is this a "pattern" and not just a keyword? Because const permeates an entire codebase — you can't be "kinda const." Either every function that reads data is const, or the system doesn't work. It's an all-or-nothing discipline.
 
-### `mutable` 鈥?The Escape Hatch
+### `mutable` — The Escape Hatch
 
 Sometimes a method is logically const (it doesn't change the observable state) but physically needs to modify something (a cache, a mutex, a lazy-initialization flag). `mutable` is the keyword that says "this field is allowed to change even in const methods."
 
 Valid uses of `mutable`:
 - **Caches**: a `block_offset_cache_` that memoizes expensive lookups.
-- **Mutexes**: a `mutable std::shared_mutex` 鈥?locking a mutex changes its state, but it's an implementation detail invisible to callers.
+- **Mutexes**: a `mutable std::shared_mutex` — locking a mutex changes its state, but it's an implementation detail invisible to callers.
 - **Lazy initialization**: a flag `index_parsed_` that's set on first access.
 
 ```cpp
@@ -581,11 +584,11 @@ private:
 
 ## 8.7 SFINAE and SIMD Dispatch
 
-> 馃搸 **Reference**: For SIMD intrinsics fundamentals (AVX2, SSE, register operations), see [SIMD & Hardware Optimization](../prerequisites/06_SIMD涓庣‖浠朵紭鍖?md).
+> 📎 **Reference**: For SIMD intrinsics fundamentals (AVX2, SSE, register operations), see [SIMD & Hardware Optimization](../prerequisites/06_SIMD与硬件优化.md).
 
 ### What Is SFINAE?
 
-**SFINAE** stands for **Substitution Failure Is Not An Error**. When the compiler tries to substitute template parameters into a function signature and the substitution produces invalid code, it doesn't emit an error 鈥?it simply removes that overload from consideration and continues.
+**SFINAE** stands for **Substitution Failure Is Not An Error**. When the compiler tries to substitute template parameters into a function signature and the substitution produces invalid code, it doesn't emit an error — it simply removes that overload from consideration and continues.
 
 This is the mechanism behind `std::enable_if`, `if constexpr`, and concepts (C++20). It allows conditional compilation based on type properties, without preprocessor macros.
 
@@ -593,9 +596,9 @@ The term was coined by Dave Abrahams in 2003 at a C++ committee meeting. The con
 
 ### SIMD Dispatch with `if constexpr`
 
-DeepVector's distance functions are the single hottest code path 鈥?called billions of times per query batch. The performance difference between scalar (1 float per operation), SSE (4 floats), and AVX2 (8 floats) is 4-8x. We want to compile one binary that uses the best SIMD instruction set available on the target CPU.
+DeepVector's distance functions are the single hottest code path — called billions of times per query batch. The performance difference between scalar (1 float per operation), SSE (4 floats), and AVX2 (8 floats) is 4-8x. We want to compile one binary that uses the best SIMD instruction set available on the target CPU.
 
-The old way (`#ifdef`): text substitution before the compiler runs. Only the matching branch survives 鈥?the others are never type-checked, so bugs in non-matching branches go undetected until someone compiles with different flags. `#ifdef` also forces you to ship separate binaries per CPU (or a lowest-common-denominator build).
+The old way (`#ifdef`): text substitution before the compiler runs. Only the matching branch survives — the others are never type-checked, so bugs in non-matching branches go undetected until someone compiles with different flags. `#ifdef` also forces you to ship separate binaries per CPU (or a lowest-common-denominator build).
 
 The modern way (`if constexpr`):
 
@@ -617,7 +620,7 @@ constexpr SIMDLevel kBestSIMD = SIMDLevel::None;
 template <SIMDLevel L>
 float L2Distance(const float* a, const float* b, size_t dim) {
     if constexpr (L == SIMDLevel::AVX2) {
-        // AVX2: 8 floats per register 鈥?see prerequisites for intrinsics details
+        // AVX2: 8 floats per register — see prerequisites for intrinsics details
         __m256 sum = _mm256_setzero_ps();
         size_t i = 0;
         for (; i + 8 <= dim; i += 8) {
@@ -646,7 +649,7 @@ float L2Distance(const float* a, const float* b, size_t dim) {
 }
 ```
 
-`if constexpr` evaluates the condition at compile time. Only one branch is compiled for each template instantiation. But crucially: **all branches are parsed and checked for syntactic correctness**, even the dead ones. This means if you break the SSE branch, the compiler tells you 鈥?even if you're compiling with AVX2. This is the critical advantage over `#ifdef`.
+`if constexpr` evaluates the condition at compile time. Only one branch is compiled for each template instantiation. But crucially: **all branches are parsed and checked for syntactic correctness**, even the dead ones. This means if you break the SSE branch, the compiler tells you — even if you're compiling with AVX2. This is the critical advantage over `#ifdef`.
 
 ---
 
@@ -684,13 +687,13 @@ private:
 };
 ```
 
-**Why not exceptions everywhere?** Exceptions require stack unwinding, which in a 100K-QPS search loop would destroy throughput. `Status` is a simple value return 鈥?no unwinding, no allocation (for OK), easily checked. The caller decides whether to propagate, log, or retry.
+**Why not exceptions everywhere?** Exceptions require stack unwinding, which in a 100K-QPS search loop would destroy throughput. `Status` is a simple value return — no unwinding, no allocation (for OK), easily checked. The caller decides whether to propagate, log, or retry.
 
-**Why not `std::expected<T, E>` (C++23)?** It's a valid alternative 鈥?cleaner than out-parameters for success values. But at the time DeepVector was designed, `expected` wasn't available. `Status` with out-parameters is the pragmatic choice.
+**Why not `std::expected<T, E>` (C++23)?** It's a valid alternative — cleaner than out-parameters for success values. But at the time DeepVector was designed, `expected` wasn't available. `Status` with out-parameters is the pragmatic choice.
 
 ### Factory Pattern: Create vs Load
 
-A `Collection` can come from two paths 鈥?newly created or loaded from disk. These have different semantics and failure modes. DeepVector separates them:
+A `Collection` can come from two paths — newly created or loaded from disk. These have different semantics and failure modes. DeepVector separates them:
 
 ```cpp
 class Collection {
@@ -715,20 +718,29 @@ public:
 };
 ```
 
-The private constructor + static factory methods make intent explicit. `Collection c;` won't compile 鈥?you must say whether you're creating or loading. This is a mild form of the "named constructor" idiom, which is preferable to overloaded constructors that differ only by parameter types.
+The private constructor + static factory methods make intent explicit. `Collection c;` won't compile — you must say whether you're creating or loading. This is a mild form of the "named constructor" idiom, which is preferable to overloaded constructors that differ only by parameter types.
 
 ---
 
 ## 8.9 Concurrency Patterns: Thread Pool, ABA Problem, Memory Ordering
 
-These patterns appear in DeepVector's background compaction and WAL flushing threads. They are more advanced 鈥?study them after mastering the earlier patterns.
+These patterns appear in DeepVector's background compaction and WAL flushing threads. They are more advanced — study them after mastering the earlier patterns.
 
 ### Thread Pool
 
 A **thread pool** maintains a fixed number of threads that wait for work items. Instead of spawning a new thread for each task (expensive: thread creation costs ~10 microseconds, plus 1MB stack), you submit work to the pool and reuse existing threads.
 
 ```
-鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹? 鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹? 鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹? 鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?鈹?Thread 1 鈹? 鈹?Thread 2 鈹? 鈹?Thread 3 鈹? 鈹?Thread 4 鈹?鈹斺攢鈹€鈹€鈹€鈹攢鈹€鈹€鈹€鈹€鈹? 鈹斺攢鈹€鈹€鈹€鈹攢鈹€鈹€鈹€鈹€鈹? 鈹斺攢鈹€鈹€鈹€鈹攢鈹€鈹€鈹€鈹€鈹? 鈹斺攢鈹€鈹€鈹€鈹攢鈹€鈹€鈹€鈹€鈹?     鈹?             鈹?             鈹?             鈹?     鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹粹攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹粹攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?                          鈹?                   鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹粹攢鈹€鈹€鈹€鈹€鈹€鈹?                   鈹? Work Queue  鈹?                   鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?```
+┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐
+│ Thread 1 │  │ Thread 2 │  │ Thread 3 │  │ Thread 4 │
+└────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘
+     │              │              │              │
+     └──────────────┴──────────────┴──────────────┘
+                          │
+                   ┌──────┴──────┐
+                   │  Work Queue  │
+                   └─────────────┘
+```
 
 **Work stealing**: When a thread's local queue is empty, it "steals" work from another thread's queue. This balances load without a central lock. Intel's TBB (Threading Building Blocks) and Folly (Facebook's C++ library) implement work-stealing thread pools.
 
@@ -736,14 +748,14 @@ A **thread pool** maintains a fixed number of threads that wait for work items. 
 
 ### The ABA Problem
 
-The **ABA problem** occurs in lock-free algorithms that use compare-and-swap (CAS). Consider a thread reading value A from a shared pointer, getting preempted, and another thread changing the pointer from A to B and back to A. When the first thread resumes and does CAS(expected=A, new=C), the CAS succeeds 鈥?but the object at address A may be a *different object* than the one the first thread originally read.
+The **ABA problem** occurs in lock-free algorithms that use compare-and-swap (CAS). Consider a thread reading value A from a shared pointer, getting preempted, and another thread changing the pointer from A to B and back to A. When the first thread resumes and does CAS(expected=A, new=C), the CAS succeeds — but the object at address A may be a *different object* than the one the first thread originally read.
 
 ```
 Thread 1: reads ptr = A (object at address 0x1000)
 Thread 1: preempted
 Thread 2: ptr = B (object at address 0x2000)
 Thread 2: ptr = A (new object at address 0x3000, but value is "A")
-Thread 1: resumes, CAS(ptr, A, C) succeeds 鈥?but ptr points to a different object!
+Thread 1: resumes, CAS(ptr, A, C) succeeds — but ptr points to a different object!
 ```
 
 **Solutions**: tagged pointers (append a counter to the pointer, increment on every change), hazard pointers (track which pointers each thread is reading), or epoch-based reclamation (defer deletion until no thread could be holding a reference).
@@ -770,7 +782,7 @@ This is the foundation of lock-free data structures. A lock-free queue might use
 
 ## Code Exercise
 
-### Part A 鈥?Refactor to PIMPL
+### Part A — Refactor to PIMPL
 
 Take this class (inline methods, expensive header dependency) and refactor into a clean `widget.h` + `widget.cpp` using PIMPL:
 
@@ -800,7 +812,7 @@ private:
 ```
 
 ```cpp
-// AFTER: widget.h 鈥?clean public header
+// AFTER: widget.h — clean public header
 class Widget {
 public:
     Widget(); ~Widget();
@@ -817,9 +829,9 @@ private:
 };
 ```
 
-**Verify**: include `widget.h` from another file 鈥?`ExpensiveDep` is not included.
+**Verify**: include `widget.h` from another file — `ExpensiveDep` is not included.
 
-### Part B 鈥?Type-Erased Callback
+### Part B — Type-Erased Callback
 
 Add a type-erased callback to `Widget`:
 
@@ -842,7 +854,7 @@ Test with three different callback types:
 
 Verify all three work with the same `OnChange` registration.
 
-### Part C 鈥?Thread-Safe LRU Cache with shared_mutex
+### Part C — Thread-Safe LRU Cache with shared_mutex
 
 Implement a thread-safe LRU cache:
 
@@ -900,7 +912,7 @@ private:
 
 4. **The `FairRWLock` gives writers priority over new readers but not over existing readers. Is this strictly fair?** Design a truly fair lock that services readers and writers in arrival order. What are the trade-offs?
 
-5. **When would you use `Status` vs `std::expected<T,E>` (C++23) vs exceptions?** Consider the call graph depth 鈥?does the error need to propagate through 10 stack frames, or just one?
+5. **When would you use `Status` vs `std::expected<T,E>` (C++23) vs exceptions?** Consider the call graph depth — does the error need to propagate through 10 stack frames, or just one?
 
 6. **The ABA problem: why can't you solve it with a simple `std::atomic<T*>`?** What additional information is needed, and how do tagged pointers or hazard pointers provide it?
 

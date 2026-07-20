@@ -1,12 +1,12 @@
-﻿# Docker 瀹瑰櫒鍖?/ Docker Containerization
+# Docker 容器化 / Docker Containerization
 
-## 瀹夎 Docker / Install Docker
+## 安装 Docker / Install Docker
 
 ```bash
 # Linux
 curl -fsSL https://get.docker.com | sh
 
-# Windows: 瀹夎 Docker Desktop
+# Windows: 安装 Docker Desktop
 # https://docs.docker.com/desktop/install/windows-install/
 ```
 
@@ -16,17 +16,19 @@ curl -fsSL https://get.docker.com | sh
 # Linux
 sudo apt install docker-compose-plugin
 
-# 鎴栫嫭绔嬪畨瑁?/ Or standalone
+# 或独立安装 / Or standalone
 pip install docker-compose
 ```
 
-## 甯哥敤鍛戒护 / Common Commands
+## 常用命令 / Common Commands
 
 ```bash
-docker compose build lumendb   # 鏋勫缓 DeepVector 闀滃儚
-docker compose up -d           # 鍚姩鎵€鏈夋湇鍔?docker compose logs -f         # 鏌ョ湅鏃ュ織
-docker compose down            # 鍋滄鎵€鏈夋湇鍔?```
+docker compose build deepvector   # 构建 DeepVector 镜像
+docker compose up -d           # 启动所有服务
+docker compose logs -f         # 查看日志
+docker compose down            # 停止所有服务
+```
 
-## 鐩稿叧绔犺妭
+## 相关章节
 
-- 馃搸 **Ch11** [Docker涓庨儴缃瞉(../ch11_docker/11_Docker涓庨儴缃瞋zh.md)
+- 📎 **Ch11** [Docker与部署](../ch11_docker/11_Docker与部署_zh.md)

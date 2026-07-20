@@ -25,7 +25,7 @@ RUN cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
 FROM ubuntu:22.04 AS runtime
 COPY --from=builder /app/build/bin /usr/local/bin
 EXPOSE 8080
-CMD ["lumendb-server"]
+CMD ["deepvector-server"]
 ```
 
 ### 常用指令
@@ -55,7 +55,7 @@ RUN cmake --build build -j$(nproc)  # 只有源码变了才重新构建
 ```yaml
 version: '3.8'
 services:
-  lumendb:
+  deepvector:
     build: .
     ports:
       - "8080:8080"
@@ -81,7 +81,7 @@ docker compose logs -f
 docker compose down
 
 # 进入容器
-docker compose exec lumendb bash
+docker compose exec deepvector bash
 ```
 
 ## 镜像体积优化
