@@ -1,0 +1,13 @@
+﻿version: "3.8"
+services:
+  minikv:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8888:8888"
+    volumes:
+      - minikv_data:/data/minikv
+    restart: unless-stopped
+volumes:
+  minikv_data:

@@ -1,0 +1,11 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  build-test:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y g++-12 cmake ninja-build
+      - run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=ON -DCMAKE_CXX_COMPILER=g++-12
+      - run: cmake --build build -j$(nproc)
+      - run: ctest --test-dir build --output-on-failure

@@ -1,0 +1,14 @@
+build/
+*.o
+*.a
+*.so
+*.sst
+*.log
+*.deleted
+*.tmp
+__pycache__/
+*.pyc
+.vscode/
+.idea/
+*.swp
+compile_commands.json

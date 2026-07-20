@@ -1,0 +1,23 @@
+﻿listen:
+  port: 8080
+  threads: 4
+
+upstreams:
+  - host: 127.0.0.1
+    port: 8001
+    weight: 3
+  - host: 127.0.0.1
+    port: 8002
+    weight: 1
+  - host: 127.0.0.1
+    port: 8003
+    weight: 1
+
+health_check:
+  interval: 5
+  timeout: 200
+  path: /health
+
+limits:
+  max_connections: 10000
+  per_ip_max: 100
