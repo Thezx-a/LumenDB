@@ -4,7 +4,8 @@
 
 ## 前置知识
 
-> 📎 **参考**: [Python环境](../prerequisites/02_Python环境_zh.md)
+> 📎 **参考**: [Python环境](../prerequisites/02_Python环境_zh.md)  
+> 🆓 **免费 LLM API**（ModelScope / 硅基流动 / Groq / Ollama）：[FREE_RESOURCES_zh.md](../FREE_RESOURCES_zh.md)
 
 ---
 

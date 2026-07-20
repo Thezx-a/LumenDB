@@ -4,7 +4,8 @@
 
 ## Prerequisites
 
-> 📎 **Reference**: [Python Environment](../prerequisites/02_Python环境_en.md)
+> 📎 **Reference**: [Python Environment](../prerequisites/02_Python环境_en.md)  
+> 🆓 **Free LLM APIs** (ModelScope / SiliconFlow / Groq / Ollama): [FREE_RESOURCES_en.md](../FREE_RESOURCES_en.md)
 
 ---
 

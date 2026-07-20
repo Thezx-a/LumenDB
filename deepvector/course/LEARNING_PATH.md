@@ -2,6 +2,8 @@
 
 English summary follows each Chinese section.
 
+> 🆓 **零成本环境：** 跑 Agent 所需的免费 API / Ollama / 本地嵌入 → [FREE_RESOURCES_zh.md](FREE_RESOURCES_zh.md) · [EN](FREE_RESOURCES_en.md)
+
 ---
 
 ## 总览 Overview

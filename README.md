@@ -22,7 +22,8 @@
   <a href="#项目概览">中文</a> •
   <a href="#project-overview">English</a> •
   <a href="./deepvector/course/README.md">📚 课程</a> •
-  <a href="./deepvector/docs/OPERATIONS.md">🔧 操作手册</a>
+  <a href="./deepvector/course/FREE_RESOURCES_zh.md">🆓 免费资源</a> •
+  <a href="./RUN.md">▶ 运行</a> •
 </p>
 
 ---

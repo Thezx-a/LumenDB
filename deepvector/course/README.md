@@ -15,6 +15,7 @@
 <p align="center">
   <a href="./00_如何使用本教程_zh.md">🇨🇳 如何使用</a> ·
   <a href="./00_如何使用本教程_en.md">🇺🇸 How to use</a> ·
+  <a href="./FREE_RESOURCES_zh.md">🆓 免费资源 Free APIs</a> ·
   <a href="./LEARNING_PATH.md">路线图 Roadmap</a> ·
   <a href="./INTERVIEW_BANK.md">面试题库 Interview Bank</a> ·
   <a href="../ARCHITECTURE.md">架构 Architecture</a> ·
@@ -170,6 +171,7 @@ graph LR
 | 构建环境 | [01](prerequisites/01_构建环境配置_zh.md) | [01](prerequisites/01_构建环境配置_en.md) |
 | Docker | [02](prerequisites/02_Docker容器化_zh.md) | [02](prerequisites/02_Docker容器化_en.md) |
 | Python | [03](prerequisites/03_Python环境_zh.md) | [03](prerequisites/03_Python环境_en.md) |
+| **免费 API / Ollama** | [FREE_RESOURCES_zh](FREE_RESOURCES_zh.md) | [FREE_RESOURCES_en](FREE_RESOURCES_en.md) |
 | 测试 | [04](prerequisites/04_测试框架_zh.md) | [04](prerequisites/04_测试框架_en.md) |
 | 距离度量 | [05](prerequisites/05_向量距离度量_zh.md) | [05](prerequisites/05_向量距离度量_en.md) |
 | SIMD | [06](prerequisites/06_SIMD与硬件优化_zh.md) | [06](prerequisites/06_SIMD与硬件优化_en.md) |

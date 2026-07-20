@@ -3,6 +3,10 @@
 
 技术选型与“为何不用过时方案”见 [TECH.md](./TECH.md)。
 
+> **零成本跑通：** 免费 API / Ollama / 本地嵌入的完整清单见  
+> [deepvector/course/FREE_RESOURCES_zh.md](./deepvector/course/FREE_RESOURCES_zh.md)（[English](./deepvector/course/FREE_RESOURCES_en.md)）  
+> 配置模板：[`deepvector/.env.example`](./deepvector/.env.example)
+
 ---
 
 ## 1. 环境要求
@@ -171,7 +175,10 @@ docker build -f deepvector/Dockerfile --target agent-runtime -t deepvector-agent
 | `AGENTICDB_LLM_MODEL` | 模型名 | `qwen2.5:7b` |
 | `AGENTICDB_OLLAMA_HOST` | Ollama 地址 | `http://localhost:11434` |
 | `AGENTICDB_EMBEDDING_PROVIDER` | `local` / `openai` | `local` |
-| `OPENAI_API_KEY` | OpenAI Key | （空） |
+| `OPENAI_API_KEY` | OpenAI 兼容 Key | （空） |
+| `OPENAI_BASE_URL` | 兼容 API 端点（ModelScope/硅基流动/Groq 等） | （空） |
+
+**免费 LLM / 嵌入组合与注册链接：** [course/FREE_RESOURCES_zh.md](./deepvector/course/FREE_RESOURCES_zh.md) · 模板 [`deepvector/.env.example`](./deepvector/.env.example)
 
 ---
 
