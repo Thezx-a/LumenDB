@@ -1,26 +1,26 @@
-# DeepVector Monorepo — Multi-Platform Run Guide
-# 多平台运行教程
+# DeepVector 运行教程
 
-技术选型与“为何不用过时方案”见 [TECH.md](./TECH.md)。
+手把手把项目跑起来。技术选型说明见 [TECH.md](./TECH.md)。
 
-> **零成本跑通：** 免费 API / Ollama / 本地嵌入的完整清单见  
+> **不想花钱买 API？** 免费 LLM / Ollama / 本机嵌入清单：  
 > [deepvector/course/FREE_RESOURCES_zh.md](./deepvector/course/FREE_RESOURCES_zh.md)（[English](./deepvector/course/FREE_RESOURCES_en.md)）  
 > 配置模板：[`deepvector/.env.example`](./deepvector/.env.example)
 
 ---
 
-## 1. 环境要求
+## 1. 需要什么环境？
 
 | 组件 | 版本 |
 |------|------|
 | CMake | ≥ 3.20 |
-| C++ 编译器 | GCC 12+ / Clang 15+（需 C++17/C++20） |
-| Ninja | 推荐 |
+| C++ 编译器 | GCC 12+ / Clang 15+ |
+| Ninja | 建议装 |
 | Python | 3.11+ |
-| （可选）Ollama | 本地 LLM |
-| （可选）Docker | 免本地编译 |
+| Ollama（可选） | 本机大模型，仓库默认用它 |
+| Docker（可选） | 不想自己编译时用 |
 
-默认嵌入模型 `all-MiniLM-L6-v2` 输出 **384 维**。启动 C++ 服务时务必：
+默认嵌入模型 `all-MiniLM-L6-v2` 输出 **384 维** 向量。  
+启动 C++ 服务时维度必须一致，否则搜索会错：
 
 ```bash
 ./deepvector_server --port 8080 --dim 384
@@ -223,17 +223,18 @@ python -c "from agent.server import create_app; print(create_app().title)"
 
 ## 8. 常见问题
 
-1. **搜索报维度不匹配 / 结果乱**  
-   服务 `--dim` 必须等于 embedding 维度（本地默认 384）。
+**搜索报维度不对，或结果看起来随机**  
+`--dim` 必须和 embedding 维度一致。本机嵌入默认是 384。
 
-2. **过滤搜不到**  
-   插入时必须带 `meta`/`metadatas`（含 `tags`/`text`），否则 DocumentStore 无数据。
+**开了过滤但搜不到**  
+插入时要带 `meta` 或 `metadatas`（至少要有 `tags` 或 `text`），否则 DocumentStore 里没数据可滤。
 
-3. **Agent 答案空洞**  
-   先跑 `scripts/demo_data.py`，确认 `GET /vectors/0/meta` 有 `text`。
+**Agent 回答空、或只说「不知道」**  
+先跑 `python scripts/demo_data.py` 灌示例数据，再 curl `GET /vectors/0/meta` 看有没有 `text` 字段。
 
-4. **Windows 编译失败**  
-   请用 WSL2 或 Docker，不要用原生 MSVC 直接编 `deepvector_server`。
+**Windows 上 C++ 编译失败**  
+`server.cpp` 和 MiniKV 用的是 Linux/macOS 那套 socket API。请用 **WSL2** 或 **Docker**，不要用原生 MSVC 硬编。
 
-5. **Ollama 连接失败**  
-   确认 `ollama serve` 已启动，或改用 `AGENTICDB_LLM_PROVIDER=openai`。
+**Ollama 连不上**  
+确认 `ollama serve` 在跑，且已 `ollama pull qwen2.5:7b`。  
+也可以改用云端 API：见 [FREE_RESOURCES_zh.md](./deepvector/course/FREE_RESOURCES_zh.md)，设 `AGENTICDB_LLM_PROVIDER=openai`。

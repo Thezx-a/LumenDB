@@ -1,71 +1,74 @@
-# 免费资源指南 · 零成本跑通 DeepVector
+# 免费资源指南 · 不花钱跑通 DeepVector
 
-> 写法对齐 [Hello-Agents Extra07 环境配置](https://github.com/datawhalechina/hello-agents/blob/main/Extra-Chapter/Extra07-%E7%8E%AF%E5%A2%83%E9%85%8D%E7%BD%AE.md)：  
-> **先选免费组合 → 注册拿 Key → 复制 `.env` → 跑通冒烟测试。**
+> 参考 [Hello-Agents 环境配置](https://github.com/datawhalechina/hello-agents/blob/main/Extra-Chapter/Extra07-%E7%8E%AF%E5%A2%83%E9%85%8D%E7%BD%AE.md) 的写法：  
+> **先选一种方案 → 注册拿 Key（或用 Ollama）→ 复制 `.env` → 跑一遍下面的验证命令。**
 
-本仓库 Agent 层使用 **OpenAI 兼容协议**（`provider=openai` + `OPENAI_BASE_URL`），与 Hello-Agents 的配置方式一致；嵌入默认走 **本地 sentence-transformers**，不花 API 钱。
-
----
-
-## 0. 三种零成本组合（选一个即可）
-
-| 方案 | LLM | Embedding | 适合谁 | 需要 GPU |
-|------|-----|-----------|--------|----------|
-| **A 完全本地（推荐）** | [Ollama](https://ollama.com/) | 本地 `all-MiniLM-L6-v2` | 有 8GB+ 内存的笔记本 | 可选 |
-| **B 云端 LLM + 本地嵌入** | ModelScope / 硅基流动 / Groq | 本地 384 维 | 电脑跑不动大模型 | 否 |
-| **C Docker 一键** | 同 A 或 B | 同 A | Windows 不想配编译环境 | 否 |
-
-**C++ 向量库轨（Track A）** 不需要任何 LLM API，只要 CMake + 编译器即可。
+Agent 这边和 Hello-Agents 一样，走 **OpenAI 兼容接口**：把 `AGENTICDB_LLM_PROVIDER` 设成 `openai`，再填 `OPENAI_BASE_URL` 和 Key 就行。  
+文本转向量默认用本机 **sentence-transformers**，不用额外买 embedding API。
 
 ---
 
-## 1. 嵌入 Embedding（默认免费）
+## 0. 三种常见组合（选一个就行）
 
-| 方式 | 说明 | 维度 | 配置 |
-|------|------|------|------|
-| **本地（默认）** | [HuggingFace all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) | **384** | `AGENTICDB_EMBEDDING_PROVIDER=local` |
-| HuggingFace 镜像 | 国内下载慢时用 [hf-mirror.com](https://hf-mirror.com/) | 同上 | `HF_ENDPOINT=https://hf-mirror.com` |
+| 方案 | 大模型从哪来 | 向量从哪来 | 适合什么情况 |
+|------|-------------|-----------|-------------|
+| **A 全本地（最省事）** | [Ollama](https://ollama.com/) | 本机 `all-MiniLM-L6-v2` | 内存 8GB+，不想注册任何网站 |
+| **B 云端大模型 + 本机向量** | ModelScope / 硅基流动 / Groq | 本机 384 维 | 电脑跑不动 7B 模型 |
+| **C Docker** | 同 A 或 B | 同 A | Windows 不想自己编译 C++ |
 
-首次运行会自动下载约 90MB 模型。C++ 服务必须匹配维度：
+只学 **C++ 向量库（Track A）** 的话，不用 LLM，装好 CMake 和编译器就够了。
+
+---
+
+## 1. 嵌入（Embedding）——默认不花钱
+
+| 方式 | 说明 | 向量维度 | 怎么开 |
+|------|------|---------|--------|
+| **本机（默认）** | [all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) | **384** | `AGENTICDB_EMBEDDING_PROVIDER=local` |
+| 国内下载慢 | 用 [hf-mirror.com](https://hf-mirror.com/) 镜像 | 同上 | `HF_ENDPOINT=https://hf-mirror.com` |
+
+第一次跑会自动下载大约 90MB 模型。  
+**重要：** C++ 服务启动时要写对维度，否则搜索会报错或结果不对：
 
 ```bash
 ./deepvector_server --port 8080 --dim 384
 ```
 
-> 初学者请保持 **本地嵌入 + 384 维**，不要同时换 OpenAI embedding（1536 维），否则还要改 `--dim` 并重灌数据。
+新手建议一直用 **本机嵌入 + 384 维**。别同时换成 OpenAI embedding（1536 维），不然还得改 `--dim` 并重新灌数据。
 
 ---
 
-## 2. 免费 LLM API 清单（OpenAI 兼容）
+## 2. 免费大模型 API（都能接进本仓库）
 
-以下均可通过 `AGENTICDB_LLM_PROVIDER=openai` + `OPENAI_BASE_URL` 接入本仓库 Agent。
+下面这些都支持 `AGENTICDB_LLM_PROVIDER=openai` + `OPENAI_BASE_URL`。  
+**免费额度各平台会变，以官网控制台为准。**
 
-| 平台 | 官网 / 注册 | Base URL | 免费额度（约） | 推荐模型 | 备注 |
-|------|------------|----------|----------------|----------|------|
-| **Ollama** | [ollama.com](https://ollama.com/) | `http://localhost:11434/v1` | 完全免费 | `qwen2.5:7b` | 本仓库**默认**；无需 Key |
-| **ModelScope 魔搭** | [modelscope.cn](https://modelscope.cn/) | `https://api-inference.modelscope.cn/v1/` | 约 2000 次/天 | `Qwen/Qwen2.5-7B-Instruct` | 需绑定阿里云账号 |
-| **硅基流动 SiliconFlow** | [siliconflow.cn](https://siliconflow.cn/) | `https://api.siliconflow.cn/v1` | 新用户赠额度 + 部分免费模型 | `Qwen/Qwen2.5-7B-Instruct` | Hello-Agents 生态常用 |
-| **Groq** | [console.groq.com](https://console.groq.com/) | `https://api.groq.com/openai/v1` | 免费档 RPM/RPD 限制 | `llama-3.3-70b-versatile` | 推理极快，适合试 Agent |
-| **OpenRouter** | [openrouter.ai](https://openrouter.ai/) | `https://openrouter.ai/api/v1` | 免费 `:free` 模型约 50 次/天 | 见站内 `*:free` 列表 | 模型 ID 需带 `:free` 后缀 |
-| **Google AI Studio** | [aistudio.google.com](https://aistudio.google.com/) | Gemini OpenAI 兼容端点 | 免费档有配额 | `gemini-2.0-flash` 等 | 配额随 Google 政策变化 |
-| **AIHubmix** | [aihubmix.com](https://aihubmix.com/) | `https://aihubmix.com/v1` | 有免费模型标签 | `coding-glm-4.7-free` | Hello-Agents Extra07 推荐 |
+| 平台 | 注册地址 | Base URL | 免费情况（参考） | 本仓库常用模型 |
+|------|---------|----------|-----------------|---------------|
+| **Ollama** | [ollama.com](https://ollama.com/) | `http://localhost:11434/v1` | 本机完全免费 | `qwen2.5:7b`（**默认**） |
+| **ModelScope 魔搭** | [modelscope.cn](https://modelscope.cn/) | `https://api-inference.modelscope.cn/v1/` | Hello-Agents 文档写约 2000 次/天 | `Qwen/Qwen2.5-7B-Instruct` |
+| **硅基流动** | [siliconflow.cn](https://siliconflow.cn/) | `https://api.siliconflow.cn/v1` | 新用户有赠送额度 | `Qwen/Qwen2.5-7B-Instruct` |
+| **Groq** | [console.groq.com](https://console.groq.com/) | `https://api.groq.com/openai/v1` | 有免费档，限 RPM/RPD | `llama-3.3-70b-versatile` |
+| **OpenRouter** | [openrouter.ai](https://openrouter.ai/) | `https://openrouter.ai/api/v1` | `:free` 模型有日限额 | 站内搜 `*:free` |
+| **Google AI Studio** | [aistudio.google.com](https://aistudio.google.com/) | 见 Google 文档 | 有免费配额 | `gemini-2.0-flash` 等 |
+| **AIHubmix** | [aihubmix.com](https://aihubmix.com/) | `https://aihubmix.com/v1` | 模型列表里标「免费」的 | `coding-glm-4.7-free` |
 
-> 额度与政策会变动，以各平台控制台为准。学习阶段优先 **Ollama** 或 **ModelScope**，稳定且文档多。
+学习阶段建议：**能装 Ollama 就用 Ollama**；装不了再用 **ModelScope**（和 Hello-Agents 教程同一套流程）。
 
-### 注册步骤（以 ModelScope 为例，与 Hello-Agents 相同）
+### ModelScope 注册（和 Hello-Agents 一样）
 
-1. 注册 [ModelScope](https://modelscope.cn/) 账号  
-2. 进入 **模型服务 → API 推理**，绑定 [阿里云账号](https://modelscope.cn/docs/accounts/aliyun-binding-and-authorization)  
-3. 创建 **SDK 令牌**（即 API Key，形如 `ms-...`）  
-4. 在 [模型库](https://modelscope.cn/models?filter=inference_type) 筛选 **API-Inference**，选带推理服务的 Qwen 模型  
+1. 注册 [ModelScope](https://modelscope.cn/)  
+2. 打开 **模型服务 → API 推理**，按提示 [绑定阿里云账号](https://modelscope.cn/docs/accounts/aliyun-binding-and-authorization)（不绑定 API 会不可用）  
+3. 创建 **SDK 令牌**，就是 API Key，一般以 `ms-` 开头  
+4. 在 [模型库](https://modelscope.cn/models?filter=inference_type) 里选带 **API-Inference** 的 Qwen 模型  
 
 ---
 
-## 3. 复制即用的 `.env` 示例
+## 3. `.env` 怎么写
 
-在 `deepvector/` 目录创建 `.env`（勿提交到 Git）：
+在 `deepvector/` 下新建 `.env`（**不要提交到 Git**）：
 
-### 方案 A：Ollama 本地（零 API 费用）
+### A：Ollama（一分钱不花）
 
 ```env
 AGENTICDB_DEEPVECTOR_URL=http://127.0.0.1:8080
@@ -77,10 +80,10 @@ AGENTICDB_EMBEDDING_PROVIDER=local
 
 ```bash
 ollama pull qwen2.5:7b
-ollama serve   # 若未自动启动
+ollama serve   # 托盘程序没起来时手动跑
 ```
 
-### 方案 B：ModelScope 云端 LLM + 本地嵌入
+### B：ModelScope + 本机嵌入
 
 ```env
 AGENTICDB_LLM_PROVIDER=openai
@@ -91,35 +94,35 @@ AGENTICDB_EMBEDDING_PROVIDER=local
 AGENTICDB_DEEPVECTOR_URL=http://127.0.0.1:8080
 ```
 
-### 方案 C：硅基流动
+### C：硅基流动
 
 ```env
 AGENTICDB_LLM_PROVIDER=openai
-OPENAI_API_KEY=sk-你的硅基流动密钥
+OPENAI_API_KEY=sk-你的密钥
 OPENAI_BASE_URL=https://api.siliconflow.cn/v1
 AGENTICDB_LLM_MODEL=Qwen/Qwen2.5-7B-Instruct
 AGENTICDB_EMBEDDING_PROVIDER=local
 ```
 
-### 方案 D：Groq
+### D：Groq
 
 ```env
 AGENTICDB_LLM_PROVIDER=openai
-OPENAI_API_KEY=gsk_你的Groq密钥
+OPENAI_API_KEY=gsk_你的密钥
 OPENAI_BASE_URL=https://api.groq.com/openai/v1
 AGENTICDB_LLM_MODEL=llama-3.3-70b-versatile
 AGENTICDB_EMBEDDING_PROVIDER=local
 ```
 
-加载 `.env`（可选，需 `pip install python-dotenv`，或手动 `export` / PowerShell `$env:`）：
+Linux/macOS/WSL 加载环境变量后启动：
 
 ```bash
 cd deepvector
-export $(grep -v '^#' .env | xargs)   # Linux/macOS/WSL
+export $(grep -v '^#' .env | xargs)
 python -m agent.server.app
 ```
 
-Windows PowerShell 示例：
+Windows PowerShell：
 
 ```powershell
 $env:AGENTICDB_LLM_PROVIDER = "openai"
@@ -129,44 +132,42 @@ $env:AGENTICDB_LLM_MODEL = "Qwen/Qwen2.5-7B-Instruct"
 python -m agent.server.app
 ```
 
-完整模板见 [`deepvector/.env.example`](../.env.example)。
+更多组合见 [`deepvector/.env.example`](../.env.example)。
 
 ---
 
-## 4. 免费基础设施与工具
+## 4. 其他免费工具
 
-| 资源 | 链接 | 用途 |
-|------|------|------|
-| **Docker Desktop** | [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop/) | Windows 免编译跑双服务 |
-| **WSL2** | [Microsoft WSL 文档](https://learn.microsoft.com/windows/wsl/install) | Windows 上编译 C++ 服务 |
-| **HuggingFace** | [huggingface.co](https://huggingface.co/) | 下载嵌入模型 |
-| **HF 镜像** | [hf-mirror.com](https://hf-mirror.com/) | 国内加速模型下载 |
-| **pytest** | `pip install pytest` | Agent 单元测试（免费） |
+| 工具 | 链接 | 干什么用 |
+|------|------|---------|
+| Docker Desktop | [下载页](https://www.docker.com/products/docker-desktop/) | Windows 不编译也能跑 |
+| WSL2 | [微软文档](https://learn.microsoft.com/windows/wsl/install) | Windows 上编译 C++ |
+| HuggingFace | [huggingface.co](https://huggingface.co/) | 下嵌入模型 |
+| HF 镜像 | [hf-mirror.com](https://hf-mirror.com/) | 国内加速下载 |
 
-根目录 `docker compose up` 可一次拉起 C++ :8080 + Agent :8090，见 [RUN.md](../../RUN.md)。
-
----
-
-## 5. 免费学习社区（扩展阅读）
-
-| 资源 | 链接 | 与本教程关系 |
-|------|------|--------------|
-| **Hello-Agents** | [GitHub](https://github.com/datawhalechina/hello-agents) · [在线文档](https://hello-agents.datawhale.cc/) | Agent 范式、MCP、环境配置范例 |
-| **Datawhale** | [datawhale.cn](https://www.datawhale.cn/) | 开源免费课程社区 |
-| **Agent Learning Hub** | [GitHub](https://github.com/datawhalechina/Agent-Learning-Hub) | 2026 Agent 学习路线 |
-| **MCP 协议** | [modelcontextprotocol.io](https://modelcontextprotocol.io/) | Track B `ch08_mcp` |
-| **HNSW 论文** | [Malkov & Yashunin, 2018](https://arxiv.org/abs/1603.09320) | Track A `ch03` |
+仓库根目录 `docker compose up` 会同时起 C++（8080）和 Agent（8090），细节见 [RUN.md](../../RUN.md)。
 
 ---
 
-## 6. 5 分钟验证（确认免费栈可用）
+## 5. 想继续学 Agent 可以看
+
+| 资源 | 链接 |
+|------|------|
+| Hello-Agents 教程 | [GitHub](https://github.com/datawhalechina/hello-agents) · [在线阅读](https://hello-agents.datawhale.cc/) |
+| Datawhale | [datawhale.cn](https://www.datawhale.cn/) |
+| MCP 协议 | [modelcontextprotocol.io](https://modelcontextprotocol.io/) |
+| HNSW 论文 | [arXiv:1603.09320](https://arxiv.org/abs/1603.09320) |
+
+---
+
+## 6. 跑通了吗？按顺序执行
 
 ```bash
-# 1. C++ 服务（Track A 或 Docker）
+# 1. 启动 C++ 向量库（或 docker compose up）
 ./build/deepvector/deepvector_server --port 8080 --dim 384 &
 curl -s http://127.0.0.1:8080/health
 
-# 2. 灌示例数据（本地 embedding，不耗 LLM 额度）
+# 2. 灌示例数据（只用本机 embedding，不耗 LLM 额度）
 cd deepvector && pip install -r requirements.txt
 python scripts/demo_data.py
 
@@ -174,16 +175,17 @@ python scripts/demo_data.py
 python -m agent.server.app &
 curl -s http://127.0.0.1:8090/health
 
-# 4. 问一句（会消耗 LLM 额度；Ollama 则不消耗）
+# 4. 问一个问题（Ollama 不扣云端额度；云端 API 会计数）
 curl -s -X POST http://127.0.0.1:8090/ask \
   -H 'Content-Type: application/json' \
   -d '{"question":"什么是 RAG？"}'
 ```
 
-仅测 LLM 连通性（不启动 DeepVector）：
+只想测大模型 API 通不通（不用启动 DeepVector）：
 
 ```python
 from openai import OpenAI
+
 client = OpenAI(
     api_key="你的Key",
     base_url="https://api-inference.modelscope.cn/v1/",
@@ -198,21 +200,21 @@ print(r.choices[0].message.content)
 
 ---
 
-## 7. 常见问题
+## 7. 出错了怎么办
 
-| 现象 | 原因 | 处理 |
-|------|------|------|
-| `429 Too Many Requests` | 免费 API 超配额 | 换 Ollama 或等次日重置 |
-| ModelScope `api 无法使用` | 未绑定阿里云 | 按官方文档绑定账号 |
-| 搜索维度错误 | embedding 维与 `--dim` 不一致 | 保持 local + `--dim 384` |
-| Ollama 连接失败 | 服务未启动 | `ollama serve` + `ollama pull qwen2.5:7b` |
-| 模型下载极慢 | HuggingFace 网络 | 设置 `HF_ENDPOINT=https://hf-mirror.com` |
+| 你看到的 | 多半是因为 | 怎么办 |
+|---------|-----------|--------|
+| `429 Too Many Requests` | 免费 API 超配额 | 换 Ollama，或等第二天 |
+| ModelScope 提示 API 不可用 | 没绑阿里云 | 按官网绑定后再试 |
+| 搜索报维度不对 | embedding 维度和 `--dim` 不一致 | 用 local + `--dim 384` |
+| 连不上 Ollama | 服务没开 | `ollama serve`，再 `ollama pull qwen2.5:7b` |
+| 模型下载很慢 | HuggingFace 网络 | `export HF_ENDPOINT=https://hf-mirror.com` |
 
 ---
 
-## 8. 下一步
+## 8. 接下来看哪
 
-- 运行细节 → [RUN.md](../../RUN.md)  
-- Agent 配置原理 → [ch03_config](ch03_config/03_配置系统_zh.md)  
-- LLM Router 源码 → `deepvector/agent/llm/router.py`  
-- 面试：免费栈 vs 生产栈权衡 → [INTERVIEW_BANK.md](INTERVIEW_BANK.md)
+- 完整启动步骤 → [RUN.md](../../RUN.md)  
+- 环境变量从哪读 → [ch03_config](ch03_config/03_配置系统_zh.md)  
+- LLM 代码在哪 → `deepvector/agent/llm/router.py`  
+- 面试题 → [INTERVIEW_BANK.md](INTERVIEW_BANK.md)

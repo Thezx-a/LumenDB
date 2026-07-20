@@ -1,21 +1,21 @@
-# Free Resources · Run DeepVector at Zero Cost
+# Free Resources · Run DeepVector Without Paying
 
-> Same spirit as [Hello-Agents Extra07 (Environment Setup)](https://github.com/datawhalechina/hello-agents/blob/main/Extra-Chapter/Extra07-%E7%8E%AF%E5%A2%83%E9%85%8D%E7%BD%AE.md):  
-> **Pick a free stack → register for a key → copy `.env` → run the smoke test.**
+> Same flow as [Hello-Agents Extra07](https://github.com/datawhalechina/hello-agents/blob/main/Extra-Chapter/Extra07-%E7%8E%AF%E5%A2%83%E9%85%8D%E7%BD%AE.md):  
+> **Pick a stack → get a key (or use Ollama) → copy `.env` → run the smoke test.**
 
-The Agent layer speaks **OpenAI-compatible APIs** (`provider=openai` + `OPENAI_BASE_URL`), matching Hello-Agents. Embeddings default to **local sentence-transformers** (no API spend).
+The Agent uses **OpenAI-compatible APIs** (`provider=openai` + `OPENAI_BASE_URL`). Embeddings default to **local sentence-transformers** (no API cost).
 
 ---
 
-## 0. Three zero-cost stacks (pick one)
+## 0. Three common stacks
 
-| Stack | LLM | Embedding | Best for | GPU |
-|-------|-----|-----------|----------|-----|
-| **A Local (recommended)** | [Ollama](https://ollama.com/) | local `all-MiniLM-L6-v2` | 8GB+ RAM laptop | optional |
-| **B Cloud LLM + local embed** | ModelScope / SiliconFlow / Groq | local 384-d | weak GPU / CPU only | no |
-| **C Docker** | A or B | A | Windows without native compile | no |
+| Stack | LLM | Embedding | When to use |
+|-------|-----|-----------|-------------|
+| **A Local (easiest)** | [Ollama](https://ollama.com/) | local `all-MiniLM-L6-v2` | 8GB+ RAM, no sign-ups |
+| **B Cloud LLM + local embed** | ModelScope / SiliconFlow / Groq | local 384-d | PC can't run 7B models |
+| **C Docker** | A or B | A | Windows, skip native compile |
 
-**Track A (C++ engine)** needs no LLM API—only CMake and a compiler.
+**Track A (C++ only)** needs no LLM—just CMake and a compiler.
 
 ---
 
@@ -23,130 +23,66 @@ The Agent layer speaks **OpenAI-compatible APIs** (`provider=openai` + `OPENAI_B
 
 | Mode | Source | Dim | Config |
 |------|--------|-----|--------|
-| **Local (default)** | [HuggingFace all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) | **384** | `AGENTICDB_EMBEDDING_PROVIDER=local` |
-| HF mirror (CN) | [hf-mirror.com](https://hf-mirror.com/) | same | `HF_ENDPOINT=https://hf-mirror.com` |
+| **Local** | [all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) | **384** | `AGENTICDB_EMBEDDING_PROVIDER=local` |
+| CN mirror | [hf-mirror.com](https://hf-mirror.com/) | same | `HF_ENDPOINT=https://hf-mirror.com` |
 
-First run downloads ~90MB. C++ server must match:
+First run downloads ~90MB. Start C++ with matching dim:
 
 ```bash
 ./deepvector_server --port 8080 --dim 384
 ```
 
-> Beginners: keep **local embedding + dim 384**. Switching to OpenAI embeddings (1536-d) requires `--dim 1536` and re-ingesting data.
+Stick with **local + 384** until you know why you'd switch to OpenAI embeddings (1536-d).
 
 ---
 
-## 2. Free LLM APIs (OpenAI-compatible)
+## 2. Free LLM APIs
 
-All work with `AGENTICDB_LLM_PROVIDER=openai` + `OPENAI_BASE_URL`.
+All work with `AGENTICDB_LLM_PROVIDER=openai` + `OPENAI_BASE_URL`. **Quotas change—check each provider's console.**
 
-| Provider | Sign up | Base URL | Free tier (approx.) | Suggested model | Notes |
-|----------|---------|----------|---------------------|-----------------|-------|
-| **Ollama** | [ollama.com](https://ollama.com/) | `http://localhost:11434/v1` | unlimited local | `qwen2.5:7b` | **Repo default** |
-| **ModelScope** | [modelscope.cn](https://modelscope.cn/) | `https://api-inference.modelscope.cn/v1/` | ~2000 calls/day | `Qwen/Qwen2.5-7B-Instruct` | bind Aliyun account |
-| **SiliconFlow** | [siliconflow.cn](https://siliconflow.cn/) | `https://api.siliconflow.cn/v1` | trial + free models | `Qwen/Qwen2.5-7B-Instruct` | common in CN Agent tutorials |
-| **Groq** | [console.groq.com](https://console.groq.com/) | `https://api.groq.com/openai/v1` | rate-limited free tier | `llama-3.3-70b-versatile` | very fast inference |
-| **OpenRouter** | [openrouter.ai](https://openrouter.ai/) | `https://openrouter.ai/api/v1` | ~50 req/day on `:free` models | see `*:free` on site | model id must end with `:free` |
-| **Google AI Studio** | [aistudio.google.com](https://aistudio.google.com/) | Gemini OpenAI-compatible | quota varies | `gemini-2.0-flash` | policy changes |
-| **AIHubmix** | [aihubmix.com](https://aihubmix.com/) | `https://aihubmix.com/v1` | free-tagged models | `coding-glm-4.7-free` | Hello-Agents Extra07 pick |
-
-Quotas change—check each console. For learning, **Ollama** or **ModelScope** are the most documented.
+| Provider | Sign up | Base URL | Notes | Model |
+|----------|---------|----------|-------|-------|
+| **Ollama** | [ollama.com](https://ollama.com/) | `http://localhost:11434/v1` | fully local | `qwen2.5:7b` (default) |
+| **ModelScope** | [modelscope.cn](https://modelscope.cn/) | `https://api-inference.modelscope.cn/v1/` | Hello-Agents docs cite ~2000 calls/day | `Qwen/Qwen2.5-7B-Instruct` |
+| **SiliconFlow** | [siliconflow.cn](https://siliconflow.cn/) | `https://api.siliconflow.cn/v1` | trial credits | `Qwen/Qwen2.5-7B-Instruct` |
+| **Groq** | [console.groq.com](https://console.groq.com/) | `https://api.groq.com/openai/v1` | rate-limited free tier | `llama-3.3-70b-versatile` |
+| **OpenRouter** | [openrouter.ai](https://openrouter.ai/) | `https://openrouter.ai/api/v1` | `:free` models, daily cap | see `*:free` on site |
+| **AIHubmix** | [aihubmix.com](https://aihubmix.com/) | `https://aihubmix.com/v1` | free-tagged models | `coding-glm-4.7-free` |
 
 ---
 
-## 3. Copy-paste `.env` examples
+## 3. `.env` examples
 
-Create `deepvector/.env` (never commit secrets):
-
-### A — Ollama (zero API cost)
+See [`deepvector/.env.example`](../.env.example). Quick Ollama block:
 
 ```env
-AGENTICDB_DEEPVECTOR_URL=http://127.0.0.1:8080
 AGENTICDB_LLM_PROVIDER=ollama
 AGENTICDB_LLM_MODEL=qwen2.5:7b
-AGENTICDB_OLLAMA_HOST=http://localhost:11434
-AGENTICDB_EMBEDDING_PROVIDER=local
-```
-
-### B — ModelScope + local embedding
-
-```env
-AGENTICDB_LLM_PROVIDER=openai
-OPENAI_API_KEY=ms-your-token
-OPENAI_BASE_URL=https://api-inference.modelscope.cn/v1/
-AGENTICDB_LLM_MODEL=Qwen/Qwen2.5-7B-Instruct
 AGENTICDB_EMBEDDING_PROVIDER=local
 AGENTICDB_DEEPVECTOR_URL=http://127.0.0.1:8080
 ```
 
-### C — SiliconFlow
-
-```env
-AGENTICDB_LLM_PROVIDER=openai
-OPENAI_API_KEY=sk-your-key
-OPENAI_BASE_URL=https://api.siliconflow.cn/v1
-AGENTICDB_LLM_MODEL=Qwen/Qwen2.5-7B-Instruct
-AGENTICDB_EMBEDDING_PROVIDER=local
-```
-
-### D — Groq
-
-```env
-AGENTICDB_LLM_PROVIDER=openai
-OPENAI_API_KEY=gsk_your-key
-OPENAI_BASE_URL=https://api.groq.com/openai/v1
-AGENTICDB_LLM_MODEL=llama-3.3-70b-versatile
-AGENTICDB_EMBEDDING_PROVIDER=local
-```
-
-Full template: [`deepvector/.env.example`](../.env.example).
-
 ---
 
-## 4. Free infrastructure
-
-| Tool | Link | Use |
-|------|------|-----|
-| Docker Desktop | [docker.com](https://www.docker.com/products/docker-desktop/) | run both services on Windows |
-| WSL2 | [Microsoft docs](https://learn.microsoft.com/windows/wsl/install) | compile C++ on Windows |
-| HuggingFace | [huggingface.co](https://huggingface.co/) | embedding weights |
-| HF mirror | [hf-mirror.com](https://hf-mirror.com/) | faster downloads in CN |
-
-See [RUN.md](../../RUN.md) for `docker compose up`.
-
----
-
-## 5. Free learning communities
-
-| Resource | Link | Relation |
-|----------|------|----------|
-| Hello-Agents | [GitHub](https://github.com/datawhalechina/hello-agents) · [Docs](https://hello-agents.datawhale.cc/) | Agent patterns, MCP, env setup |
-| Datawhale | [datawhale.cn](https://www.datawhale.cn/) | open course community |
-| MCP spec | [modelcontextprotocol.io](https://modelcontextprotocol.io/) | Track B ch08 |
-
----
-
-## 6. 5-minute smoke test
+## 4. Smoke test
 
 ```bash
 ./build/deepvector/deepvector_server --port 8080 --dim 384 &
-cd deepvector && pip install -r requirements.txt
-python scripts/demo_data.py
+cd deepvector && pip install -r requirements.txt && python scripts/demo_data.py
 python -m agent.server.app &
-curl -s -X POST http://127.0.0.1:8090/ask \
-  -H 'Content-Type: application/json' \
+curl -s -X POST http://127.0.0.1:8090/ask -H 'Content-Type: application/json' \
   -d '{"question":"What is RAG?"}'
 ```
 
 ---
 
-## 7. Troubleshooting
+## 5. Troubleshooting
 
 | Symptom | Fix |
 |---------|-----|
-| HTTP 429 | free quota exhausted → use Ollama |
+| HTTP 429 | quota hit → Ollama or wait |
 | ModelScope unusable | bind Aliyun account |
-| dim mismatch | keep local embed + `--dim 384` |
+| dim mismatch | local embed + `--dim 384` |
 | slow HF download | `HF_ENDPOINT=https://hf-mirror.com` |
 
-Next → [RUN.md](../../RUN.md) · [ch03_config](ch03_config/03_配置系统_en.md)
+Next → [RUN.md](../../RUN.md) · [FREE_RESOURCES_zh.md](FREE_RESOURCES_zh.md) (full CN guide)

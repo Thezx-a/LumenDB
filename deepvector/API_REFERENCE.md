@@ -1,6 +1,10 @@
 # DeepVector API Reference
 
-Complete reference for C++, HTTP, and Python APIs.
+C++、HTTP、Python 三份接口说明。查字段、查路径时用这份文档。
+
+**和运行教程的区别：** [RUN.md](../RUN.md) 教你怎么启动；这里教每个 API 长什么样。  
+**默认向量维度：** 本仓库 Agent 用 `all-MiniLM-L6-v2`，是 **384 维**（不是 768）。启动服务时 `--dim 384`。  
+**性能数字：** 下文没有写死的延迟/召回表——请在你自己的机器上跑 `benchmarks/bench_hnsw.cpp`（默认 128 维、5 万向量）看真实结果。
 
 ---
 
@@ -9,10 +13,10 @@ Complete reference for C++, HTTP, and Python APIs.
 ### Headers
 
 ```cpp
-#include <deepvector/deepvector.h>        // Includes types.h + collection.h
-#include <deepvector/filter.h>         // FilterNode, evaluateFilter
-#include <deepvector/server/server.h>  // DeepVectorServer, ServerConfig, ServerStats
-#include <deepvector/storage/document_store.h> // DocumentMeta
+#include <dv/deepvector.h>           // types.h + collection.h
+#include <dv/filter.h>               // FilterNode, evaluateFilter
+#include <dv/server/server.h>        // DeepVectorServer, ServerConfig
+#include <dv/storage/document_store.h> // DocumentMeta
 ```
 
 ### CollectionConfig
@@ -334,45 +338,52 @@ int main() {
 
 ## HTTP API
 
-Base URL: `http://{host}:{port}`
+Base URL: `http://{host}:{port}`（默认 `http://localhost:8080`）
 
-All endpoints except `/health` require authentication if `api_key` is configured.
+OpenAPI 草稿见 [`docs/openapi.yaml`](docs/openapi.yaml)。
 
 ### Authentication
 
+如果你在启动服务时配置了 `api_key`，除 `/health` 外的请求需要：
+
 ```
-Header: Authorization: Bearer <api_key>
+Authorization: Bearer <api_key>
 ```
 
-If `api_key` is empty (default), no authentication is required on any endpoint. If configured, all non-health endpoints return `401 Unauthorized` when the header is missing or incorrect.
+**默认没配 api_key，不需要认证。** 本地开发一般保持空即可。
 
 ### GET /health
 
-Liveness check. No authentication required.
+存活检查，不需要认证。
 
-**Response** `200 OK`:
+**Response** `200 OK`（字段随当前集合变化，`dim` 以实际配置为准）:
 ```json
 {
     "status": "ok",
     "vectors": 12345,
-    "dim": 768
+    "dim": 384
 }
 ```
 
 ### GET /stats
 
-Server statistics.
+请求计数（搜索/插入/错误等）。
 
-**Response** `200 OK`:
-```json
-{
-    "requests": 15023,
-    "searches": 12000,
-    "inserts": 3000,
-    "errors": 23,
-    "connections": 2
-}
-```
+### GET /metrics
+
+Prometheus 格式指标（搜索/插入延迟等）。`/health` 和 `/metrics` 通常不需要认证。
+
+### GET /collections
+
+列出所有 collection 及向量数量。
+
+### POST /collections
+
+创建 collection。Body 示例：`{"name":"demo"}` 或带 `"dim":384`。
+
+### DELETE /collections/:name
+
+删除指定 collection（`default` 一般不可删）。
 
 ### POST /search
 
@@ -381,8 +392,9 @@ K-nearest-neighbor search.
 **Request**:
 ```json
 {
-    "vector": [0.1, 0.2, 0.3, ..., 0.768],
+    "vector": [0.1, 0.2, 0.3],
     "k": 10,
+    "collection": "default",
     "filter": {
         "op": "eq",
         "field": "tags",
@@ -393,9 +405,10 @@ K-nearest-neighbor search.
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `vector` | float[] | Yes | — | Query vector, length must match collection dim |
-| `k` | integer | No | `10` | Number of results to return |
-| `filter` | object | No | — | Filter expression (see Filter Format below) |
+| `vector` | float[] | Yes | — | Query vector; length must match collection dim |
+| `k` | integer | No | `10` | Number of results |
+| `collection` | string | No | `default` | Target collection name |
+| `filter` | object | No | — | Filter expression (see below) |
 
 **Filter Format**:
 
@@ -428,15 +441,17 @@ Composite filter:
 }
 ```
 
-**Response** `200 OK`:
+**Response** `200 OK`（有元数据时会带上 `text` / `tags` / `timestamp`）:
 ```json
 {
     "results": [
-        {"id": 42, "distance": 0.1234},
+        {"id": 42, "distance": 0.1234, "text": "...", "tags": "demo"},
         {"id": 17, "distance": 0.5678}
     ]
 }
 ```
+
+**Note:** C++ 服务**不提供** `/embed`。文本转向量在 Python Agent、`demo_data.py` 或 MCP 里完成。
 
 ### POST /insert
 
@@ -643,53 +658,29 @@ print(f"Filtered: {len(filtered)} results")
 
 ## Performance Tuning Guide
 
-### HNSW Parameters
+参数怎么调，取决于你的数据量、维度和机器。**不要照搬文档里的虚构延迟表**——在本仓库里用基准程序测：
 
-| Parameter | Lower Value | Higher Value | Guidance |
-|-----------|-------------|-------------|----------|
-| `hnsw_m` | Less memory, lower recall | Better recall, more memory | Start at 16. Double for each 10× increase in dataset size. |
-| `hnsw_ef_construction` | Faster inserts | Better graph quality | Set to 2× `ef_search` for production. Set lower for bulk loading. |
-| `hnsw_ef_search` | Faster queries, lower recall | Better recall, slower | Set to `k × 4` as baseline, increase until recall meets SLA. |
-
-### ef_search Tuning Table (M=16, 768-dim, 1M vectors)
-
-| ef_search | P50 Latency | P99 Latency | Recall@10 | Memory Impact |
-|-----------|-------------|-------------|-----------|---------------|
-| 16 | 80 µs | 250 µs | 92% | None |
-| 50 | 150 µs | 500 µs | 97% | None |
-| 100 | 250 µs | 800 µs | 98.5% | None |
-| 200 | 450 µs | 1.5 ms | 99.2% | None |
-| 400 | 800 µs | 3.0 ms | 99.5% | None |
-
-### PQ Configuration Table (768-dim)
-
-| pq_M | Subspace Dim | Compression | Code Memory/Vector | Recall@10 (est.) |
-|------|-------------|-------------|---------------------|-------------------|
-| 48 | 16 | 48× | 48 bytes | 99% |
-| 96 | 8 | 32× | 96 bytes | 97% |
-| 192 | 4 | 16× | 192 bytes | 95% |
-| 384 | 2 | 8× | 384 bytes | 92% |
-
-Higher `pq_M` = more subspaces = higher compression = lower recall. The subspace dimension (`dim / pq_M`) determines the granularity of quantization. Very small subspaces (2-dim) lose too much information.
-
-### SQ Configuration
-
-| Parameter | Value | Compression | Quality Loss |
-|-----------|-------|-------------|-------------|
-| Per-dim int8 | — | 4× | <1% recall loss for most datasets |
-
-SQ is nearly lossless for vectors with values distributed within a bounded range. Works well for normalized embeddings (all values in [-1, 1]).
-
-### Combined Tuning: PQ + ef_search
-
-Choose `ef_search` to compensate for PQ recall loss:
-
-```
-Target recall = PQ_base_recall × (1 - ef_penalty)
+```bash
+# 编译后（Linux/macOS/WSL）
+./build/deepvector/bench_hnsw
+# 或 cmake --build build --target bench_hnsw && ./build/deepvector/bench_hnsw
 ```
 
-| pq_M | Base Recall | ef_search for 99% | ef_search for 95% |
-|------|-------------|--------------------|--------------------|
-| 48 | 99% | 50 | 16 |
-| 96 | 97% | 200 | 50 |
-| 192 | 95% | 400 | 100 |
+`benchmarks/bench_hnsw.cpp` 默认：**128 维、5 万向量、M=16、ef_construction=200、ef_search=50**，会打印插入吞吐和搜索 P50/P99。  
+你要测 384 维或别的规模，改源码里的 `dim` / `N` 后重新编译运行。
+
+### HNSW 参数（经验方向，不是保证值）
+
+| Parameter | 调小 | 调大 | 实用建议 |
+|-----------|------|------|---------|
+| `hnsw_m` | 省内存、召回可能降 | 召回更好、更占内存 | 默认 16；数据量明显变大再考虑加大 |
+| `hnsw_ef_construction` | 插入更快 | 图质量更好 | 批量导入时可临时调低；线上常设为 ef_search 的 2–4 倍 |
+| `hnsw_ef_search` | 查询更快 | 召回更好 | 从 `k×4` 试起，用 bench 或对比暴力搜索看 recall |
+
+### PQ / SQ
+
+开启 `use_pq` / `use_sq` 会省内存、可能损一点召回。具体损失和 `pq_M`、`dim` 有关——在你自己的数据集上对比 `search` vs 暴力 top-k，别信固定百分比。
+
+### 和 Agent 默认配置对齐
+
+Agent 嵌入默认 **384 维**。Collection / 服务器 `--dim` / insert 的向量长度必须一致，否则 HTTP 会 400 或结果无意义。

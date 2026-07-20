@@ -6,45 +6,44 @@
 
 ---
 
-## 本章定位：点 → 线 → 面
+## 和本仓库代码怎么对应
 
-| 层次 | 本章内容 | 对应仓库 |
-|------|---------|---------|
-| **点** | Socket、HTTP/1.1、REST 状态码 | `course/ch10_http_server/code/main.cpp` |
-| **线** | 请求解析 → 路由 → JSON 响应 → 优雅关闭 | `deepvector/src/server/server.cpp` |
-| **面** | 多 Collection、`/metrics`、Agent 分层 | [ARCHITECTURE.md](../../ARCHITECTURE.md)、[openapi.yaml](../../docs/openapi.yaml) |
+| 层次 | 这章讲什么 | 代码在哪 |
+|------|-----------|---------|
+| **点** | Socket、HTTP/1.1、状态码 | `course/ch10_http_server/code/main.cpp` |
+| **线** | 收请求 → 路由 → 回 JSON | `deepvector/src/server/server.cpp` |
+| **面** | 多 collection、`/metrics`、Agent 怎么调 | [ARCHITECTURE.md](../../ARCHITECTURE.md)、[openapi.yaml](../../docs/openapi.yaml) |
 
-**设计原则：** C++ 层只做向量 I/O 与 ANN 搜索；文本 embedding 在 Agent 层完成（`agent/embedding/service.py`），避免在 DB 进程内加载 PyTorch。
+**为什么要分开：** C++ 只管存向量和搜索；把文字变成向量在 Agent 里做（`agent/embedding/service.py`），这样 DB 进程不用拖一个 PyTorch 进来。
 
-### 与本仓库 REST API 的映射
+### 启动后常用的 HTTP 接口
 
-当前 DeepVector HTTP 服务（默认 `:8080`）暴露以下核心端点：
+服务默认跑在 **8080**。启动方法见 [RUN.md](../../../RUN.md)。
 
-| 端点 | 方法 | 作用 |
-|------|------|------|
-| `/health` | GET | 存活探针 |
-| `/metrics` | GET | Prometheus 指标（搜索/插入延迟、QPS） |
-| `/collections` | GET/POST | 列出或创建 Collection |
-| `/collections/{name}` | DELETE | 删除 Collection |
-| `/search` | POST | ANN 搜索（body 含 `vector`、`k`、`collection`、`filter`） |
-| `/insert` | POST | 插入向量 + 可选 `meta`（text/tags/timestamp） |
-| `/vectors/{id}/meta` | GET | 按 ID 读取元数据 |
+| 路径 | 方法 | 干什么 |
+|------|------|--------|
+| `/health` | GET | 看服务活没活 |
+| `/metrics` | GET | Prometheus 指标 |
+| `/collections` | GET/POST | 列出 / 新建 collection |
+| `/collections/{name}` | DELETE | 删掉某个 collection |
+| `/search` | POST | 传 `vector`、`k`，可选 `collection`、`filter` |
+| `/insert` | POST | 插向量，可带 `meta`（text/tags/timestamp） |
+| `/vectors/{id}/meta` | GET | 按 id 取元数据 |
 
 ```bash
-# 快速验证（需先启动 deepvector-server，见 RUN.md）
 curl -s http://localhost:8080/health
 curl -s http://localhost:8080/metrics | head
 curl -s -X POST http://localhost:8080/collections \
   -H "Content-Type: application/json" -d '{"name":"demo"}'
 ```
 
-**CollectionRegistry**（`include/dv/server/collection_registry.h`）在进程内维护多个独立索引；Agent/MCP 通过 `collection` 字段选择目标集合，实现「一个进程、多租户隔离」的轻量方案。
+多个 collection 由 **CollectionRegistry** 管（`include/dv/server/collection_registry.h`）。Agent 或 MCP 在请求里加 `"collection":"xxx"` 就能换库，不用起多个进程。
 
-### 反思与面试
+### 想想这些问题（面试也常问）
 
-- 为什么向量 DB 的 HTTP API 通常接受 **float32 数组** 而不是原始文本？
-- `/metrics` 应暴露哪些 SLI？（P99 延迟、错误率、索引大小）
-- 见 [INTERVIEW_BANK.md](../INTERVIEW_BANK.md) §HTTP / 生产运维
+- 为什么 HTTP 接口要传 **float 数组**，而不是直接传一句话？
+- `/metrics` 里你会放哪些数？（延迟、错误率、向量条数…）
+- 更多题见 [INTERVIEW_BANK.md](../INTERVIEW_BANK.md)
 
 ---
 

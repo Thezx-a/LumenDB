@@ -58,18 +58,19 @@ mindmap
 
 ## 项目概览
 
-本项目包含四个紧密关联的 C++/Python 项目，构建了一个完整的向量数据库与 AI 智能检索系统。
+这个仓库里有四个子项目，合在一起是一套「向量库 + Agent 检索」：
 
-| 项目 | 语言 | 说明 | 课程 |
-|------|------|------|------|
-| **MiniKV** | C++17 | LSM-Tree KV 存储引擎 (WAL, MemTable, SSTable, Compaction) | [课程](./deepvector/course/ch05_lsm_tree/) |
-| **SkyNet** | C++20 | 协程网络框架 (Task<T>, HTTP Parser, Load Balancer) | [课程](./deepvector/course/ch11_coroutines/) |
-| **DeepVector DB** | C++17 | 零拷贝向量数据库 (HNSW, mmap, PQ/SQ, pybind11) | [课程](./deepvector/course/) |
-| **AgenticDB** | Python | LLM Agent 智能检索层 (多轮搜索, MCP 协议) | [课程](./deepvector/course/#章节列表) |
+| 项目 | 语言 | 干什么 | 课程 |
+|------|------|--------|------|
+| **MiniKV** | C++17 | LSM 键值存储（WAL、MemTable、SST） | [ch05_lsm_tree](./deepvector/course/ch05_lsm_tree/) |
+| **SkyNet** | C++20 | 协程网络框架 | [ch11_coroutines](./deepvector/course/ch11_coroutines/) |
+| **DeepVector DB** | C++17 | HNSW 向量库、mmap、HTTP 服务 | [course/](./deepvector/course/) |
+| **AgenticDB** | Python | 多轮检索、MCP、FastAPI | [course/](./deepvector/course/) |
 
-## 快速开始 / Quick Start
+## 快速开始
 
-完整多平台教程见 [RUN.md](./RUN.md)。技术选型说明见 [TECH.md](./TECH.md)。
+详细步骤（含 Windows / Docker）：[RUN.md](./RUN.md)  
+免费 LLM / Ollama 配置：[FREE_RESOURCES_zh.md](./deepvector/course/FREE_RESOURCES_zh.md)
 
 ```bash
 # 编译 C++ 项目 / Build all C++ projects

@@ -8,8 +8,8 @@
 <h1 align="center">DeepVector 从零到一 · Learning Path</h1>
 
 <p align="center">
-  <b>搭积木式学习：每一个「点」都可运行，串成「线」后拼成「面」</b><br/>
-  <i>Build like LEGO: each brick runs alone, then wires into a production RAG stack</i>
+  <b>一块一块学：每节能单独跑，连起来就是完整 RAG 系统</b><br/>
+  <i>Each chapter runs on its own; wired together you get a working RAG stack</i>
 </p>
 
 <p align="center">
@@ -24,25 +24,26 @@
 
 ---
 
-## 设计哲学（对齐 Hello-Agents / Datawhale）
+## 这套教程怎么组织的
 
-| 原则 | 含义 |
-|------|------|
-| **造轮子 + 用轮子** | C++ 手写引擎；Python Agent 调用真实 LLM/嵌入生态 |
-| **点 → 线 → 面** | 单知识点 → 模块串联 → 完整系统 |
-| **每章可运行** | 有代码、有断言、有动手题 |
-| **真实面试** | 题库来自向量库/存储引擎/系统设计常见考点（非臆造） |
-| **双语** | 中文主讲 + English companion |
+| 原则 | 什么意思 |
+|------|---------|
+| **自己写引擎 + 用现成 LLM** | C++ 部分手写；Agent 调 Ollama / OpenAI 兼容 API |
+| **点 → 线 → 面** | 先一个小概念，再模块对接，最后整条问答链路 |
+| **每章能跑** | 有代码、有测试、有动手题 |
+| **面试题有出处** | 来自向量库/存储常见考点，见 INTERVIEW_BANK |
+| **中英各一份** | 中文为主，英文对照 |
 
-参考社区优秀实践：
-- [datawhalechina/hello-agents](https://github.com/datawhalechina/hello-agents) — 从零构建 Agent、分篇递进、毕业设计
-- Datawhale 开源学习社区 — 统一章节结构、练习与思考题
+社区参考（不是本仓库代码，是学习方法）：
+- [Hello-Agents](https://github.com/datawhalechina/hello-agents) — 分章递进、毕业项目
+- [Datawhale](https://www.datawhale.cn/) — 开源免费课程
 
 ---
 
-## 双轨课程地图（避免章节号冲突）
+## 两套章节，别混编号
 
-本仓库历史上存在 **C++ 引擎轨** 与 **Agent 智能检索轨** 两套章节目录。学习时请按轨道阅读，不要混用同号章节。
+仓库里有两条学习线：**C++ 引擎（Track A）** 和 **Agent 检索（Track B）**。  
+两边的 `ch04`、`ch05` 内容完全不同——一个是 mmap，一个是 LLM。按轨道读，不要跳着混。
 
 ```mermaid
 flowchart TB
@@ -132,35 +133,35 @@ flowchart TB
 
 ---
 
-## 三条学习路线（像 Hello-Agents 一样选档）
+## 三条路线，按时间选
 
 ```mermaid
 graph LR
-    S((Start)) --> R{Route}
-    R -->|🟢 周末入门 12h| G[A1-A3 + B1 + Capstone 精简]
-    R -->|🟡 标准工程师 40h| Y[Track A 全 + Track B B1-B9]
-    R -->|🔴 面试冲刺 70h| D[双轨全 + INTERVIEW_BANK + Capstone]
+    S((开始)) --> R{选一条}
+    R -->|🟢 周末 ~12h| G[A1-A3 + B1 概览]
+    R -->|🟡 标准 ~40h| Y[Track A 全 + Track B 到 B9]
+    R -->|🔴 面试 ~70h| D[双轨全做 + 面试题库 + Capstone]
 ```
 
-| 路线 | 适合谁 | 交付物 |
-|------|--------|--------|
-| 🟢 入门 | 会一点 C++/Python | 能搜索的小 demo |
-| 🟡 标准 | 后端/检索方向 | 可 Docker 部署的双服务 |
-| 🔴 面试 | 校招/社招存储&搜索 | 讲清 HNSW/LSM/mmap + Agent |
+| 路线 | 适合 | 做完你能 |
+|------|------|---------|
+| 🟢 入门 | 会一点 C++/Python | 本地搜索 demo |
+| 🟡 标准 | 想做后端/检索 | Docker 跑双服务 |
+| 🔴 面试 | 校招/社招 | 讲清 HNSW、LSM、Agent 链路 |
 
 ---
 
-## 每章统一结构（强制模板）
+## 每章长什么样
 
-详见 [`_CHAPTER_TEMPLATE.md`](_CHAPTER_TEMPLATE.md)。每章必须包含：
+见 [`_CHAPTER_TEMPLATE.md`](_CHAPTER_TEMPLATE.md)。大致包括：
 
-1. **点 Point** — 单一知识点 + 语法精讲  
-2. **线 Line** — 与相邻模块如何对接  
-3. **面 Surface** — 在整系统中的位置（架构图片段）  
-4. **动手实践** — 可提交的小练习  
-5. **反思思考** — 理解而非背诵  
-6. **真实面试题** — 映射到 [INTERVIEW_BANK.md](INTERVIEW_BANK.md)  
-7. **参考文档** — 论文 / 官方文档 / 源码路径（真实链接）
+1. **点** — 一个知识点 + 对应源码路径  
+2. **线** — 和相邻模块怎么接  
+3. **面** — 在整体架构里占哪一块  
+4. **动手题** — 要自己敲  
+5. **反思题** — 写笔记用  
+6. **面试题** — 链到 [INTERVIEW_BANK.md](INTERVIEW_BANK.md)  
+7. **参考链接** — 论文或官方文档（可点开核对）
 
 ---
 
@@ -180,10 +181,10 @@ graph LR
 
 ---
 
-## 5 分钟冒烟（确认环境）
+## 5 分钟检查环境能不能用
 
 ```bash
-# from monorepo root (Linux / WSL / macOS)
+# 在仓库根目录（Linux / WSL / macOS）
 cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=ON
 cmake --build build -j$(nproc)
 ./build/deepvector/deepvector_server --port 8080 --dim 384 &
@@ -193,7 +194,7 @@ curl -s http://127.0.0.1:8080/health
 curl -s http://127.0.0.1:8080/metrics | head
 ```
 
-Windows 请阅读根目录 [RUN.md](../../RUN.md)（WSL2 / Docker）。
+Windows 用户看根目录 [RUN.md](../../RUN.md)（推荐 WSL2 或 Docker）。
 
 ---
 
