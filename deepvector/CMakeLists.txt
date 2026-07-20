@@ -44,7 +44,7 @@ add_library(deepvector STATIC
 )
 
 target_include_directories(deepvector PUBLIC
-    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
 target_compile_options(deepvector PRIVATE
@@ -59,7 +59,7 @@ if(ENABLE_TESTS)
     include(FetchContent)
     FetchContent_Declare(googletest
         GIT_REPOSITORY https://github.com/google/googletest.git
-        GIT_TAG v1.14.0
+        GIT_TAG v1.15.2
     )
     FetchContent_MakeAvailable(googletest)
     enable_testing()
@@ -77,7 +77,8 @@ endif()
 add_executable(deepvector_server
     src/server/main.cpp
     src/server/server.cpp
+    src/server/collection_registry.cpp
 )
 target_compile_features(deepvector_server PRIVATE cxx_std_20)
 target_link_libraries(deepvector_server PRIVATE deepvector skynet nlohmann_json::nlohmann_json)
-target_include_directories(deepvector_server PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(deepvector_server PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)

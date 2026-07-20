@@ -70,3 +70,11 @@ All exceptions caught and returned as JSON — no stack trace leakage.
 1. Add CORS headers to the Simple HTTP server
 2. Add `stream` parameter to `/query` for SSE support
 3. Implement `/batch/query` for processing multiple questions
+
+---
+
+## Appendix: Interview Bank Mapping
+
+After this chapter, drill the matching section in [INTERVIEW_BANK.md](../INTERVIEW_BANK.md) and self-check against [_CHAPTER_TEMPLATE.md](../_CHAPTER_TEMPLATE.md).
+
+**Architecture:** [ARCHITECTURE.md](../../ARCHITECTURE.md) · **Tech:** [TECH.md](../../../TECH.md) · **Run:** [RUN.md](../../../RUN.md)

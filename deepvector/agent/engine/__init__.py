@@ -1,4 +1,4 @@
-﻿from .strategy import SearchStrategy, RetrievalPlan
+from .strategy import SearchStrategy, RetrievalPlan
 from .query_planner import QueryPlanner
 from .multi_round import MultiRoundEngine
 from .result_evaluator import ResultEvaluator

@@ -1,4 +1,4 @@
-﻿"""
+"""
 Embedding Service 鈥?鏂囨湰鍚戦噺鍖栫殑缁熶竴鎺ュ彛 / Unified text embedding interface.
 
 璁捐鍘熷垯 / Design Principles:
@@ -160,7 +160,8 @@ class EmbeddingService:
         self._load_local_model()
         start = time.monotonic()
 
-        # encode() 鑷姩澶勭悊 batch_size 鍜屽綊涓€鍖?        vectors = self._local_model.encode(
+        # encode() handles batch_size and normalization internally
+        vectors = self._local_model.encode(
             texts,
             batch_size=self.config.batch_size,
             show_progress_bar=False,

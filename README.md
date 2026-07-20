@@ -68,16 +68,18 @@ mindmap
 
 ## 快速开始 / Quick Start
 
+完整多平台教程见 [RUN.md](./RUN.md)。技术选型说明见 [TECH.md](./TECH.md)。
+
 ```bash
 # 编译 C++ 项目 / Build all C++ projects
 cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j$(nproc)
 
 # 安装 Python 依赖 / Install Python deps
-pip install httpx pydantic sentence-transformers fastapi uvicorn mcp
+cd deepvector && pip install -r requirements.txt
 
-# 启动 DeepVector DB 服务器
-./build/lumendb_server --port 8080 --dim 384
+# 启动 DeepVector DB 服务器（维度需与 embedding 一致，默认 384）
+./build/deepvector/deepvector_server --port 8080 --dim 384
 
 # 启动 Agent 层 / Start Agent layer
 cd deepvector && python -m agent.server.app
@@ -87,8 +89,10 @@ cd deepvector && python -m agent.server.app
 
 | 课程 | 链接 | 章节数 |
 |------|------|--------|
-| 🎓 DeepVector DB C++ 向量数据库 | [course/](./deepvector/course/README.md) | 13 章 |
-| 🤖 AgenticDB 智能检索 | [course/ AgenticDB](./deepvector/course/) | 13 章 (+ 5 前置) |
+| 🎓 DeepVector 从零到一（点→线→面） | [course/](./deepvector/course/README.md) | 双轨 + Capstone |
+| 🧭 学习路线 | [LEARNING_PATH.md](./deepvector/course/LEARNING_PATH.md) | 积木顺序 |
+| 🎤 面试题库 | [INTERVIEW_BANK.md](./deepvector/course/INTERVIEW_BANK.md) | 真实考点映射 |
+| 🏗 架构 | [ARCHITECTURE.md](./deepvector/ARCHITECTURE.md) | Registry /metrics |
 
 ## 文档 / Documentation
 

@@ -15,7 +15,7 @@ int main() {
 
     server.router().get("/health", [](HttpRequest&) {
         return HttpResponse(200, "OK",
-            R"({"status":"ok","service":"lumendb"})");
+            R"({"status":"ok","service":"deepvector"})");
     });
 
     server.router().get("/api/v1/stats", [](HttpRequest&) {

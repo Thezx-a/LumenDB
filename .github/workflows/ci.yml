@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  deepvector:
+    name: DeepVector (integrated)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++-12 cmake ninja-build
+      - name: Configure
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=ON -DCMAKE_CXX_COMPILER=g++-12
+      - name: Build
+        run: cmake --build build -j$(nproc)
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  minikv:
+    name: MiniKV (standalone)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++-12 cmake ninja-build
+      - name: Configure
+        working-directory: minikv
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=ON -DCMAKE_CXX_COMPILER=g++-12
+      - name: Build
+        working-directory: minikv
+        run: cmake --build build -j$(nproc)
+      - name: Test
+        working-directory: minikv
+        run: ctest --test-dir build --output-on-failure
+
+  skynet:
+    name: SkyNet (standalone)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++-12 cmake ninja-build
+      - name: Configure
+        working-directory: skynet
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=ON -DCMAKE_CXX_COMPILER=g++-12
+      - name: Build
+        working-directory: skynet
+        run: cmake --build build -j$(nproc)
+      - name: Test
+        working-directory: skynet
+        run: ctest --test-dir build --output-on-failure
+
+  agent:
+    name: Agent (Python)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install httpx pydantic fastapi uvicorn
+      - name: Verify imports
+        working-directory: deepvector
+        run: python -c "from agent.server import create_app; app = create_app(); print('ok', app.title)"

@@ -5,9 +5,9 @@
 #include <vector>
 #include <random>
 #include <cstdio>
-#include "lumendb/collection.h"
+#include "dv/collection.h"
 
-using namespace lumendb;
+using namespace dv;
 using Clock = std::chrono::high_resolution_clock;
 
 static std::vector<float> generateVector(size_t dim, std::mt19937& rng) {
@@ -21,7 +21,7 @@ static std::vector<float> generateVector(size_t dim, std::mt19937& rng) {
 }
 
 int main() {
-    ::system("rm -rf /tmp/lumendb_bench");
+    ::system("rm -rf /tmp/deepvector_bench");
 
     const size_t dim = 128;
     const size_t N = 50000;
@@ -39,7 +39,7 @@ int main() {
     std::cout << "Dim: " << dim << ", N: " << N << ", M: " << config.hnsw_m
               << ", ef_construction: " << config.hnsw_ef_construction << std::endl << std::endl;
 
-    Collection coll(config, "/tmp/lumendb_bench");
+    Collection coll(config, "/tmp/deepvector_bench");
     std::mt19937 rng(42);
 
     // Benchmark INSERT
@@ -88,6 +88,6 @@ int main() {
     std::cout << "Avg: " << std::fixed << std::setprecision(0) << (search_time * 1e6 / query_count) << " us" << std::endl;
     std::cout << "Memory (index+vectors): ~" << (N * dim * 4 / 1024 / 1024) << " MB" << std::endl;
 
-    ::system("rm -rf /tmp/lumendb_bench");
+    ::system("rm -rf /tmp/deepvector_bench");
     return 0;
 }

@@ -1,4 +1,4 @@
-﻿"""
+"""
 鏌ヨ閲嶆瀯鍣?/ Query Reformulator 鈥?鐢熸垚鏀硅繘鐨勬悳绱㈡煡璇€?
 褰撳垵濮嬫绱㈢粨鏋滀笉瓒虫椂 (鐢?ResultEvaluator 鍒ゆ柇),
 QueryReformulator 浣跨敤 LLM 鐢熸垚鏇村ソ鐨勬煡璇€?

@@ -746,3 +746,11 @@ int main() {
 - Bayer, Rudolf, and Edward M. McCreight. "Organization and maintenance of large ordered indices." *Acta Informatica* 1.3 (1972): 173–189. — The original B-Tree paper.
 - Facebook RocksDB Wiki, Compaction: https://github.com/facebook/rocksdb/wiki/Compaction — Practical details on leveled and tiered compaction.
 - LevelDB source code: https://github.com/google/leveldb — Reference implementation of an LSM-Tree storage engine.
+
+---
+
+## Appendix: Interview Bank Mapping
+
+After this chapter, drill the matching section in [INTERVIEW_BANK.md](../INTERVIEW_BANK.md) and self-check against [_CHAPTER_TEMPLATE.md](../_CHAPTER_TEMPLATE.md).
+
+**Architecture:** [ARCHITECTURE.md](../../ARCHITECTURE.md) · **Tech:** [TECH.md](../../../TECH.md) · **Run:** [RUN.md](../../../RUN.md)

@@ -1,4 +1,4 @@
-﻿"""
+"""
 绠€鍗?HTTP 鏈嶅姟鍣?(鍥為€€鏂规) / Simple HTTP Server (Fallback).
 
 褰?FastAPI/uvicorn 涓嶅彲鐢ㄦ椂, 浣跨敤 Python asyncio 鏍囧噯搴撴彁渚?HTTP 鏈嶅姟銆?閫傚悎鏈€灏忎緷璧栫殑鐢熶骇閮ㄧ讲鎴栬竟缂樼幆澧冦€?
@@ -76,21 +76,27 @@ async def handle_http_request(
                 key, value = line.split(": ", 1)
                 headers[key.lower()] = value
 
-        # 瑙ｆ瀽璇锋眰浣?/ Parse body (if Content-Length header present)
-        body_str = ""
+        # Parse body (finish reading Content-Length if incomplete)
+        body_bytes = b""
         if "content-length" in headers:
             content_length = int(headers["content-length"])
-            header_end = request_str.find("\r\n\r\n") + 4
-            body_str = request_str[header_end: header_end + content_length]
+            header_end = request_data.find(b"\r\n\r\n") + 4
+            body_bytes = request_data[header_end:]
+            while len(body_bytes) < content_length:
+                chunk = await reader.read(content_length - len(body_bytes))
+                if not chunk:
+                    break
+                body_bytes += chunk
+            body_bytes = body_bytes[:content_length]
 
         body = {}
-        if body_str:
+        if body_bytes:
             try:
-                body = json.loads(body_str)
+                body = json.loads(body_bytes.decode("utf-8"))
             except json.JSONDecodeError:
                 pass
 
-        # 璺敱鍒嗗彂 / Route to handler
+        # Route to handler
         resp_data = {"error": "not found"}
         status = 200
 
@@ -114,8 +120,8 @@ async def handle_http_request(
             resp_data = {"error": str(e)}
             status = 500
 
-        # 鏋勫缓 HTTP 鍝嶅簲 / Build HTTP response
-        resp_body = json.dumps(resp_data)
+        # Build HTTP response (Content-Length in bytes)
+        resp_body = json.dumps(resp_data).encode("utf-8")
         resp_headers = (
             f"HTTP/1.1 {status} {'OK' if status == 200 else 'Error'}\r\n"
             f"Content-Type: application/json\r\n"
@@ -124,7 +130,7 @@ async def handle_http_request(
             f"\r\n"
         )
 
-        writer.write(resp_headers.encode() + resp_body.encode())
+        writer.write(resp_headers.encode("utf-8") + resp_body)
         await writer.drain()
 
     except Exception as e:

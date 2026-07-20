@@ -7,18 +7,18 @@
 #include "dv/filter.h"
 #include "dv/storage/document_store.h"
 
-using namespace lumendb;
+using namespace dv;
 
 class CollectionFilterTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        ::system("rm -rf /tmp/lumendb_filter_test");
+        ::system("rm -rf /tmp/deepvector_filter_test");
         config_.dim = 8;
         config_.metric = DistanceMetric::L2;
         config_.hnsw_m = 16;
         config_.hnsw_ef_construction = 100;
         config_.hnsw_ef_search = 40;
-        coll_ = std::make_unique<Collection>(config_, "/tmp/lumendb_filter_test");
+        coll_ = std::make_unique<Collection>(config_, "/tmp/deepvector_filter_test");
 
         std::mt19937 rng(123);
         std::normal_distribution<float> dist(0.0f, 1.0f);
@@ -35,7 +35,7 @@ protected:
 
     void TearDown() override {
         coll_.reset();
-        ::system("rm -rf /tmp/lumendb_filter_test");
+        ::system("rm -rf /tmp/deepvector_filter_test");
     }
 
     CollectionConfig config_;

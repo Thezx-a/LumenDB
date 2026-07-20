@@ -2,8 +2,8 @@
 #include <cmath>
 #include <vector>
 #include <random>
-#include "lumendb/quantize/pq.h"
-#include "lumendb/quantize/scalar.h"
+#include "dv/quantize/pq.h"
+#include "dv/quantize/scalar.h"
 
 using namespace dv::quantize;
 

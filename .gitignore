@@ -1,6 +1,8 @@
 # Build directories
 build/
+**/build/
 cmake-build-*/
+.pytest_cache/
 
 # Python
 __pycache__/

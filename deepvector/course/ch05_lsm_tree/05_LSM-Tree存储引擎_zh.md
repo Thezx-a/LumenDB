@@ -748,3 +748,11 @@ int main() {
 - Bayer, Rudolf, and Edward M. McCreight. "Organization and maintenance of large ordered indices." *Acta Informatica* 1.3 (1972): 173–189. — 原始 B-Tree 论文。
 - Facebook RocksDB Wiki, Compaction: https://github.com/facebook/rocksdb/wiki/Compaction — 分层和分层压缩的实用细节。
 - LevelDB source code: https://github.com/google/leveldb — LSM-Tree 存储引擎的参考实现。
+
+---
+
+## 附录：本章与面试题库映射
+
+请完成本章后练习 [INTERVIEW_BANK.md](../INTERVIEW_BANK.md) 中对应分区题目，并阅读 [_CHAPTER_TEMPLATE.md](../_CHAPTER_TEMPLATE.md) 自检是否覆盖「点/线/面/动手/反思/参考」。
+
+**全局架构：** [ARCHITECTURE.md](../../ARCHITECTURE.md) · **选型：** [TECH.md](../../../TECH.md) · **运行：** [RUN.md](../../../RUN.md)

@@ -161,33 +161,27 @@ class DeepVectorMCPTools:
         if self._client is None or self._client.is_closed:
             self._client = httpx.AsyncClient(timeout=30.0)
 
+    async def _embed(self, texts: List[str]) -> List[List[float]]:
+        """Embed texts via the Agent embedding service (C++ server has no /embed)."""
+        from ..config import load_config
+        from ..embedding.service import EmbeddingService
+
+        embedder = EmbeddingService(load_config().embedding)
+        try:
+            return await embedder.embed(texts)
+        finally:
+            await embedder.close()
+
     async def vector_search(
         self, query: str, k: int = 10, collection: str = "default"
     ) -> str:
-        """
-        语义向量搜索 / Semantic vector search.
-
-        流程: 嵌入查询 → POST /search → 返回 JSON 结果
-
-        Args:
-            query: 搜索查询文本
-            k: 返回结果数量
-            collection: 集合名称
-
-        Returns:
-            JSON 格式的结果字符串
-        """
+        """Semantic vector search: embed locally → POST /search."""
         await self._ensure_client()
-        embed_resp = await self._client.post(
-            f"{self.deepvector_url}/embed",
-            json={"text": query},
-        )
-        embed_resp.raise_for_status()
-        vector = embed_resp.json()["vector"]
+        vector = (await self._embed([query]))[0]
 
         resp = await self._client.post(
             f"{self.deepvector_url}/search",
-            json={"vector": vector, "k": k},
+            json={"vector": vector, "k": k, "collection": collection},
         )
         resp.raise_for_status()
         results = resp.json()["results"]
@@ -201,29 +195,13 @@ class DeepVectorMCPTools:
         k: int = 10,
         collection: str = "default",
     ) -> str:
-        """
-        带过滤的搜索 / Search with metadata filters.
-
-        Args:
-            query: 搜索查询文本
-            filter: 过滤条件树 / Filter condition tree
-            k: 返回结果数量
-            collection: 集合名称
-
-        Returns:
-            JSON 格式的结果字符串
-        """
+        """Search with metadata filters."""
         await self._ensure_client()
-        embed_resp = await self._client.post(
-            f"{self.deepvector_url}/embed",
-            json={"text": query},
-        )
-        embed_resp.raise_for_status()
-        vector = embed_resp.json()["vector"]
+        vector = (await self._embed([query]))[0]
 
         resp = await self._client.post(
             f"{self.deepvector_url}/search",
-            json={"vector": vector, "k": k, "filter": filter},
+            json={"vector": vector, "k": k, "filter": filter, "collection": collection},
         )
         resp.raise_for_status()
         results = resp.json()["results"]
@@ -236,39 +214,41 @@ class DeepVectorMCPTools:
         metadatas: List[Dict[str, Any]] | None = None,
         collection: str = "default",
     ) -> str:
-        """
-        批量添加文档 / Add documents to the database.
-
-        Args:
-            texts: 文本列表
-            metadatas: 元数据列表 (可选)
-            collection: 集合名称
-
-        Returns:
-            JSON 格式的结果字符串
-        """
+        """Embed locally, then POST /insert with metadata."""
         await self._ensure_client()
+        vectors = await self._embed(texts)
+        metas = []
+        for i, text in enumerate(texts):
+            meta = {"text": text, "tags": "", "timestamp": 0}
+            if metadatas and i < len(metadatas) and metadatas[i]:
+                m = metadatas[i]
+                meta["text"] = m.get("text", text)
+                meta["tags"] = m.get("tags", "")
+                meta["timestamp"] = m.get("timestamp", 0)
+            metas.append(meta)
+
         resp = await self._client.post(
-            f"{self.deepvector_url}/embed_and_insert",
-            json={"texts": texts, "metadatas": metadatas},
+            f"{self.deepvector_url}/insert",
+            json={"vectors": vectors, "metadatas": metas, "collection": collection},
         )
         resp.raise_for_status()
         return json.dumps(resp.json())
 
     async def get_collection_info(self, collection: str = "default") -> str:
-        """
-        获取集合信息 / Get collection information.
-
-        Args:
-            collection: 集合名称
-
-        Returns:
-            JSON 格式的集合信息
-        """
+        """Get collection information from /collections."""
         await self._ensure_client()
-        resp = await self._client.get(f"{self.deepvector_url}/health")
+        # Ensure collection exists
+        await self._client.post(
+            f"{self.deepvector_url}/collections",
+            json={"name": collection},
+        )
+        resp = await self._client.get(f"{self.deepvector_url}/collections")
         resp.raise_for_status()
-        return json.dumps(resp.json())
+        data = resp.json()
+        for coll in data.get("collections", []):
+            if coll.get("name") == collection:
+                return json.dumps(coll, indent=2)
+        return json.dumps(data, indent=2)
 
     async def list_collections(self) -> str:
         """

@@ -82,7 +82,41 @@ async def call_tool(name: str, arguments: dict):
 
 ---
 
-## 8.4 集成示例
+## 8.4 与本仓库的数据流（点 → 线 → 面）
+
+**点：** MCP 用 JSON Schema 描述工具；stdio/SSE 传输 JSON-RPC 消息。
+
+**线：** `vector_search` 的完整链路：
+
+```
+用户 query → MCP call_tool → EmbeddingService.encode → POST /search (float32)
+         → DeepVector HNSW → 返回 id + score + meta
+```
+
+实现位于 `deepvector/agent/mcp/server.py`：embedding **不在 C++ 层**，Agent 本地调用 `agent/embedding/service.py`，再将向量 POST 到 `:8080/search`。`collection` 参数透传到 HTTP body，配合 **CollectionRegistry** 实现多集合。
+
+**面：** MCP + Multi-Round + LLM Router 组成 RAG Agent 栈：
+
+| 组件 | 文件 | 职责 |
+|------|------|------|
+| MCP Server | `agent/mcp/server.py` | 对外暴露 6 个工具 |
+| Multi-Round | `agent/engine/multi_round.py` | 多轮检索与结果评估 |
+| LLM Router | `agent/llm/router.py` | 规划 / 改写 / 评估（可 mock） |
+
+```bash
+# 启动 Agent（:8000）并确保 DeepVector（:8080）已运行
+cd deepvector && py -3 -m uvicorn agent.server.app:app --host 0.0.0.0 --port 8000
+```
+
+### 常见面试题
+
+1. MCP 与 OpenAI Function Calling 的边界在哪里？（协议 vs 厂商格式）
+2. 为什么 embedding 放在 Agent 而不是 DB？（进程隔离、模型热更新、GPU 资源）
+3. `filtered_search` 的 filter AST 如何映射到 C++ `Filter` 类？
+
+---
+
+## 8.5 集成示例
 
 ```python
 # LangChain 集成
@@ -114,3 +148,11 @@ agent_executor = AgentExecutor(agent=agent, tools=tools)
 1. 启动 MCP Server，用 `mcp` CLI 工具调用 `vector_search`
 2. 添加一个新的 MCP 工具 `batch_search`，支持一次搜索多个 query
 3. 在 LangChain 中创建一个使用 DeepVector MCP 工具的 Agent
+
+---
+
+## 附录：本章与面试题库映射
+
+请完成本章后练习 [INTERVIEW_BANK.md](../INTERVIEW_BANK.md) 中对应分区题目，并阅读 [_CHAPTER_TEMPLATE.md](../_CHAPTER_TEMPLATE.md) 自检是否覆盖「点/线/面/动手/反思/参考」。
+
+**全局架构：** [ARCHITECTURE.md](../../ARCHITECTURE.md) · **选型：** [TECH.md](../../../TECH.md) · **运行：** [RUN.md](../../../RUN.md)

@@ -47,7 +47,40 @@ MCP Way:
 
 ---
 
-## 8.3 Integration Example
+## 8.3 Data flow in this repo (point → line → surface)
+
+**Point:** MCP describes tools with JSON Schema; stdio/SSE carry JSON-RPC messages.
+
+**Line:** Full `vector_search` path:
+
+```
+user query → MCP call_tool → EmbeddingService.encode → POST /search (float32)
+          → DeepVector HNSW → ids + scores + meta
+```
+
+See `deepvector/agent/mcp/server.py`: embedding runs **in the Agent**, not in C++. The `collection` parameter is forwarded to the HTTP body and resolved by **CollectionRegistry**.
+
+**Surface:** MCP + Multi-Round + LLM Router form the RAG stack:
+
+| Component | File | Role |
+|-----------|------|------|
+| MCP Server | `agent/mcp/server.py` | Exposes 6 tools |
+| Multi-Round | `agent/engine/multi_round.py` | Multi-hop retrieval + evaluation |
+| LLM Router | `agent/llm/router.py` | Plan / reformulate / evaluate (mockable) |
+
+```bash
+cd deepvector && py -3 -m uvicorn agent.server.app:app --host 0.0.0.0 --port 8000
+```
+
+### Interview prompts
+
+1. Where does MCP end and OpenAI Function Calling begin?
+2. Why embed in Agent instead of the DB process?
+3. How does the filter AST map to C++ `Filter`?
+
+---
+
+## 8.4 Integration Example
 
 ```python
 # LangChain with MCP tools
@@ -74,3 +107,11 @@ executor = AgentExecutor(agent=agent, tools=mcp_tools)
 1. Start MCP Server and call `vector_search` via the `mcp` CLI
 2. Add a new `batch_search` MCP tool
 3. Create a LangChain Agent using DeepVector MCP tools
+
+---
+
+## Appendix: Interview Bank Mapping
+
+After this chapter, drill the matching section in [INTERVIEW_BANK.md](../INTERVIEW_BANK.md) and self-check against [_CHAPTER_TEMPLATE.md](../_CHAPTER_TEMPLATE.md).
+
+**Architecture:** [ARCHITECTURE.md](../../ARCHITECTURE.md) · **Tech:** [TECH.md](../../../TECH.md) · **Run:** [RUN.md](../../../RUN.md)

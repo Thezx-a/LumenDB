@@ -929,3 +929,11 @@ private:
 - Intel Intrinsics Guide: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html
 - Facebook Folly `SharedMutex`: https://github.com/facebook/folly/blob/main/folly/SharedMutex.h
 - Williams, Anthony. *C++ Concurrency in Action* (2nd Edition). Chapters on memory ordering and lock-free data structures.
+
+---
+
+## Appendix: Interview Bank Mapping
+
+After this chapter, drill the matching section in [INTERVIEW_BANK.md](../INTERVIEW_BANK.md) and self-check against [_CHAPTER_TEMPLATE.md](../_CHAPTER_TEMPLATE.md).
+
+**Architecture:** [ARCHITECTURE.md](../../ARCHITECTURE.md) · **Tech:** [TECH.md](../../../TECH.md) · **Run:** [RUN.md](../../../RUN.md)

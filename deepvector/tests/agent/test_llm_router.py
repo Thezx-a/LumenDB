@@ -1,4 +1,4 @@
-﻿"""Tests for the LLM Router."""
+"""Tests for the LLM Router."""
 
 import asyncio
 import json

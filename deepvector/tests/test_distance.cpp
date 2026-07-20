@@ -2,7 +2,7 @@
 #include <cmath>
 #include <vector>
 #include <random>
-#include "lumendb/index/distance.h"
+#include "dv/index/distance.h"
 
 using namespace dv::index;
 

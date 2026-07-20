@@ -1,3 +1,3 @@
-﻿from .service import EmbeddingService
+from .service import EmbeddingService
 
 __all__ = ["EmbeddingService"]

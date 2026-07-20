@@ -1,287 +1,200 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Language-🇨🇳_中文-blue?style=for-the-badge" alt="中文"/>
   <img src="https://img.shields.io/badge/Language-🇺🇸_English-green?style=for-the-badge" alt="English"/>
-  <img src="https://img.shields.io/badge/Chapters-13-blueviolet?style=for-the-badge" alt="Chapters"/>
-  <img src="https://img.shields.io/badge/Exercises-40+-green?style=for-the-badge" alt="Exercises"/>
-  <img src="https://img.shields.io/badge/Thinking_Questions-80+-orange?style=for-the-badge" alt="Questions"/>
-  <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="MIT"/>
+  <img src="https://img.shields.io/badge/Pedagogy-点→线→面-orange?style=for-the-badge" alt="Pedagogy"/>
+  <img src="https://img.shields.io/badge/Style-Hello--Agents_+_Datawhale-purple?style=for-the-badge" alt="Style"/>
 </p>
 
-<h1 align="center">DeepVector 从零到一</h1>
+<h1 align="center">DeepVector 从零到一 · Learning Path</h1>
 
 <p align="center">
-  <b>C++ 向量数据库实战教程</b><br/>
-  <i>从第一行代码到生产部署 · 13 章 · 70+ 小时内容</i>
+  <b>搭积木式学习：每一个「点」都可运行，串成「线」后拼成「面」</b><br/>
+  <i>Build like LEGO: each brick runs alone, then wires into a production RAG stack</i>
+</p>
+
+<p align="center">
+  <a href="./00_如何使用本教程_zh.md">🇨🇳 如何使用</a> ·
+  <a href="./00_如何使用本教程_en.md">🇺🇸 How to use</a> ·
+  <a href="./LEARNING_PATH.md">路线图 Roadmap</a> ·
+  <a href="./INTERVIEW_BANK.md">面试题库 Interview Bank</a> ·
+  <a href="../ARCHITECTURE.md">架构 Architecture</a> ·
+  <a href="../../TECH.md">技术选型 TECH</a>
 </p>
 
 ---
 
-## 前置知识（Prerequisites）
+## 设计哲学（对齐 Hello-Agents / Datawhale）
 
-各章共享的基础知识已提取到独立文档，避免重复：
-
-| 文档 | 内容 | 中文 | English |
-|------|------|------|---------|
-| 构建环境配置 | CMake, Ninja, g++, 编译选项 | [中文](prerequisites/01_构建环境配置_zh.md) | [English](prerequisites/01_构建环境配置_en.md) |
-| Docker 容器化 | Dockerfile, docker-compose, 镜像优化 | [中文](prerequisites/02_Docker容器化_zh.md) | [English](prerequisites/02_Docker容器化_en.md) |
-| Python 环境 | 虚拟环境, pip, pybind11 构建 | [中文](prerequisites/03_Python环境_zh.md) | [English](prerequisites/03_Python环境_en.md) |
-| 测试框架 | Google Test, ctest, 断言宏 | [中文](prerequisites/04_测试框架_zh.md) | [English](prerequisites/04_测试框架_en.md) |
-| 向量距离度量 | L2, Cosine, Inner Product | [中文](prerequisites/05_向量距离度量_zh.md) | [English](prerequisites/05_向量距离度量_en.md) |
-| SIMD 与硬件优化 | AVX2, 内存层次, 编译选项 | [中文](prerequisites/06_SIMD与硬件优化_zh.md) | [English](prerequisites/06_SIMD与硬件优化_en.md) |
-
-> 每章开头的 **前置知识** 区域会标注需要先阅读哪些参考文档。
-
----
-
-## 为什么学这个？
-
-RAG (Retrieval-Augmented Generation) 是让大语言模型"查资料再回答"的核心技术。而 RAG 的底层就是一个**向量数据库**。
-
-本教程带你从零开始，用 C++ 手写一个完整的向量数据库引擎——涵盖 HNSW 搜索、SIMD 加速、mmap 存储、量化压缩、Python 绑定、HTTP 服务器、生产部署。
-
-**不是用框架搭积木，是造发动机。**
-
-```mermaid
-mindmap
-  root((DeepVector 教程))
-    存储层
-      mmap 零拷贝
-      LSM-Tree
-      WAL 持久化
-    搜索层
-      HNSW 图索引
-      SIMD 加速
-      向量距离
-    压缩层
-      PQ 量化
-      SQ 量化
-      k-means
-    应用层
-      Python 绑定
-      HTTP 服务器
-      元数据过滤
-    生产层
-      Docker
-      CI/CD
-      监控
-```
-
----
-
-## 课程大纲
-
-```mermaid
-graph LR
-    subgraph "基础 (Ch1-3)"
-        C01[Ch01 环境搭建]
-        C02[Ch02 向量距离]
-        C03[Ch03 HNSW]
-    end
-
-    subgraph "存储 (Ch4-5)"
-        C04[Ch04 mmap]
-        C05[Ch05 LSM-Tree]
-    end
-
-    subgraph "功能 (Ch6-9)"
-        C06[Ch06 过滤]
-        C07[Ch07 量化]
-        C08[Ch08 C++模式]
-        C09[Ch09 Python]
-    end
-
-    subgraph "服务 (Ch10-12)"
-        C10[Ch10 HTTP]
-        C11[Ch11 协程]
-        C12[Ch12 生产]
-    end
-
-    subgraph "实战"
-        C13[Ch13 终极项目]
-    end
-
-    C01 --> C02 --> C03
-    C03 --> C04 --> C05
-    C05 --> C06 --> C07 --> C08 --> C09
-    C09 --> C10 --> C11 --> C12
-    C12 --> C13
-
-    style C13 fill:#fff3e0
-    style C03 fill:#e1f5fe
-    style C05 fill:#f3e5f5
-```
-
-| 章 | 中文 | English | 难度 | 时间 |
-|----|------|---------|------|------|
-| 01 | [环境搭建](ch01_setup/01_环境搭建与编译_zh.md) | [Setup](ch01_setup/01_环境搭建与编译_en.md) | ⭐ | 2h |
-| 02 | [向量与距离](ch02_vectors_distance/02_向量与距离度量_zh.md) | [Vectors & Distance](ch02_vectors_distance/02_向量与距离度量_en.md) | ⭐⭐ | 3h |
-| 03 | [HNSW 算法](ch03_hnsw_theory/03_HNSW近似搜索_zh.md) | [HNSW Search](ch03_hnsw_theory/03_HNSW近似搜索_en.md) | ⭐⭐⭐ | 4h |
-| 04 | [mmap 存储](ch04_mmap_storage/04_mmap零拷贝存储_zh.md) | [mmap Storage](ch04_mmap_storage/04_mmap零拷贝存储_en.md) | ⭐⭐ | 3h |
-| 05 | [LSM-Tree](ch05_lsm_tree/05_LSM-Tree存储引擎_zh.md) | [LSM-Tree Engine](ch05_lsm_tree/05_LSM-Tree存储引擎_en.md) | ⭐⭐⭐ | 5h |
-| 06 | [元数据过滤](ch06_metadata_filter/06_元数据过滤搜索_zh.md) | [Metadata Filter](ch06_metadata_filter/06_元数据过滤搜索_en.md) | ⭐⭐ | 3h |
-| 07 | [量化压缩](ch07_quantization/07_向量量化压缩_zh.md) | [Quantization](ch07_quantization/07_向量量化压缩_en.md) | ⭐⭐⭐ | 4h |
-| 08 | [C++ 设计模式](ch08_cpp_patterns/08_CPP设计模式_zh.md) | [C++ Patterns](ch08_cpp_patterns/08_CPP设计模式_en.md) | ⭐⭐ | 3h |
-| 09 | [Python 绑定](ch09_python_bindings/09_Python绑定_zh.md) | [Python Bindings](ch09_python_bindings/09_Python绑定_en.md) | ⭐⭐ | 3h |
-| 10 | [HTTP 服务器](ch10_http_server/10_HTTP服务器设计_zh.md) | [HTTP Server](ch10_http_server/10_HTTP服务器设计_en.md) | ⭐⭐ | 4h |
-| 11 | [C++20 协程](ch11_coroutines/11_CPP20协程_zh.md) | [C++20 Coroutines](ch11_coroutines/11_CPP20协程_en.md) | ⭐⭐⭐ | 4h |
-| 12 | [生产部署](ch12_production/12_生产部署_zh.md) | [Production](ch12_production/12_生产部署_en.md) | ⭐⭐ | 3h |
-| 13 | [终极项目](ch13_capstone/13_终极项目_zh.md) | [Capstone Project](ch13_capstone/13_终极项目_en.md) | ⭐⭐⭐ | 7天 |
-
----
-
-## 学习路线
-
-```mermaid
-graph TB
-    START((开始)) --> ROUTE{选择路线}
-    
-    ROUTE -->|🟢 入门| G1[Ch01] --> G2[Ch02] --> G3[Ch03] --> G13A[Ch13 终极项目]
-    
-    ROUTE -->|🟡 标准| S1[Ch01~Ch08] --> S2[Ch09] --> S3[Ch13 终极项目]
-    
-    ROUTE -->|🔴 面试| D1[全部 13 章] --> D2[每章思考题] --> D3[INTERVIEW_QA.md]
-    
-    G13A --> DONE((完成))
-    S3 --> DONE
-    D3 --> DONE
-
-    style G13A fill:#c8e6c9
-    style S3 fill:#fff9c4
-    style D3 fill:#ffcdd2
-    style DONE fill:#e8f5e9
-```
-
-| 路线 | 路径 | 适合 |
-|------|------|------|
-| 🟢 入门 | Ch1 → Ch2 → Ch3 → Ch13 | 想快速跑通全流程 |
-| 🟡 标准 | Ch1 ~ Ch08 → Ch13 | 想全面掌握技术栈 |
-| 🔴 面试 | 全部 + 思考题 + QA | 准备 C++ 面试 |
-
----
-
-## 每章结构
-
-```mermaid
-graph TB
-    CH[每章内容] --> THEORY[📖 理论知识<br/>原理 + 公式 + 类比]
-    CH --> CODE[💻 代码练习<br/>3-5 个递进式任务]
-    CH --> THINK[🧠 思考题<br/>5-8 道深度检验]
-    CH --> CHECK[📋 知识点<br/>可勾选 checklist]
-
-    style THEORY fill:#e1f5fe
-    style CODE fill:#e8f5e9
-    style THINK fill:#fff3e0
-    style CHECK fill:#f3e5f5
-```
-
----
-
-## 技术栈
-
-```mermaid
-graph TB
-    subgraph "Language"
-        CPP17[C++17]
-        CPP20[C++20]
-        PY[Python]
-    end
-
-    subgraph "Build"
-        CMAKE[CMake]
-        NINJA[Ninja]
-        GCC[g++-12]
-    end
-
-    subgraph "Libraries"
-        GTEST[Google Test]
-        PB11[pybind11]
-        JSON[nlohmann/json]
-    end
-
-    subgraph "DevOps"
-        DOCKER[Docker]
-        GHA[GitHub Actions]
-    end
-
-    CPP17 --> CMAKE
-    CPP20 --> CMAKE
-    CMAKE --> NINJA
-    CMAKE --> GCC
-    CMAKE --> GTEST
-    CMAKE --> PB11
-    DOCKER --> GHA
-
-    style CPP17 fill:#e1f5fe
-    style CPP20 fill:#e8f5e9
-```
-
-| 层 | 技术 |
-|----|------|
-| 语言 | C++17 / C++20 / Python |
-| 构建 | CMake + Ninja |
-| 编译器 | g++-12 / clang++-14 |
-| 测试 | Google Test |
-| 绑定 | pybind11 |
-| 服务器 | HTTP/1.1 + Bearer Auth |
-| 部署 | Docker + docker-compose |
-| CI/CD | GitHub Actions |
-
----
-
-## 环境要求
-
-| 需求 | 最低 | 推荐 |
-|------|------|------|
-| OS | Ubuntu 20.04 / WSL2 | Ubuntu 22.04 |
-| 编译器 | g++-11 | g++-12 |
-| 构建 | CMake 3.16+ | CMake 3.25+ |
-| 内存 | 4GB | 8GB+ (Ch13) |
-| 编辑器 | 任意 | VS Code + C/C++ |
-
----
-
-## 配套仓库
-
-```mermaid
-graph LR
-    COURSE[DeepVector 教程] --> LDB[DeepVector<br/>向量数据库]
-    COURSE --> MKV[MiniKV<br/>存储引擎]
-    COURSE --> SN[SkyNet<br/>网络框架]
-
-    LDB --> MKV
-    LDB --> SN
-
-    style COURSE fill:#e1f5fe
-    style LDB fill:#fff3e0
-    style MKV fill:#f3e5f5
-    style SN fill:#e8f5e9
-```
-
-| 仓库 | 说明 |
+| 原则 | 含义 |
 |------|------|
-| [DeepVector](https://github.com/Thezx-a/DeepVector) | 向量数据库主仓库 |
-| [MiniKV](https://github.com/Thezx-a/MiniKV) | LSM-Tree 存储引擎 |
-| [SkyNet](https://github.com/Thezx-a/SkyNet) | C++20 协程网络框架 |
+| **造轮子 + 用轮子** | C++ 手写引擎；Python Agent 调用真实 LLM/嵌入生态 |
+| **点 → 线 → 面** | 单知识点 → 模块串联 → 完整系统 |
+| **每章可运行** | 有代码、有断言、有动手题 |
+| **真实面试** | 题库来自向量库/存储引擎/系统设计常见考点（非臆造） |
+| **双语** | 中文主讲 + English companion |
+
+参考社区优秀实践：
+- [datawhalechina/hello-agents](https://github.com/datawhalechina/hello-agents) — 从零构建 Agent、分篇递进、毕业设计
+- Datawhale 开源学习社区 — 统一章节结构、练习与思考题
 
 ---
 
-## 参考资源
+## 双轨课程地图（避免章节号冲突）
 
-- [HNSW 论文 (Malkov & Yashunin, 2016)](https://arxiv.org/abs/1603.09320)
-- [FAISS 源码](https://github.com/facebookresearch/faiss)
-- [LevelDB 源码](https://github.com/google/leveldb)
-- [RocksDB Wiki](https://github.com/facebook/rocksdb/wiki)
-- [pybind11 文档](https://pybind11.readthedocs.io/)
-- [DeepVector 面试 78 题](https://github.com/Thezx-a/DeepVector/blob/main/INTERVIEW_QA.md)
+本仓库历史上存在 **C++ 引擎轨** 与 **Agent 智能检索轨** 两套章节目录。学习时请按轨道阅读，不要混用同号章节。
+
+```mermaid
+flowchart TB
+    subgraph P0["Part 0 点 · Prerequisites"]
+        PR[prerequisites/]
+    end
+
+    subgraph T1["Track A · C++ Engine 线"]
+        A1[ch01_setup]
+        A2[ch02_vectors_distance]
+        A3[ch03_hnsw_theory]
+        A4[ch04_mmap_storage]
+        A5[ch05_lsm_tree]
+        A6[ch06_metadata_filter]
+        A7[ch07_quantization]
+        A8[ch08_cpp_patterns]
+        A9[ch09_python_bindings]
+        A10[ch10_http_server]
+        A11[ch11_coroutines]
+        A12[ch12_production]
+    end
+
+    subgraph T2["Track B · AgenticDB 线"]
+        B1[ch01_overview]
+        B2[ch02_setup]
+        B3[ch03_config]
+        B4[ch04_llm]
+        B5[ch05_embedding]
+        B6[ch06_strategy]
+        B7[ch07_multi_round]
+        B8[ch08_mcp]
+        B9[ch09_server]
+        B10[ch10_cpp_enhance]
+        B11[ch11_docker]
+        B12[ch12_testing]
+    end
+
+    subgraph FACE["Part Capstone 面"]
+        C13[ch13_capstone]
+    end
+
+    P0 --> T1
+    P0 --> T2
+    T1 --> FACE
+    T2 --> FACE
+```
+
+### Track A — C++ 向量引擎（造发动机）
+
+| 积木 | 目录 | 你会得到 |
+|------|------|----------|
+| A1 环境 | [ch01_setup](ch01_setup/) | CMake/Ninja 跑通 hello |
+| A2 距离 | [ch02_vectors_distance](ch02_vectors_distance/) | L2/IP/Cosine + AVX2 |
+| A3 HNSW | [ch03_hnsw_theory](ch03_hnsw_theory/) | 图索引搜索 |
+| A4 mmap | [ch04_mmap_storage](ch04_mmap_storage/) | 零拷贝持久化 |
+| A5 LSM | [ch05_lsm_tree](ch05_lsm_tree/) | MiniKV WAL→SST→Merge |
+| A6 过滤 | [ch06_metadata_filter](ch06_metadata_filter/) | Filter AST |
+| A7 量化 | [ch07_quantization](ch07_quantization/) | PQ/SQ |
+| A8 模式 | [ch08_cpp_patterns](ch08_cpp_patterns/) | PIMPL / 类型擦除 |
+| A9 绑定 | [ch09_python_bindings](ch09_python_bindings/) | pybind11 |
+| A10 HTTP | [ch10_http_server](ch10_http_server/) | REST + multi-collection |
+| A11 协程 | [ch11_coroutines](ch11_coroutines/) | C++20 Task（SkyNet） |
+| A12 生产 | [ch12_production](ch12_production/) | Docker / metrics |
+
+### Track B — AgenticDB（造智能检索）
+
+| 积木 | 目录 | 你会得到 |
+|------|------|----------|
+| B1 概览 | [ch01_overview](ch01_overview/) | 全局架构图 |
+| B2 环境 | [ch02_setup](ch02_setup/) | venv + Ollama |
+| B3 配置 | [ch03_config](ch03_config/) | dataclass + env |
+| B4 LLM | [ch04_llm](ch04_llm/) | Router / tools |
+| B5 嵌入 | [ch05_embedding](ch05_embedding/) | local / OpenAI |
+| B6 策略 | [ch06_strategy](ch06_strategy/) | DIRECT/FILTERED/… |
+| B7 多轮 | [ch07_multi_round](ch07_multi_round/) | Plan→Eval→Reform |
+| B8 MCP | [ch08_mcp](ch08_mcp/) | 工具协议 |
+| B9 Agent HTTP | [ch09_server](ch09_server/) | FastAPI lifespan |
+| B10 增强 | [ch10_cpp_enhance](ch10_cpp_enhance/) | 与引擎对接 |
+| B11 Docker | [ch11_docker](ch11_docker/) | compose 双服务 |
+| B12 测试 | [ch12_testing](ch12_testing/) | pytest agent |
+
+### Capstone — 面
+
+| | |
+|--|--|
+| [ch13_capstone](ch13_capstone/) | 端到端：编译 → 灌数 → Agent 问答 → 指标 |
+
+---
+
+## 三条学习路线（像 Hello-Agents 一样选档）
+
+```mermaid
+graph LR
+    S((Start)) --> R{Route}
+    R -->|🟢 周末入门 12h| G[A1-A3 + B1 + Capstone 精简]
+    R -->|🟡 标准工程师 40h| Y[Track A 全 + Track B B1-B9]
+    R -->|🔴 面试冲刺 70h| D[双轨全 + INTERVIEW_BANK + Capstone]
+```
+
+| 路线 | 适合谁 | 交付物 |
+|------|--------|--------|
+| 🟢 入门 | 会一点 C++/Python | 能搜索的小 demo |
+| 🟡 标准 | 后端/检索方向 | 可 Docker 部署的双服务 |
+| 🔴 面试 | 校招/社招存储&搜索 | 讲清 HNSW/LSM/mmap + Agent |
+
+---
+
+## 每章统一结构（强制模板）
+
+详见 [`_CHAPTER_TEMPLATE.md`](_CHAPTER_TEMPLATE.md)。每章必须包含：
+
+1. **点 Point** — 单一知识点 + 语法精讲  
+2. **线 Line** — 与相邻模块如何对接  
+3. **面 Surface** — 在整系统中的位置（架构图片段）  
+4. **动手实践** — 可提交的小练习  
+5. **反思思考** — 理解而非背诵  
+6. **真实面试题** — 映射到 [INTERVIEW_BANK.md](INTERVIEW_BANK.md)  
+7. **参考文档** — 论文 / 官方文档 / 源码路径（真实链接）
+
+---
+
+## 前置知识 Prerequisites
+
+| 文档 | 中文 | English |
+|------|------|---------|
+| 构建环境 | [01](prerequisites/01_构建环境配置_zh.md) | [01](prerequisites/01_构建环境配置_en.md) |
+| Docker | [02](prerequisites/02_Docker容器化_zh.md) | [02](prerequisites/02_Docker容器化_en.md) |
+| Python | [03](prerequisites/03_Python环境_zh.md) | [03](prerequisites/03_Python环境_en.md) |
+| 测试 | [04](prerequisites/04_测试框架_zh.md) | [04](prerequisites/04_测试框架_en.md) |
+| 距离度量 | [05](prerequisites/05_向量距离度量_zh.md) | [05](prerequisites/05_向量距离度量_en.md) |
+| SIMD | [06](prerequisites/06_SIMD与硬件优化_zh.md) | [06](prerequisites/06_SIMD与硬件优化_en.md) |
+
+> 若存在历史重复文件（如 `05_距离度量_*`），以带「向量」字样的文件为准。
+
+---
+
+## 5 分钟冒烟（确认环境）
+
+```bash
+# from monorepo root (Linux / WSL / macOS)
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=ON
+cmake --build build -j$(nproc)
+./build/deepvector/deepvector_server --port 8080 --dim 384 &
+cd deepvector && pip install -r requirements.txt
+python -c "from agent.server import create_app; print(create_app().title)"
+curl -s http://127.0.0.1:8080/health
+curl -s http://127.0.0.1:8080/metrics | head
+```
+
+Windows 请阅读根目录 [RUN.md](../../RUN.md)（WSL2 / Docker）。
 
 ---
 
 ## License
 
-[MIT](LICENSE) — 自由使用、修改、分发。
-
----
-
-<p align="center">
-  <i>造一个数据库，理解整个系统。</i>
-</p>
+MIT · 欢迎像 Datawhale 一样提 PR 共创章节与题库。

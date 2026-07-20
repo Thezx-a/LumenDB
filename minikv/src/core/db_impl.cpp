@@ -1,11 +1,16 @@
 ﻿#include "core/db_impl.h"
 #include "core/sstable_builder.h"
+#include "core/sstable_reader.h"
+#include "core/sstable_iterator.h"
+#include "core/merging_iterator.h"
 #include "utils/coding.h"
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <iostream>
 #include <algorithm>
+#include <memory>
+#include <vector>
 
 namespace minikv {
 namespace core {
@@ -159,7 +164,36 @@ Status DBImpl::flushMemTable() {
 }
 
 std::unique_ptr<Iterator> DBImpl::newIterator(const ReadOptions& opts) {
-    return nullptr;  // TODO: implement
+    (void)opts;
+    std::vector<std::unique_ptr<Iterator>> children;
+
+    if (memtable_) {
+        auto live = memtable_->entries();
+        auto it = std::make_unique<MemTableIterator>(std::move(live));
+        it->seekToFirst();
+        children.push_back(std::move(it));
+    }
+    if (immutable_memtable_) {
+        auto imm = immutable_memtable_->entries();
+        auto it = std::make_unique<MemTableIterator>(std::move(imm));
+        it->seekToFirst();
+        children.push_back(std::move(it));
+    }
+
+    for (int level = 0; level <= options_.max_level; ++level) {
+        for (const auto& path : version_.getLevelFiles(level)) {
+            auto reader = SSTableReader::open(path);
+            if (!reader) continue;
+            std::shared_ptr<SSTableReader> shared(std::move(reader));
+            auto it = std::make_unique<SSTableIterator>(std::move(shared));
+            it->seekToFirst();
+            children.push_back(std::move(it));
+        }
+    }
+
+    auto merged = std::make_unique<MergingIterator>(std::move(children));
+    merged->seekToFirst();
+    return merged;
 }
 
 void DBImpl::compact() {

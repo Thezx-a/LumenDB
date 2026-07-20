@@ -114,3 +114,11 @@ except Exception as e:
 1. 在 Simple HTTP 模式中增加 CORS 头支持
 2. 给 `/query` 添加 `stream` 参数，实现 SSE 流式返回
 3. 实现一个 `/batch/query` 端点，一次处理多个问题
+
+---
+
+## 附录：本章与面试题库映射
+
+请完成本章后练习 [INTERVIEW_BANK.md](../INTERVIEW_BANK.md) 中对应分区题目，并阅读 [_CHAPTER_TEMPLATE.md](../_CHAPTER_TEMPLATE.md) 自检是否覆盖「点/线/面/动手/反思/参考」。
+
+**全局架构：** [ARCHITECTURE.md](../../ARCHITECTURE.md) · **选型：** [TECH.md](../../../TECH.md) · **运行：** [RUN.md](../../../RUN.md)

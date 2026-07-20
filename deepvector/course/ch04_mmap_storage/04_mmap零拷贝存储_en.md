@@ -981,3 +981,11 @@ The expected output shows that the second round of reopening correctly restores 
    python -c "import pyarrow as pa; import pyarrow.feather as feather; feather.write_feather(pa.table({'x': range(1000000)}), 'test.arrow')"
    ```
    Use `mmap` to map the `test.arrow` file, directly read column data (skipping the header), and compare the time against `read()` + parsing.
+
+---
+
+## Appendix: Interview Bank Mapping
+
+After this chapter, drill the matching section in [INTERVIEW_BANK.md](../INTERVIEW_BANK.md) and self-check against [_CHAPTER_TEMPLATE.md](../_CHAPTER_TEMPLATE.md).
+
+**Architecture:** [ARCHITECTURE.md](../../ARCHITECTURE.md) · **Tech:** [TECH.md](../../../TECH.md) · **Run:** [RUN.md](../../../RUN.md)

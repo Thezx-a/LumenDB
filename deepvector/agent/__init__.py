@@ -1,4 +1,4 @@
-﻿"""
+"""
 AgenticDB - Agent-Native Vector Database
 
 An intelligent vector database layer that understands natural language queries,

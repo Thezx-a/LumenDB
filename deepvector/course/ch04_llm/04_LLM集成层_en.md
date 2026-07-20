@@ -102,3 +102,11 @@ SEARCH_TOOL = {
 1. Add Anthropic Claude support to `LLMRouter`
 2. Implement retry logic: auto-retry up to 3 times on LLM failure
 3. Write unit tests for provider switching
+
+---
+
+## Appendix: Interview Bank Mapping
+
+After this chapter, drill the matching section in [INTERVIEW_BANK.md](../INTERVIEW_BANK.md) and self-check against [_CHAPTER_TEMPLATE.md](../_CHAPTER_TEMPLATE.md).
+
+**Architecture:** [ARCHITECTURE.md](../../ARCHITECTURE.md) · **Tech:** [TECH.md](../../../TECH.md) · **Run:** [RUN.md](../../../RUN.md)

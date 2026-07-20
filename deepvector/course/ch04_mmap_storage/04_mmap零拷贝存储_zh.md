@@ -455,3 +455,11 @@ g++-12 -O3 -std=c++17 mmap_array.cpp -o mmap_array
 3. 对比 mmap 和传统 `pread`/`pwrite` 在大文件随机读场景下的性能差异。
 4. 测试使用 2MB 大页（Huge Pages, `MAP_HUGETLB`）对向量搜索性能的影响。
 5. 用 mmap 读取一个 Arrow Feather 文件（`.arrow`），验证其零拷贝特性。
+
+---
+
+## 附录：本章与面试题库映射
+
+请完成本章后练习 [INTERVIEW_BANK.md](../INTERVIEW_BANK.md) 中对应分区题目，并阅读 [_CHAPTER_TEMPLATE.md](../_CHAPTER_TEMPLATE.md) 自检是否覆盖「点/线/面/动手/反思/参考」。
+
+**全局架构：** [ARCHITECTURE.md](../../ARCHITECTURE.md) · **选型：** [TECH.md](../../../TECH.md) · **运行：** [RUN.md](../../../RUN.md)

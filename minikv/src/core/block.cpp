@@ -70,5 +70,31 @@ std::optional<std::string> BlockReader::get(const Slice& key) const {
     return std::nullopt;
 }
 
+void BlockReader::forEach(
+    const std::function<void(const Slice& key, const Slice& value)>& cb) const {
+    size_t offset = 0;
+    std::string lastKey;
+    while (offset < restarts_offset_) {
+        uint32_t shared, nonShared, valLen;
+        const char* p = data_.data() + offset;
+        const char* limit = data_.data() + restarts_offset_;
+        uint32_t consumed = 0;
+        if (!utils::decodeVariant32(p, limit, shared, consumed)) break;
+        p += consumed;
+        if (!utils::decodeVariant32(p, limit, nonShared, consumed)) break;
+        p += consumed;
+        if (!utils::decodeVariant32(p, limit, valLen, consumed)) break;
+        p += consumed;
+        std::string currentKey = lastKey.substr(0, shared);
+        currentKey.append(p, nonShared);
+        p += nonShared;
+        Slice keySlice(currentKey);
+        Slice valSlice(p, valLen);
+        cb(keySlice, valSlice);
+        lastKey = std::move(currentKey);
+        offset = static_cast<size_t>((p - data_.data()) + valLen);
+    }
+}
+
 }  // namespace core
 }  // namespace minikv

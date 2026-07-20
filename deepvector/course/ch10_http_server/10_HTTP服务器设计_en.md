@@ -8,6 +8,45 @@ This chapter assumes familiarity with the following concepts. Review these share
 
 ---
 
+## Chapter Scope: Point → Line → Surface
+
+| Layer | This chapter | In this repo |
+|-------|--------------|--------------|
+| **Point** | Sockets, HTTP/1.1, REST status codes | `course/ch10_http_server/code/main.cpp` |
+| **Line** | Parse → route → JSON → graceful shutdown | `deepvector/src/server/server.cpp` |
+| **Surface** | Multi-collection, `/metrics`, Agent split | [ARCHITECTURE.md](../../ARCHITECTURE.md), [openapi.yaml](../../docs/openapi.yaml) |
+
+**Design rule:** the C++ tier handles vector I/O and ANN search only; text embedding lives in the Agent layer (`agent/embedding/service.py`), so the DB process never loads PyTorch.
+
+### Mapping to the DeepVector REST API
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/health` | GET | Liveness probe |
+| `/metrics` | GET | Prometheus metrics (search/insert latency, QPS) |
+| `/collections` | GET/POST | List or create a collection |
+| `/collections/{name}` | DELETE | Drop a collection |
+| `/search` | POST | ANN search (`vector`, `k`, `collection`, `filter`) |
+| `/insert` | POST | Insert vector(s) with optional `meta` |
+| `/vectors/{id}/meta` | GET | Fetch metadata by vector id |
+
+```bash
+curl -s http://localhost:8080/health
+curl -s http://localhost:8080/metrics | head
+curl -s -X POST http://localhost:8080/collections \
+  -H "Content-Type: application/json" -d '{"name":"demo"}'
+```
+
+**CollectionRegistry** (`include/dv/server/collection_registry.h`) keeps multiple isolated indexes in one process; Agent/MCP clients select a target via the `collection` field.
+
+### Reflection & interviews
+
+- Why do vector DB HTTP APIs usually take **float32 arrays** instead of raw text?
+- Which SLIs belong on `/metrics`? (P99 latency, error rate, index size)
+- See [INTERVIEW_BANK.md](../INTERVIEW_BANK.md) § HTTP / production ops
+
+---
+
 ## Table of Contents
 1. [A Brief History of HTTP](#1-a-brief-history-of-http)
 2. [What is a Socket?](#2-what-is-a-socket)
@@ -1179,3 +1218,11 @@ Report QPS, P50/P99 latency. Analyze the bottleneck: parsing? I/O? Search?
 | **Operations** | Signal handling | SIGTERM → drain requests → persist → exit; grace period |
 
 > Next chapter: [Chapter 11: C++20 Coroutines & SkyNet](../ch11_coroutines/README.md)
+
+---
+
+## Appendix: Interview Bank Mapping
+
+After this chapter, drill the matching section in [INTERVIEW_BANK.md](../INTERVIEW_BANK.md) and self-check against [_CHAPTER_TEMPLATE.md](../_CHAPTER_TEMPLATE.md).
+
+**Architecture:** [ARCHITECTURE.md](../../ARCHITECTURE.md) · **Tech:** [TECH.md](../../../TECH.md) · **Run:** [RUN.md](../../../RUN.md)

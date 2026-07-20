@@ -1,10 +1,10 @@
-#include "lumendb/collection.h"
-#include "lumendb/index/hnsw.h"
-#include "lumendb/index/distance.h"
-#include "lumendb/storage/vector_store.h"
-#include "lumendb/storage/document_store.h"
-#include "lumendb/quantize/pq.h"
-#include "lumendb/quantize/scalar.h"
+#include "dv/collection.h"
+#include "dv/index/hnsw.h"
+#include "dv/index/distance.h"
+#include "dv/storage/vector_store.h"
+#include "dv/storage/document_store.h"
+#include "dv/quantize/pq.h"
+#include "dv/quantize/scalar.h"
 #include <functional>
 #include <cmath>
 #include <algorithm>
@@ -200,7 +200,7 @@ void Collection::save(const std::string& name) {
 std::unique_ptr<Collection> Collection::load(const std::string& name, const std::string& data_dir) {
     // Load config from JSON file
     CollectionConfig config;
-    config.dim = 768;  // default fallback
+    config.dim = 384;  // default fallback (matches all-MiniLM-L6-v2)
     config.metric = DistanceMetric::Cosine;
 
     std::ifstream cfg_file(data_dir + "/" + name + ".cfg.json");

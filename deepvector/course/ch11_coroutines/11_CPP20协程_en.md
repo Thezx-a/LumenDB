@@ -1134,3 +1134,11 @@ Add timer support to the executor. Implement: if a client doesn't send data for 
 | **Scheduler** | Sub-component of Executor, decides coroutine execution order and timing |
 
 > Next chapter: [Chapter 12: Production Deployment](../ch12_production/README.md)
+
+---
+
+## Appendix: Interview Bank Mapping
+
+After this chapter, drill the matching section in [INTERVIEW_BANK.md](../INTERVIEW_BANK.md) and self-check against [_CHAPTER_TEMPLATE.md](../_CHAPTER_TEMPLATE.md).
+
+**Architecture:** [ARCHITECTURE.md](../../ARCHITECTURE.md) · **Tech:** [TECH.md](../../../TECH.md) · **Run:** [RUN.md](../../../RUN.md)

@@ -2,10 +2,10 @@
 #include <cmath>
 #include <vector>
 #include <random>
-#include "lumendb/index/hnsw.h"
-#include "lumendb/index/distance.h"
+#include "dv/index/hnsw.h"
+#include "dv/index/distance.h"
 
-using namespace lumendb;
+using namespace dv;
 using namespace dv::index;
 
 class HNSWTest : public ::testing::Test {

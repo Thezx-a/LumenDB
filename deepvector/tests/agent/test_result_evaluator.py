@@ -1,4 +1,4 @@
-﻿"""Tests for the ResultEvaluator."""
+"""Tests for the ResultEvaluator."""
 
 import asyncio
 import json

@@ -1,0 +1,21 @@
+# DeepVector Agent / AgenticDB — enterprise-proven, currently maintained stack
+#
+# Pins favor widely adopted production versions used across large orgs.
+# Prefer Docker/WSL for the C++ server on Windows (POSIX networking).
+
+# HTTP / Agent API (Microsoft, Netflix, Uber-scale FastAPI+Pydantic usage)
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.32,<1.0
+pydantic>=2.9,<3.0
+httpx>=0.27,<1.0
+
+# Embeddings — Hugging Face sentence-transformers is the de-facto local standard;
+# production alternatives: OpenAI / Azure OpenAI embeddings, or ONNX Runtime.
+sentence-transformers>=3.0,<4.0
+
+# Optional: LangChain ecosystem (langchain-core is the stable shared package)
+# langchain-core>=0.3
+# langchain-openai>=0.2
+
+# Optional: Model Context Protocol (Anthropic ecosystem; pin when enabling MCP tools)
+# mcp>=1.1

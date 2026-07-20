@@ -30,7 +30,7 @@ AgenticDB Agent HTTP Server / Agent HTTP 服务器.
 import sys
 import os
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 import json
 import logging
@@ -69,6 +69,7 @@ async def handle_query(
     if not question:
         return {"error": "question is required"}
 
+    prev_rounds = engine.config.max_rounds
     engine.config.max_rounds = max_rounds
     try:
         result = await engine.retrieve(question, collection)
@@ -77,7 +78,7 @@ async def handle_query(
         logger.exception("Query failed")
         return {"error": str(e)}
     finally:
-        engine.config.max_rounds = 5
+        engine.config.max_rounds = prev_rounds
 
 
 async def handle_ask(
@@ -143,32 +144,42 @@ async def handle_plan(
 
 def create_fastapi_app():
     """
-    创建 FastAPI 应用 / Create FastAPI application.
+    Create FastAPI application (Pydantic v2 + lifespan API).
 
-    需要安装 fastapi 和 uvicorn:
-        pip install fastapi uvicorn
-
-    Returns:
-        FastAPI 应用实例, 可直接 uvicorn.run()
+    Install: pip install fastapi uvicorn
     """
+    from contextlib import asynccontextmanager
+
     from fastapi import FastAPI
-    from pydantic import BaseModel
+    from pydantic import BaseModel, Field
 
     config = load_config()
     llm = LLMRouter(config.llm)
     engine = MultiRoundEngine(config, llm)
 
-    app = FastAPI(title="AgenticDB", version="0.1.0")
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        yield
+        await llm.close()
+        await engine.close()
+
+    app = FastAPI(title="AgenticDB", version="0.1.0", lifespan=lifespan)
+
+    @app.middleware("http")
+    async def add_request_id(request, call_next):
+        import uuid
+        rid = request.headers.get("x-request-id") or str(uuid.uuid4())
+        response = await call_next(request)
+        response.headers["X-Request-Id"] = rid
+        return response
 
     class QueryRequest(BaseModel):
-        """请求体 Schema / Request body schema for /query and /ask."""
         question: str
         collection: str = "default"
-        max_rounds: int = 5
+        max_rounds: int = Field(default=5, ge=1, le=20)
 
     @app.get("/health")
     async def health():
-        """健康检查 / Health check endpoint."""
         return {
             "status": "ok",
             "model": config.llm.model,
@@ -177,26 +188,20 @@ def create_fastapi_app():
 
     @app.post("/query")
     async def query(req: QueryRequest):
-        """完整 agentic 搜索 / Full agentic search with planning + multi-round."""
-        return await handle_query(engine, req.dict())
+        return await handle_query(engine, req.model_dump())
 
     @app.post("/ask")
     async def ask(req: QueryRequest):
-        """简洁问答 / Simple Q&A with retrieval."""
-        return await handle_ask(engine, req.dict())
+        return await handle_ask(engine, req.model_dump())
 
     @app.post("/plan")
     async def plan(req: QueryRequest):
-        """仅生成检索计划 / Generate retrieval plan only."""
-        return await handle_plan(engine, req.dict())
-
-    @app.on_event("shutdown")
-    async def shutdown():
-        """优雅关闭 / Graceful shutdown — release resources."""
-        await llm.close()
-        await engine.close()
+        return await handle_plan(engine, req.model_dump())
 
     return app
+
+
+create_app = create_fastapi_app
 
 
 def create_simple_http_server():

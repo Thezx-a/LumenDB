@@ -1,4 +1,4 @@
-﻿"""Tests for the QueryPlanner."""
+"""Tests for the QueryPlanner."""
 
 import asyncio
 import json

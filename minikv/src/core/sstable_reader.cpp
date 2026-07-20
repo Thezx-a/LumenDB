@@ -91,16 +91,26 @@ std::optional<std::string> SSTableReader::get(const Slice& key) const {
 
 Status SSTableReader::scan(const Slice& start, const Slice& end,
                             std::function<void(const Slice&, const Slice&)> callback) const {
-    // Simplified: linear scan all blocks
     for (const auto& [lastKey, handle] : index_entries_) {
         if (!end.empty() && lastKey > end.toString()) break;
+
         ::lseek(fd_, handle.offset, SEEK_SET);
         char blockHeader[8];
-        ::read(fd_, blockHeader, 8);
+        if (::read(fd_, blockHeader, 8) != 8) {
+            return Status::IOError("failed to read block header");
+        }
         uint32_t blockLen = utils::decodeFixed32(blockHeader + 4);
         std::string blockData(blockLen, '\0');
-        ::read(fd_, blockData.data(), blockLen);
-        // Full scan would go here
+        if (::read(fd_, blockData.data(), blockLen) != static_cast<ssize_t>(blockLen)) {
+            return Status::IOError("failed to read block data");
+        }
+
+        BlockReader reader{Slice(blockData)};
+        reader.forEach([&](const Slice& k, const Slice& v) {
+            if (!start.empty() && k.toString() < start.toString()) return;
+            if (!end.empty() && k.toString() > end.toString()) return;
+            callback(k, v);
+        });
     }
     return Status::Ok();
 }

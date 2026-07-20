@@ -771,3 +771,11 @@ class DeepVectorLangChainRetriever(BaseRetriever):
 | **生态集成** | 实现 LangChain VectorStore 接口 → 接入任意 RAG 流水线 |
 
 > 下一章：[第 10 章：HTTP 服务器设计](../ch10_http_server/README.md)
+
+---
+
+## 附录：本章与面试题库映射
+
+请完成本章后练习 [INTERVIEW_BANK.md](../INTERVIEW_BANK.md) 中对应分区题目，并阅读 [_CHAPTER_TEMPLATE.md](../_CHAPTER_TEMPLATE.md) 自检是否覆盖「点/线/面/动手/反思/参考」。
+
+**全局架构：** [ARCHITECTURE.md](../../ARCHITECTURE.md) · **选型：** [TECH.md](../../../TECH.md) · **运行：** [RUN.md](../../../RUN.md)

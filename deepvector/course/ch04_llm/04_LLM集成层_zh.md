@@ -125,3 +125,11 @@ LLM 返回的 tool_call 解析:
 1. 在 `LLMRouter` 中添加 Anthropic Claude 的支持
 2. 实现一个 retry 机制：LLM 调用失败时自动重试 (最多 3 次)
 3. 编写单元测试验证 OpenAI 和 Ollama 两种 provider 的切换
+
+---
+
+## 附录：本章与面试题库映射
+
+请完成本章后练习 [INTERVIEW_BANK.md](../INTERVIEW_BANK.md) 中对应分区题目，并阅读 [_CHAPTER_TEMPLATE.md](../_CHAPTER_TEMPLATE.md) 自检是否覆盖「点/线/面/动手/反思/参考」。
+
+**全局架构：** [ARCHITECTURE.md](../../ARCHITECTURE.md) · **选型：** [TECH.md](../../../TECH.md) · **运行：** [RUN.md](../../../RUN.md)

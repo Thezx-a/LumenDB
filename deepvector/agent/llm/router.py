@@ -1,4 +1,4 @@
-﻿"""
+"""
 LLM Router 鈥?OpenAI 涓?Ollama 鐨勭粺涓€寮傛鎺ュ彛 / Unified async interface for OpenAI and Ollama.
 
 鏍稿績璁捐 / Design:

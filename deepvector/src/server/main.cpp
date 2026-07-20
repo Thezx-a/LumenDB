@@ -1,11 +1,11 @@
-#include "lumendb/server/server.h"
-#include "lumendb/collection.h"
+#include "dv/server/server.h"
+#include "dv/collection.h"
 #include <iostream>
 #include <thread>
 #include <atomic>
 #include <csignal>
 
-using namespace lumendb;
+using namespace dv;
 using namespace dv::server;
 
 static std::atomic<bool> running{true};
@@ -19,7 +19,7 @@ int main(int argc, char* argv[]) {
     ::signal(SIGTERM, signalHandler);
 
     ServerConfig config;
-    int dim = 768;
+    int dim = 384;
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
@@ -28,16 +28,17 @@ int main(int argc, char* argv[]) {
         else if (arg == "--data-dir" && i + 1 < argc) config.data_dir = argv[++i];
         else if (arg == "--api-key" && i + 1 < argc) config.api_key = argv[++i];
         else if (arg == "--dim" && i + 1 < argc) dim = std::atoi(argv[++i]);
+        else if (arg == "--collection" && i + 1 < argc) config.default_collection = argv[++i];
     }
 
     CollectionConfig cc;
-    cc.dim = dim;
+    cc.dim = static_cast<Dimension>(dim);
     cc.metric = DistanceMetric::Cosine;
 
-    auto coll = std::make_unique<Collection>(cc, config.data_dir);
-    std::cout << "DeepVector initialized, dimension=" << coll->dim() << std::endl;
+    std::cout << "DeepVector starting, dim=" << dim
+              << " default_collection=" << config.default_collection << std::endl;
 
-    DeepVectorServer server(config, std::move(coll));
+    DeepVectorServer server(config, cc);
     server.start();
 
     std::cout << "Press Ctrl+C to stop" << std::endl;

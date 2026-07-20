@@ -26,6 +26,9 @@ add_library(minikv STATIC
     src/core/version.cpp
     src/core/db_impl.cpp
     src/core/status.cpp
+    src/core/memtable_iterator.cpp
+    src/core/sstable_iterator.cpp
+    src/core/merging_iterator.cpp
     src/network/event_loop.cpp
     src/network/server.cpp
     src/network/connection.cpp

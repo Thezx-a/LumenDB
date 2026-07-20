@@ -107,3 +107,11 @@ services:
 1. 给 Docker 镜像添加健康检查，确保 deepvector 启动后再启动 agent
 2. 创建一个 `.env.example` 文件，列出所有可用的环境变量
 3. 编写一个 `docker-compose.prod.yml`，添加资源限制和日志配置
+
+---
+
+## 附录：本章与面试题库映射
+
+请完成本章后练习 [INTERVIEW_BANK.md](../INTERVIEW_BANK.md) 中对应分区题目，并阅读 [_CHAPTER_TEMPLATE.md](../_CHAPTER_TEMPLATE.md) 自检是否覆盖「点/线/面/动手/反思/参考」。
+
+**全局架构：** [ARCHITECTURE.md](../../ARCHITECTURE.md) · **选型：** [TECH.md](../../../TECH.md) · **运行：** [RUN.md](../../../RUN.md)

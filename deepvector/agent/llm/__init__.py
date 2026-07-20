@@ -1,4 +1,4 @@
-﻿from .router import LLMRouter
+from .router import LLMRouter
 from .schemas import SEARCH_TOOL, FILTERED_SEARCH_TOOL, REFORMULATE_TOOL
 
 __all__ = ["LLMRouter", "SEARCH_TOOL", "FILTERED_SEARCH_TOOL", "REFORMULATE_TOOL"]

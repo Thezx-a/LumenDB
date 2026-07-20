@@ -2,7 +2,7 @@
 #include <string>
 #include "dv/filter.h"
 
-using namespace lumendb;
+using namespace dv;
 
 TEST(FilterTest, EqualsTrue) {
     auto filter = FilterNode::eq("tags", "urgent,important");

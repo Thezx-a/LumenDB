@@ -777,3 +777,11 @@ Write pybind11 bindings for the HNSW index, wrap it as a `BaseRetriever` subclas
 | **Ecosystem Integration** | Implement LangChain VectorStore interface → integrate into any RAG pipeline |
 
 > Next chapter: [Chapter 10: HTTP Server Design](../ch10_http_server/README.md)
+
+---
+
+## Appendix: Interview Bank Mapping
+
+After this chapter, drill the matching section in [INTERVIEW_BANK.md](../INTERVIEW_BANK.md) and self-check against [_CHAPTER_TEMPLATE.md](../_CHAPTER_TEMPLATE.md).
+
+**Architecture:** [ARCHITECTURE.md](../../ARCHITECTURE.md) · **Tech:** [TECH.md](../../../TECH.md) · **Run:** [RUN.md](../../../RUN.md)

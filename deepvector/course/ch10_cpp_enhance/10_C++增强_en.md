@@ -87,3 +87,11 @@ std::unique_ptr<Collection> Collection::load(
 1. Add parallel C++ threads to `/batch/search`
 2. Implement HNSW index rebuilding in `Collection::load()`
 3. Add a `/save` endpoint for API-triggered persistence
+
+---
+
+## Appendix: Interview Bank Mapping
+
+After this chapter, drill the matching section in [INTERVIEW_BANK.md](../INTERVIEW_BANK.md) and self-check against [_CHAPTER_TEMPLATE.md](../_CHAPTER_TEMPLATE.md).
+
+**Architecture:** [ARCHITECTURE.md](../../ARCHITECTURE.md) · **Tech:** [TECH.md](../../../TECH.md) · **Run:** [RUN.md](../../../RUN.md)

@@ -2,6 +2,8 @@
 Demo data for AgenticDB — sample documents for testing.
 """
 
+import time
+
 SAMPLE_DOCUMENTS = [
     {
         "text": "RAG (Retrieval-Augmented Generation) 是一种将检索系统与大语言模型结合的技术架构。通过从外部知识库检索相关文档，LLM能够生成更准确、更有依据的回答。RAG的核心流程包括：查询理解、文档检索、上下文组装和答案生成。",
@@ -67,43 +69,49 @@ SAMPLE_DOCUMENTS = [
 
 
 async def insert_demo_data(deepvector_url: str = "http://localhost:8080"):
-    """Insert sample documents into DeepVector."""
+    """Insert sample documents into DeepVector (embed in Python, insert with meta)."""
+    import sys
+    from pathlib import Path
+
+    # Allow `python scripts/demo_data.py` from deepvector/
+    root = Path(__file__).resolve().parents[1]
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+
     import httpx
+    from agent.config import load_config
+    from agent.embedding.service import EmbeddingService
 
     print(f"Inserting {len(SAMPLE_DOCUMENTS)} documents into DeepVector...")
 
-    async with httpx.AsyncClient() as client:
-        for i, doc in enumerate(SAMPLE_DOCUMENTS):
-            try:
-                # First embed the text
-                embed_resp = await client.post(
-                    f"{deepvector_url}/embed",
-                    json={"text": doc["text"]},
-                )
-                if embed_resp.status_code == 200:
-                    vector = embed_resp.json()["vector"]
-                else:
-                    print(f"  Embed failed for doc {i}, using random vector")
-                    import random
-                    vector = [random.random() for _ in range(768)]
+    config = load_config()
+    embedder = EmbeddingService(config.embedding)
+    now = int(time.time())
 
-                # Then insert
-                insert_resp = await client.post(
-                    f"{deepvector_url}/insert",
-                    json={"vector": vector},
-                )
-                if insert_resp.status_code == 200:
-                    doc_id = insert_resp.json()["ids"][0]
-                    print(f"  [{i+1}/{len(SAMPLE_DOCUMENTS)}] Inserted doc {doc_id}")
-                else:
-                    print(f"  [{i+1}/{len(SAMPLE_DOCUMENTS)}] Insert failed: {insert_resp.text}")
+    try:
+        texts = [d["text"] for d in SAMPLE_DOCUMENTS]
+        vectors = await embedder.embed(texts)
+        metadatas = [
+            {"text": d["text"], "tags": d["tags"], "timestamp": now}
+            for d in SAMPLE_DOCUMENTS
+        ]
 
-            except Exception as e:
-                print(f"  [{i+1}/{len(SAMPLE_DOCUMENTS)}] Error: {e}")
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.post(
+                f"{deepvector_url}/insert",
+                json={"vectors": vectors, "metadatas": metadatas},
+            )
+            resp.raise_for_status()
+            ids = resp.json().get("ids", [])
+            for i, doc_id in enumerate(ids):
+                print(f"  [{i+1}/{len(SAMPLE_DOCUMENTS)}] Inserted doc {doc_id}")
+    finally:
+        await embedder.close()
 
     print("Done!")
 
 
 if __name__ == "__main__":
     import asyncio
+
     asyncio.run(insert_demo_data())

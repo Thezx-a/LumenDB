@@ -2,7 +2,49 @@
 
 ## 前置知识
 
-> 📎 **参考**: [构建环境配置](../prerequisites/01_构建环境配置.md) — C++ 编译环境与工具链
+> 📎 **参考**: [构建环境配置](../prerequisites/01_构建环境配置_zh.md) — C++ 编译环境与工具链
+
+---
+
+## 本章定位：点 → 线 → 面
+
+| 层次 | 本章内容 | 对应仓库 |
+|------|---------|---------|
+| **点** | Socket、HTTP/1.1、REST 状态码 | `course/ch10_http_server/code/main.cpp` |
+| **线** | 请求解析 → 路由 → JSON 响应 → 优雅关闭 | `deepvector/src/server/server.cpp` |
+| **面** | 多 Collection、`/metrics`、Agent 分层 | [ARCHITECTURE.md](../../ARCHITECTURE.md)、[openapi.yaml](../../docs/openapi.yaml) |
+
+**设计原则：** C++ 层只做向量 I/O 与 ANN 搜索；文本 embedding 在 Agent 层完成（`agent/embedding/service.py`），避免在 DB 进程内加载 PyTorch。
+
+### 与本仓库 REST API 的映射
+
+当前 DeepVector HTTP 服务（默认 `:8080`）暴露以下核心端点：
+
+| 端点 | 方法 | 作用 |
+|------|------|------|
+| `/health` | GET | 存活探针 |
+| `/metrics` | GET | Prometheus 指标（搜索/插入延迟、QPS） |
+| `/collections` | GET/POST | 列出或创建 Collection |
+| `/collections/{name}` | DELETE | 删除 Collection |
+| `/search` | POST | ANN 搜索（body 含 `vector`、`k`、`collection`、`filter`） |
+| `/insert` | POST | 插入向量 + 可选 `meta`（text/tags/timestamp） |
+| `/vectors/{id}/meta` | GET | 按 ID 读取元数据 |
+
+```bash
+# 快速验证（需先启动 deepvector-server，见 RUN.md）
+curl -s http://localhost:8080/health
+curl -s http://localhost:8080/metrics | head
+curl -s -X POST http://localhost:8080/collections \
+  -H "Content-Type: application/json" -d '{"name":"demo"}'
+```
+
+**CollectionRegistry**（`include/dv/server/collection_registry.h`）在进程内维护多个独立索引；Agent/MCP 通过 `collection` 字段选择目标集合，实现「一个进程、多租户隔离」的轻量方案。
+
+### 反思与面试
+
+- 为什么向量 DB 的 HTTP API 通常接受 **float32 数组** 而不是原始文本？
+- `/metrics` 应暴露哪些 SLI？（P99 延迟、错误率、索引大小）
+- 见 [INTERVIEW_BANK.md](../INTERVIEW_BANK.md) §HTTP / 生产运维
 
 ---
 
@@ -660,3 +702,11 @@ wrk -t 4 -c 100 -d 30s --latency http://localhost:8080/api/v1/health
 | **运维层** | 信号处理 | SIGTERM → 排空请求 → 持久化 → 退出；宽限期 |
 
 > 下一章：[第11章：C++20协程与SkyNet](../ch11_coroutines/README.md)
+
+---
+
+## 附录：本章与面试题库映射
+
+请完成本章后练习 [INTERVIEW_BANK.md](../INTERVIEW_BANK.md) 中对应分区题目，并阅读 [_CHAPTER_TEMPLATE.md](../_CHAPTER_TEMPLATE.md) 自检是否覆盖「点/线/面/动手/反思/参考」。
+
+**全局架构：** [ARCHITECTURE.md](../../ARCHITECTURE.md) · **选型：** [TECH.md](../../../TECH.md) · **运行：** [RUN.md](../../../RUN.md)

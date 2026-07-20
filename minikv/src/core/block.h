@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <string>
 #include <vector>
@@ -34,6 +35,9 @@ public:
     explicit BlockReader(const Slice& block_data);
     std::optional<std::string> get(const Slice& key) const;
     size_t numEntries() const { return num_entries_; }
+
+    // Visit every key/value in order (LevelDB-style linear decode).
+    void forEach(const std::function<void(const Slice& key, const Slice& value)>& cb) const;
 
 private:
     Slice data_;

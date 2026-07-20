@@ -5,6 +5,7 @@
 #include <string>
 #include "core/compaction.h"
 #include "core/memtable.h"
+#include "core/memtable_iterator.h"
 #include "core/version.h"
 #include "core/wal.h"
 #include "minikv/db.h"

@@ -1,4 +1,4 @@
-﻿"""
+"""
 DeepVector - C++ Zero-Copy Vector Database for RAG
 
 Usage:
@@ -9,7 +9,7 @@ Usage:
     cfg.dim = 768
     cfg.metric = deepvector.DistanceMetric.Cosine
 
-    coll = deepvector.Collection(cfg, "/tmp/lumendb_py")
+    coll = deepvector.Collection(cfg, "/tmp/deepvector_py")
     vec = np.random.randn(768).astype(np.float32)
 
     coll.add(vec)
