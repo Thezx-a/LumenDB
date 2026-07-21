@@ -7,26 +7,27 @@ MemTable::MemTable(size_t max_size)
     : table_(std::make_unique<SkipList>()), max_size_(max_size) {}
 
 void MemTable::put(const Slice& userKey, const Slice& value, uint64_t seq, bool isDelete) {
-    uint8_t type = isDelete ? 2 : 1;
-    uint64_t internalKey = packInternalKey(userKey, seq, type);
+    ValueType type = isDelete ? ValueType::kDeletion : ValueType::kValue;
+    std::string ikey = InternalKeyEncode(userKey, seq, type);
+    std::string val = isDelete ? "" : value.toString();
     {
         std::unique_lock<std::shared_mutex> lock(mutex_);
-        table_->put(internalKey, isDelete ? "" : value.toString());
+        table_->put(ikey, val);
         entry_count_++;
     }
 }
 
 std::optional<std::string> MemTable::get(const Slice& userKey, uint64_t seq) const {
-    uint64_t userKeyPart = packInternalKey(userKey, 0, 0);
-    {
-        std::shared_lock<std::shared_mutex> lock(mutex_);
-        auto entries = table_->entries();
-        for (auto it = entries.rbegin(); it != entries.rend(); ++it) {
-            if ((it->first & ~0xFFFFULL) != userKeyPart) continue;
-            uint8_t type = static_cast<uint8_t>(it->first & 0xF);
-            if (type == 2) return std::nullopt;
-            if (type == 1) return it->second;
-        }
+    std::shared_lock<std::shared_mutex> lock(mutex_);
+    auto entries = table_->entries();
+    for (auto& [ik, v] : entries) {
+        Slice ikSlice(ik);
+        Slice uk = InternalKeyUserKey(ikSlice);
+        int cmp = uk.compare(userKey);
+        if (cmp < 0) continue;
+        if (cmp > 0) break;
+        if (IsDeletion(ikSlice)) return std::nullopt;
+        return v;
     }
     return std::nullopt;
 }
@@ -36,7 +37,7 @@ std::vector<MemTableEntry> MemTable::entries() const {
     auto raw = table_->entries();
     std::vector<MemTableEntry> result;
     result.reserve(raw.size());
-    for (auto& [k, v] : raw) result.push_back({k, std::move(v)});
+    for (auto& [k, v] : raw) result.push_back({std::move(k), std::move(v)});
     return result;
 }
 

@@ -9,8 +9,6 @@
 namespace minikv {
 namespace core {
 
-// Snapshot iterator over one or more MemTables (active + immutable).
-// Does not yet merge SSTable files — sufficient to avoid nullptr crashes.
 class MemTableIterator : public Iterator {
 public:
     explicit MemTableIterator(std::vector<MemTableEntry> entries);
@@ -24,8 +22,6 @@ public:
     Status status() const override;
 
 private:
-    void encodeKey(size_t idx);
-
     std::vector<MemTableEntry> entries_;
     size_t index_ = 0;
     mutable std::string key_buf_;

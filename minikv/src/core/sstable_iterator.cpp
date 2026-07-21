@@ -1,5 +1,6 @@
 #include "core/sstable_iterator.h"
 #include "core/block.h"
+#include "core/internal_key.h"
 #include <algorithm>
 #include <fcntl.h>
 #include <unistd.h>
@@ -18,7 +19,6 @@ SSTableIterator::SSTableIterator(std::shared_ptr<SSTableReader> reader)
 }
 
 void SSTableIterator::loadEntries() {
-    // Materialize all entries via scan — correct LevelDB-style full table view.
     auto st = reader_->scan(
         Slice(), Slice(),
         [this](const Slice& k, const Slice& v) {
@@ -29,7 +29,9 @@ void SSTableIterator::loadEntries() {
         return;
     }
     std::sort(entries_.begin(), entries_.end(),
-              [](const auto& a, const auto& b) { return a.first < b.first; });
+              [](const auto& a, const auto& b) {
+                  return InternalKeyCompare(Slice(a.first), Slice(b.first)) < 0;
+              });
 }
 
 bool SSTableIterator::valid() const {
@@ -39,9 +41,10 @@ bool SSTableIterator::valid() const {
 void SSTableIterator::seekToFirst() { index_ = 0; }
 
 void SSTableIterator::seek(const Slice& target) {
-    std::string t = target.toString();
     index_ = 0;
-    while (index_ < entries_.size() && entries_[index_].first < t) ++index_;
+    while (index_ < entries_.size() &&
+           InternalKeyCompare(Slice(entries_[index_].first), target) < 0)
+        ++index_;
 }
 
 void SSTableIterator::next() {

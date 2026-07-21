@@ -4,6 +4,7 @@
 #include "core/sstable_iterator.h"
 #include "core/merging_iterator.h"
 #include "core/compression.h"
+#include "core/internal_key.h"
 #include "utils/coding.h"
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -42,19 +43,15 @@ Status DBImpl::open(const Options& options, std::unique_ptr<DB>* dbptr) {
 }
 
 Status DBImpl::recover() {
-    // 1) Reopen the Manifest and rebuild Version's in-memory snapshot.
     manifest_ = std::make_unique<Manifest>(db_path_);
     Status ms = manifest_->open();
     if (!ms.ok()) return ms;
     version_.setManifest(manifest_.get());
     version_.restoreFrom(manifest_->levels());
 
-    // 2) Mark a fresh session boundary in MANIFEST (helps debugging).
     (void)manifest_->recordReset();
     (void)manifest_->sync();
 
-    // 3) Replay WAL into a fresh MemTable — only data not yet flushed to SSTs
-    //    should be present here, because flushMemTable truncates WAL.
     std::string wal_path = db_path_ + "/wal.log";
     wal_ = std::make_unique<WAL>(wal_path);
     memtable_ = std::make_unique<MemTable>(options_.memtable_size);
@@ -131,7 +128,6 @@ Status DBImpl::get(const ReadOptions& opts, const Slice& key, std::string* value
             return Status::Ok();
         }
     }
-    // Check L0+ SSTables
     for (int level = 0; level <= options_.max_level; ++level) {
         auto files = version_.getLevelFiles(level);
         for (const auto& path : files) {
@@ -166,10 +162,9 @@ Status DBImpl::flushMemTable() {
     CompressionType ctype = static_cast<CompressionType>(options_.compression);
     SSTableBuilder builder(filePath, options_.block_size, ctype);
     for (const auto& entry : entries) {
-        char keyBuf[8];
-        uint64_t ik = entry.internal_key;
-        for (int i = 0; i < 8; ++i) keyBuf[i] = static_cast<char>((ik >> (i * 8)) & 0xFF);
-        builder.add(entry.internal_key, Slice(keyBuf, 8), Slice(entry.value));
+        Slice ik(entry.internal_key);
+        Slice uk = InternalKeyUserKey(ik);
+        builder.add(ik, uk, Slice(entry.value));
     }
     builder.finish();
     version_.addLevelFile(0, filePath);

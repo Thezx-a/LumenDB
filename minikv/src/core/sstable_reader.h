@@ -15,7 +15,7 @@ namespace core {
 class SSTableReader {
 public:
     static std::unique_ptr<SSTableReader> open(const std::string& path);
-    std::optional<std::string> get(const Slice& key) const;
+    std::optional<std::string> get(const Slice& userKey) const;
     bool mightContain(const Slice& key) const { return bloom_ && bloom_->mightContain(key); }
     Status scan(const Slice& start, const Slice& end,
                 std::function<void(const Slice&, const Slice&)> callback) const;
@@ -26,11 +26,10 @@ public:
 
 private:
     struct IndexEntry {
-        std::string  last_user_key;
-        BlockHandle  handle;     // offset, total size (incl. 13B header)
+        std::string  last_key;      // full internal_key of last entry in block
+        BlockHandle  handle;        // offset, total size (incl. 13B header)
     };
 
-    // Read a single data block described by `h` and return its decoded bytes.
     Status readBlock(const BlockHandle& h, std::string* out) const;
 
     std::string                       path_;

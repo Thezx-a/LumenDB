@@ -1,6 +1,7 @@
 ﻿#include "core/block.h"
 #include <algorithm>
 #include <cstring>
+#include "core/internal_key.h"
 #include "utils/coding.h"
 #include "utils/crc32.h"
 
@@ -66,6 +67,39 @@ std::optional<std::string> BlockReader::get(const Slice& key) const {
         if (currentKey > key.toString()) return std::nullopt;
         lastKey = std::move(currentKey);
         offset = (p - data_.data()) + valLen;
+    }
+    return std::nullopt;
+}
+
+std::optional<std::string> BlockReader::getByUserKey(const Slice& userKey) const {
+    size_t offset = 0;
+    std::string lastKey;
+    while (offset < restarts_offset_) {
+        uint32_t shared, nonShared, valLen;
+        const char* p = data_.data() + offset;
+        const char* limit = data_.data() + restarts_offset_;
+        uint32_t consumed = 0;
+        if (!utils::decodeVariant32(p, limit, shared, consumed)) break;
+        p += consumed;
+        if (!utils::decodeVariant32(p, limit, nonShared, consumed)) break;
+        p += consumed;
+        if (!utils::decodeVariant32(p, limit, valLen, consumed)) break;
+        p += consumed;
+        std::string currentKey = lastKey.substr(0, shared);
+        currentKey.append(p, nonShared);
+        p += nonShared;
+
+        Slice ik(currentKey);
+        Slice uk = InternalKeyUserKey(ik);
+        int cmp = uk.compare(userKey);
+        if (cmp == 0) {
+            if (IsDeletion(ik)) return std::nullopt;
+            return std::string(p, valLen);
+        }
+        if (cmp > 0) return std::nullopt;
+
+        lastKey = std::move(currentKey);
+        offset = static_cast<size_t>((p - data_.data()) + valLen);
     }
     return std::nullopt;
 }

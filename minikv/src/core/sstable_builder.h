@@ -46,7 +46,7 @@ public:
                    size_t            block_size               = 4096,
                    CompressionType   compression               = CompressionType::kSnappy);
     ~SSTableBuilder();
-    Status add(uint64_t internalKey, const Slice& key, const Slice& value);
+    Status add(const Slice& internalKey, const Slice& userKey, const Slice& value);
     Status finish();
     uint64_t fileSize() const;
 

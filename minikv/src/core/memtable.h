@@ -11,7 +11,7 @@ namespace minikv {
 namespace core {
 
 struct MemTableEntry {
-    uint64_t internal_key;
+    std::string internal_key;   // InternalKeyEncode(user_key, seq, type)
     std::string value;
 };
 

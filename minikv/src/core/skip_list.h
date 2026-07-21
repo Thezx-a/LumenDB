@@ -4,31 +4,27 @@
 #include <optional>
 #include <random>
 #include <shared_mutex>
+#include <string>
 #include <vector>
+#include "core/internal_key.h"
 #include "minikv/slice.h"
 
 namespace minikv {
 namespace core {
 
-inline uint64_t packInternalKey(const Slice& userKey, uint64_t seq, uint8_t type) {
-    uint64_t h = 0;
-    for (size_t i = 0; i < userKey.size(); ++i) h = h * 31 + static_cast<unsigned char>(userKey[i]);
-    return (h << 16) | ((seq & 0xFFF) << 4) | (type & 0xF);
-}
-
 struct SkipNode {
-    uint64_t key;
+    std::string key;
     std::string value;
     std::vector<SkipNode*> forward;
-    SkipNode(uint64_t k, std::string v, int level)
-        : key(k), value(std::move(v)), forward(level + 1, nullptr) {}
+    SkipNode(std::string k, std::string v, int level)
+        : key(std::move(k)), value(std::move(v)), forward(level + 1, nullptr) {}
 };
 
 class SkipList {
 public:
     static constexpr int kMaxLevel = 32;
 
-    SkipList() : head_(new SkipNode(0, "", kMaxLevel)), max_level_(0), mem_usage_(0) {}
+    SkipList() : head_(new SkipNode("", "", kMaxLevel)), max_level_(0), mem_usage_(0) {}
 
     ~SkipList() {
         SkipNode* node = head_;
@@ -39,12 +35,14 @@ public:
         }
     }
 
-    void put(uint64_t key, const std::string& value) {
+    void put(const std::string& key, const std::string& value) {
         std::unique_lock<std::shared_mutex> lock(mutex_);
         std::vector<SkipNode*> update(kMaxLevel + 1, nullptr);
         SkipNode* x = head_;
         for (int i = max_level_; i >= 0; --i) {
-            while (x->forward[i] && x->forward[i]->key < key) x = x->forward[i];
+            while (x->forward[i] &&
+                   InternalKeyCompare(Slice(x->forward[i]->key), Slice(key)) < 0)
+                x = x->forward[i];
             update[i] = x;
         }
         x = x->forward[0];
@@ -58,32 +56,36 @@ public:
                 for (int i = max_level_ + 1; i <= level; ++i) update[i] = head_;
                 max_level_ = level;
             }
-            x = new SkipNode(key, value, level);
+            auto* node = new SkipNode(key, value, level);
             for (int i = 0; i <= level; ++i) {
-                x->forward[i] = update[i]->forward[i];
-                update[i]->forward[i] = x;
+                node->forward[i] = update[i]->forward[i];
+                update[i]->forward[i] = node;
             }
-            mem_usage_ += sizeof(SkipNode) + value.size() + sizeof(key);
+            mem_usage_ += sizeof(SkipNode) + key.size() + value.size();
         }
     }
 
-    std::optional<std::string> get(uint64_t key) const {
+    std::optional<std::string> get(const std::string& key) const {
         std::shared_lock<std::shared_mutex> lock(mutex_);
         SkipNode* x = head_;
         for (int i = max_level_; i >= 0; --i) {
-            while (x->forward[i] && x->forward[i]->key < key) x = x->forward[i];
+            while (x->forward[i] &&
+                   InternalKeyCompare(Slice(x->forward[i]->key), Slice(key)) < 0)
+                x = x->forward[i];
         }
         x = x->forward[0];
         if (x && x->key == key) return x->value;
         return std::nullopt;
     }
 
-    void del(uint64_t key) {
+    void del(const std::string& key) {
         std::unique_lock<std::shared_mutex> lock(mutex_);
         std::vector<SkipNode*> update(kMaxLevel + 1, nullptr);
         SkipNode* x = head_;
         for (int i = max_level_; i >= 0; --i) {
-            while (x->forward[i] && x->forward[i]->key < key) x = x->forward[i];
+            while (x->forward[i] &&
+                   InternalKeyCompare(Slice(x->forward[i]->key), Slice(key)) < 0)
+                x = x->forward[i];
             update[i] = x;
         }
         x = x->forward[0];
@@ -92,15 +94,15 @@ public:
                 if (update[i]->forward[i] != x) break;
                 update[i]->forward[i] = x->forward[i];
             }
-            mem_usage_ -= sizeof(SkipNode) + x->value.size() + sizeof(x->key);
+            mem_usage_ -= sizeof(SkipNode) + x->key.size() + x->value.size();
             delete x;
             while (max_level_ > 0 && head_->forward[max_level_] == nullptr) --max_level_;
         }
     }
 
-    std::vector<std::pair<uint64_t, std::string>> entries() const {
+    std::vector<std::pair<std::string, std::string>> entries() const {
         std::shared_lock<std::shared_mutex> lock(mutex_);
-        std::vector<std::pair<uint64_t, std::string>> result;
+        std::vector<std::pair<std::string, std::string>> result;
         SkipNode* x = head_->forward[0];
         while (x) {
             result.push_back({x->key, x->value});

@@ -6,7 +6,8 @@
 
 #include <algorithm>
 
-#include "core/sstable_builder.h"  // kSSTableFooterSize, kSSTableMagic, kSSTableBlockHeader, kSSTableFormatVersion
+#include "core/internal_key.h"
+#include "core/sstable_builder.h"
 #include "core/compression.h"
 #include "utils/coding.h"
 
@@ -38,7 +39,6 @@ std::unique_ptr<SSTableReader> SSTableReader::open(const std::string& path) {
     reader->index_offset_ = utils::decodeFixed64(footer);
     reader->index_size_   = utils::decodeFixed64(footer + 8);
 
-    // Read index block (8-byte [crc][size] header kept uncompressed).
     ::lseek(reader->fd_, reader->index_offset_, SEEK_SET);
     char idxHeader[8];
     if (::read(reader->fd_, idxHeader, 8) != 8) return nullptr;
@@ -57,7 +57,7 @@ std::unique_ptr<SSTableReader> SSTableReader::open(const std::string& path) {
         std::string lastKey(p, keyLen);
         p += keyLen;
         IndexEntry e;
-        e.last_user_key = std::move(lastKey);
+        e.last_key = std::move(lastKey);
         e.handle.offset = utils::decodeFixed64(p);
         e.handle.size   = utils::decodeFixed64(p + 8);
         p += 16;
@@ -100,13 +100,17 @@ Status SSTableReader::readBlock(const BlockHandle& h, std::string* out) const {
     return decompressBlock(type, Slice(payload), uncompressed_sz, *out);
 }
 
-std::optional<std::string> SSTableReader::get(const Slice& key) const {
+std::optional<std::string> SSTableReader::get(const Slice& userKey) const {
     if (index_entries_.empty()) return std::nullopt;
-    if (bloom_ && !bloom_->mightContain(key)) return std::nullopt;
+    if (bloom_ && !bloom_->mightContain(userKey)) return std::nullopt;
 
+    std::string searchKey = userKey.toString();
     auto it = std::upper_bound(
-        index_entries_.begin(), index_entries_.end(), key.toString(),
-        [](const std::string& k, const IndexEntry& e) { return k < e.last_user_key; });
+        index_entries_.begin(), index_entries_.end(), searchKey,
+        [](const std::string& k, const IndexEntry& e) {
+            Slice lastUK = InternalKeyUserKey(Slice(e.last_key));
+            return k.compare(lastUK.toString()) < 0;
+        });
     if (it == index_entries_.begin()) return std::nullopt;
     --it;
 
@@ -115,13 +119,14 @@ std::optional<std::string> SSTableReader::get(const Slice& key) const {
     if (!s.ok()) return std::nullopt;
 
     BlockReader reader{Slice(block)};
-    return reader.get(key);
+    return reader.getByUserKey(userKey);
 }
 
 Status SSTableReader::scan(const Slice& start, const Slice& end,
                            std::function<void(const Slice&, const Slice&)> cb) const {
     for (const auto& e : index_entries_) {
-        if (!end.empty() && e.last_user_key > end.toString()) break;
+        Slice lastUK = InternalKeyUserKey(Slice(e.last_key));
+        if (!end.empty() && lastUK.compare(end) > 0) break;
 
         std::string block;
         Status s = readBlock(e.handle, &block);
@@ -129,8 +134,9 @@ Status SSTableReader::scan(const Slice& start, const Slice& end,
 
         BlockReader reader{Slice(block)};
         reader.forEach([&](const Slice& k, const Slice& v) {
-            if (!start.empty() && k.toString() < start.toString()) return;
-            if (!end.empty() && k.toString() > end.toString()) return;
+            Slice uk = InternalKeyUserKey(k);
+            if (!start.empty() && uk.compare(start) < 0) return;
+            if (!end.empty() && uk.compare(end) > 0) return;
             cb(k, v);
         });
     }

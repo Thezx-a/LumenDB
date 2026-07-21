@@ -1,4 +1,5 @@
 #include "core/merging_iterator.h"
+#include "core/internal_key.h"
 
 namespace minikv {
 namespace core {
@@ -49,7 +50,6 @@ void MergingIterator::seek(const Slice& target) {
 
 void MergingIterator::next() {
     if (!valid()) return;
-    // Advance the current child and any children with the same key (dedupe).
     std::string cur = children_[current_]->key().toString();
     while (!heap_.empty() && heap_.top().key == cur) {
         size_t i = heap_.top().child_index;

@@ -6,6 +6,7 @@
 #include <cstring>
 
 #include "core/compression.h"
+#include "core/internal_key.h"
 #include "utils/coding.h"
 #include "utils/crc32.h"
 
@@ -32,14 +33,12 @@ SSTableBuilder::~SSTableBuilder() {
     if (fd_ >= 0) ::close(fd_);
 }
 
-Status SSTableBuilder::add(uint64_t internalKey,
-                           const Slice& key,
+Status SSTableBuilder::add(const Slice& internalKey,
+                           const Slice& userKey,
                            const Slice& value) {
-    char keyBuf[8];
-    utils::encodeFixed64(keyBuf, internalKey);
-    data_block_.add(Slice(keyBuf, 8), value);
-    bloom_->add(key);
-    last_key_ = key.toString();
+    data_block_.add(internalKey, value);
+    bloom_->add(userKey);
+    last_key_ = internalKey.toString();
     entry_count_++;
     if (data_block_.size() >= block_size_) {
         return flushDataBlock();
@@ -52,7 +51,6 @@ Status SSTableBuilder::flushDataBlock() {
     Slice raw = data_block_.finish();
     size_t uncompressed_size = raw.size();
 
-    // Compress the raw block buffer.
     std::string payload;
     payload.assign(raw.data(), raw.size());
     CompressionType used = CompressionType::kNone;
@@ -82,7 +80,6 @@ Status SSTableBuilder::flushDataBlock() {
         return Status::IOError("SSTable write block data failed");
     offset_ += kSSTableBlockHeader + payload.size();
 
-    // Index entry keeps block last_user_key + handle(offset, size_with_header).
     std::string indexEntry;
     utils::encodeVariant32(indexEntry, static_cast<uint32_t>(last_key_.size()));
     indexEntry.append(last_key_);
@@ -102,10 +99,8 @@ Status SSTableBuilder::finish() {
     finished_ = true;
     flushDataBlock();
 
-    // Persist bloom filter alongside the SSTable (kept as a sidecar file).
     bloom_->persist(path_ + ".bloom");
 
-    // Index block keeps the legacy 8-byte [crc][size] header (no compression).
     uint64_t index_offset = offset_;
     uint32_t index_crc = utils::crc32c(index_block_.data(),
                                          static_cast<int>(index_block_.size()));

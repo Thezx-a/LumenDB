@@ -26,14 +26,26 @@
       - `Options::compression` (uint8_t, default 1=snappy) propagated through `DBImpl::flushMemTable`
       - Tests: `test_compression.cpp` (round-trip, mismatch detection) and `test_sstable_compression.cpp`
       - Status: code-reviewed, awaiting Linux/WSL build verification (Windows native unsupported)
-- [~] WP 1.2.2  MVCC snapshot reads (internal key = user_key | seq | type)
-      - Phase A (done): Added `core/internal_key.{h,cpp}` with encoding helpers
-        + descending-seq comparator. Test coverage in `tests/test_internal_key.cpp`.
-      - Includes a hard prerequisite (Phase B pending): rewrite `InternalKey` from
-        hash-of-user-key to a real `[user_key | ~seq | type]` encoding so different
-        user keys never collide. Requires rewiring SkipList to use std::string keys
-        and updating MemTable / SSTableBuilder / SSTableReader / MergingIterator
-        accordingly. sizable milestone refactor — recommended to do on its own commit.
+- [x] WP 1.2.2  MVCC snapshot reads (internal key = user_key | seq | type)
+      - Phase A: `core/internal_key.{h,cpp}` — encoding helpers + descending-seq
+        comparator. Test coverage in `tests/test_internal_key.cpp`.
+      - Phase B: Full rewrite of the internal-key pipeline from hash-based uint64_t
+        to `[user_key | trailer(8)]` string encoding:
+        * `SkipList` now uses `std::string` keys with `InternalKeyCompare`.
+        * `MemTableEntry::internal_key` is `std::string`; `put()` calls
+          `InternalKeyEncode()`; `get()` scans by user_key prefix.
+        * `SSTableBuilder::add()` takes `(internalKey, userKey, value)` — writes
+          full internal_key to block, populates bloom with user_key.
+        * `SSTableReader::get()` takes user_key, extracts user_key prefix from
+          index entries, uses `BlockReader::getByUserKey()` for block scan.
+        * `BlockReader::getByUserKey()` — linear scan returning first match on
+          user_key (newest version, since seq is descending).
+        * `SSTableIterator` / `MemTableIterator` — sort by `InternalKeyCompare`.
+        * `MergingIterator` — heap ordering by `InternalKeyCompare`.
+        * `DBImpl::flushMemTable()` — passes string internal_keys to builder.
+        * Deleted `packInternalKey()` hash function.
+      - Tests: `test_skip_list.cpp` (string keys), `test_internal_key.cpp` (codec),
+        `test_sstable_compression.cpp` (round-trip + point lookup + MVCC dedup).
 - [ ] WP 1.2.3  Range Delete (WriteBatch::deleteRange, MemTable tombstones)
 - [x] WP 1.2.4  Manifest persistence (recover Version on restart)
       - Added `core/manifest.{h,cpp}` with appended [crc(4)][size(4)][payload] records.
