@@ -23,8 +23,14 @@ if(USE_AVX2)
     endif()
 endif()
 
-add_subdirectory(../minikv minikv)
-add_subdirectory(../skynet skynet)
+# Guard against double add_subdirectory when built as part of the top-level TitanKV project.
+# The top-level CMakeLists.txt already adds minikv; only add it here when building deepvector standalone.
+if(NOT TARGET minikv)
+    add_subdirectory(../minikv minikv)
+endif()
+if(NOT TARGET skynet)
+    add_subdirectory(../skynet skynet)
+endif()
 
 include(FetchContent)
 FetchContent_Declare(json

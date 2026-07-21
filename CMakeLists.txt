@@ -31,3 +31,12 @@ add_subdirectory(deepvector)
 if(TARGET skynet)
     # nothing — skynet builds its own static lib when built standalone
 endif()
+
+# =========================================================
+# Course module hands-on unit tests (TitanKV curriculum).
+# Independent of minikv/deepvector — fetches GoogleTest itself.
+# =========================================================
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/course/CMakeLists.txt")
+    enable_testing()
+    add_subdirectory(tests/course)
+endif()

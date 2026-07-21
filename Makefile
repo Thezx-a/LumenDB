@@ -8,6 +8,14 @@
 #   make lint         # lint C++ & Go
 #   make docker-up    # start local dev stack (compose)
 #   make docker-down  # stop local dev stack
+#   make run-gateway  # run gateway service (Phase 3)
+#   make run-auth     # run auth service (Phase 3)
+#   make run-data     # run data service (Phase 4)
+#   make run-meta     # run meta service (Phase 4)
+#   make run-observ   # run observability service (Phase 4)
+#   make run-all      # run all Go services in parallel
+#   make web-install  # install Next.js deps
+#   make web-dev      # run Next.js dev server
 # =========================================================
 
 SHELL := /bin/bash
@@ -49,8 +57,11 @@ cpp-lint: ## Run clang-tidy on C++ sources
 # ---------------------------------------------------------
 # Go build / test / lint
 # ---------------------------------------------------------
-.PHONY: go-build go-test go-lint go-mod
+.PHONY: go-build go-test go-lint go-mod go-tidy
 go-mod: ## Tidy and download Go modules
+	$(GO) mod download
+
+go-tidy: ## Run go mod tidy
 	$(GO) mod tidy
 
 go-build: go-mod ## Build all Go services and tools
@@ -64,11 +75,42 @@ go-lint: ## Run golangci-lint on all Go code
 	@if command -v $(GOLINT) >/dev/null 2>&1; then $(GOLINT) run ./...; else echo "skip (golangci-lint not installed)"; fi
 
 # ---------------------------------------------------------
-# Frontend (Next.js)
+# Run services (Phase 3 / Phase 4)
 # ---------------------------------------------------------
-.PHONY: web-install web-build web-lint web-test
-web-install: ## Install web dependencies (uses internal npm)
+.PHONY: run-gateway run-auth run-data run-meta run-observ run-all
+run-gateway: ## Run gateway service (Phase 3, port 8080)
+	$(GO) run ./gateway
+
+run-auth: ## Run auth service (Phase 3, port 8082)
+	$(GO) run ./services/auth
+
+run-data: ## Run data service (Phase 4, port 8081)
+	$(GO) run ./services/data
+
+run-meta: ## Run meta service (Phase 4, port 8083)
+	$(GO) run ./services/meta
+
+run-observ: ## Run observability service (Phase 4, port 8084)
+	$(GO) run ./services/observability
+
+run-all: ## Run all 5 Go services in parallel (use Ctrl+C to stop all)
+	@echo "Starting all services. Press Ctrl+C to stop."
+	@$(GO) run ./services/auth &
+	@$(GO) run ./services/data &
+	@$(GO) run ./services/meta &
+	@$(GO) run ./services/observability &
+	@$(GO) run ./gateway
+	@wait
+
+# ---------------------------------------------------------
+# Frontend (Next.js, Phase 6)
+# ---------------------------------------------------------
+.PHONY: web-install web-dev web-build web-lint web-test
+web-install: ## Install web dependencies
 	cd web && npm install
+
+web-dev: ## Run Next.js dev server (port 3000)
+	cd web && npm run dev
 
 web-build: ## Build the Next.js admin console
 	cd web && npm run build
