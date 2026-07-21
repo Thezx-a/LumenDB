@@ -9,6 +9,7 @@
     test_compression.cpp
     test_sstable_compression.cpp
     test_manifest.cpp
+    test_internal_key.cpp
 )
 target_link_libraries(minikv_tests PRIVATE minikv GTest::gtest_main)
 include(GoogleTest)

@@ -37,6 +37,7 @@ add_library(minikv STATIC
     src/core/merging_iterator.cpp
     src/core/compression.cpp
     src/core/manifest.cpp
+    src/core/internal_key.cpp
     src/network/event_loop.cpp
     src/network/server.cpp
     src/network/connection.cpp

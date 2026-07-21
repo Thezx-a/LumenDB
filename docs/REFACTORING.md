@@ -26,9 +26,14 @@
       - `Options::compression` (uint8_t, default 1=snappy) propagated through `DBImpl::flushMemTable`
       - Tests: `test_compression.cpp` (round-trip, mismatch detection) and `test_sstable_compression.cpp`
       - Status: code-reviewed, awaiting Linux/WSL build verification (Windows native unsupported)
-- [ ] WP 1.2.2  MVCC snapshot reads (internal key = user_key | seq | type)
-      - Includes a hard prerequisite: rewrite `InternalKey` from hash-of-user-key to a real
-        `[user_key | ~seq | type]` encoding so different user keys never collide
+- [~] WP 1.2.2  MVCC snapshot reads (internal key = user_key | seq | type)
+      - Phase A (done): Added `core/internal_key.{h,cpp}` with encoding helpers
+        + descending-seq comparator. Test coverage in `tests/test_internal_key.cpp`.
+      - Includes a hard prerequisite (Phase B pending): rewrite `InternalKey` from
+        hash-of-user-key to a real `[user_key | ~seq | type]` encoding so different
+        user keys never collide. Requires rewiring SkipList to use std::string keys
+        and updating MemTable / SSTableBuilder / SSTableReader / MergingIterator
+        accordingly. sizable milestone refactor — recommended to do on its own commit.
 - [ ] WP 1.2.3  Range Delete (WriteBatch::deleteRange, MemTable tombstones)
 - [x] WP 1.2.4  Manifest persistence (recover Version on restart)
       - Added `core/manifest.{h,cpp}` with appended [crc(4)][size(4)][payload] records.
