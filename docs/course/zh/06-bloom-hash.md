@@ -3,6 +3,14 @@
 > 对应源码：[bloom_filter.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/core/bloom_filter.h)、[hash.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/utils/hash.h)
 > 对应规划：分布式层一致性哈希分片（REFACTORING.md Phase 5）
 
+## 背景与动机
+
+我们在前一个模块里把 MemTable 用跳表跑起来了，写路径看起来挺漂亮——内存里一插就完事。可一旦数据落盘成 SSTable，读放大这个隐藏的怪兽就张开了嘴：一次 `Get` 可能要查 MemTable、Immutable、L0 的好几个重叠文件，再到 L1..Ln 逐层二分，层层磁盘 IO，延迟瞬间被拉到毫秒级。这就是 LSM-Tree「写快读慢」的原罪，也是 Cassandra、HBase、LevelDB 都逃不开的痛点。
+
+那有没有办法在读 SSTable 之前先「便宜地」判断一下 key 到底在不在？这就是布隆过滤器登场的地方——它用一个 m 位的 bit 数组和 k 个哈希函数，以极小的内存代价（约 1% 误判率只需 ~10 bit/key）把 99% 不存在的查询挡在磁盘之外。它用「概率」换「性能」，无漏报、有误报，这个优雅的权衡正是分布式存储里最经典的设计之一。同时我们还会顺带讲一致性哈希——它和布隆一样是「哈希」家族，但解决的是分片路由问题，为后面 Module 11 的 Raft 分片埋下伏笔。
+
+学完这一模块，你应该能在面试里讲清楚：布隆过滤器的误判率公式怎么推导、为什么用双哈希优化、MurmurHash2 为何比 SHA-256 更适合 LSM 内部，以及一致性哈希为什么需要虚拟节点。更重要的是，你会明白 minikv 里 `BloomFilter` 这个不到 80 行的小类，是怎么撑起整个读路径性能的。
+
 ## 1. 核心知识
 
 - 布隆过滤器：m 位 bit 数组 + k 个哈希函数；插入置位、查询全 1 才「可能存在」。
@@ -19,6 +27,38 @@
 LSM 读路径要查 MemTable → Immutable → L0（重叠）→ L1..Ln。每层 SSTable 都可能要二分查找，读放大严重。
 
 Bloom Filter 在读 SSTable 前先过滤：若 BF 说「不存在」，直接跳过该 SSTable，省一次磁盘读。由于 BF 无漏报，不会漏掉真实存在的 key。
+
+#### 布隆过滤器工作流程
+
+```mermaid
+flowchart LR
+    subgraph Insert["插入 key (add)"]
+        I1[输入 key] --> I2["计算 h1, h2<br/>MurmurHash2 × 2"]
+        I2 --> I3["h_i = h1 + i·h2<br/>(i = 0..k-1)"]
+        I3 --> I4["bits_[h_i mod m] = 1<br/>置位 k 个位置"]
+    end
+
+    subgraph Query["查询 key (mightContain)"]
+        Q1[输入 key] --> Q2["计算 h1, h2"]
+        Q2 --> Q3["遍历 k 个位置<br/>h_i = h1 + i·h2"]
+        Q3 --> Q4{任一位为 0?}
+        Q4 -->|是| Q5["一定不存在<br/>(无漏报)"]
+        Q4 -->|否| Q6["可能存在<br/>(有误报)"]
+    end
+
+    subgraph Bits["m 位 bit 数组"]
+        direction LR
+        B0["bit 0"]
+        B1["bit 1"]
+        B2["..."]
+        B3["bit m-1"]
+    end
+
+    I4 -.置位.-> Bits
+    Q3 -.检查.-> Bits
+```
+
+插入时 k 个哈希位置全部置 1；查询时只要有一位为 0 就判定「一定不存在」，全为 1 才判定「可能存在」。双哈希优化让我们只需算 2 次 MurmurHash2 即可模拟 k 个哈希函数。
 
 ### 2.2 minikv BloomFilter 构造
 

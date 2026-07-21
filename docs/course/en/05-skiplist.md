@@ -3,6 +3,14 @@
 > Source: [skip_list.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/core/skip_list.h) (MemTable backend), [internal_key.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/core/internal_key.h)
 > LeetCode: [1206. Design Skiplist](https://leetcode.com/problems/design-skiplist/)
 
+## Background & Motivation
+
+Why do LevelDB, RocksDB, and Redis all reach for a SkipList when they need an in-memory ordered structure? You might expect a red-black tree — after all, it guarantees O(log n) in the worst case, while SkipList only offers that in expectation. But in practice, the SkipList wins on three counts that matter in production: it's dramatically simpler to implement, it locks only locally so concurrent reads scale beautifully, and its bottom linked list makes range scans a straight-line walk. Probabilistic balancing sounds sketchy until you realize the math is on your side — the expected path length is rock solid, and Redis's `zset` has been running this bet in production for years.
+
+This is Module 05, the payoff of the concurrency vocabulary from Module 03 and the C++ syntax from Module 02. We dissect minikv's SkipList end to end — the node structure, the search and insert algorithms, the `randomLevel` function with its `thread_local` RNG, and the `shared_mutex` that gates concurrent access. This is also the data structure that backs the MemTable, so everything here feeds directly into how writes become SSTables on disk later in the course.
+
+After this module, you'll be able to answer "Why a SkipList over a red-black tree for a MemTable?", "How does probabilistic balancing achieve O(log n)?", "Why is the RNG thread_local?", and "How would you make a SkipList thread-safe?" The LeetCode 1206 design problem will feel routine, and you'll have a concrete, defensible answer to the classic "design an ordered in-memory KV" interview question.
+
 ## 1. Core Knowledge
 
 - SkipList essence: multi-level ordered linked lists; upper levels are "express lanes" for lower levels; uses probability instead of rotations to stay balanced.
@@ -35,6 +43,19 @@ A red-black tree also fits, but a SkipList wins because:
 Level 3:  HEAD ──────────────────────► 30 ──────────────────────► NIL
 Level 2:  HEAD ────────► 10 ──────────► 30 ──────────► 50 ──────► NIL
 Level 1:  HEAD ──► 5 ──► 10 ──► 20 ──► 30 ──► 40 ──► 50 ──► 60 ─► NIL
+```
+
+```mermaid
+flowchart LR
+    subgraph L3["Level 3 (express)"]
+        H3[HEAD] --> N30a[30] --> NIL3[NIL]
+    end
+    subgraph L2["Level 2"]
+        H2[HEAD] --> N10a[10] --> N30b[30] --> N50a[50] --> NIL2[NIL]
+    end
+    subgraph L1["Level 1 (full)"]
+        H1[HEAD] --> N5[5] --> N10b[10] --> N20[20] --> N30c[30] --> N40[40] --> N50b[50] --> N60[60] --> NIL1[NIL]
+    end
 ```
 
 - Each node has a `forward[]` array; `forward[i]` points to the next node on level i.

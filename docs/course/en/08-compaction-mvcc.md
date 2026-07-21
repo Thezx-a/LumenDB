@@ -2,6 +2,14 @@
 
 > Source: [internal_key.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/core/internal_key.h), [compaction.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/core/compaction.h), [manifest.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/core/manifest.h), [version.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/core/version.h)
 
+## Background & Motivation
+
+An LSM-Tree without Compaction is a time bomb: every MemTable flush drops another overlapping L0 SSTable on disk, reads scan more and more files, stale versions pile up, and tombstones never get reclaimed — throughput decays, latency climbs, and space blooms. Compaction is the background garbage collection that keeps an LSM healthy, merging sorted runs, dropping superseded versions, and physically purging tombstones once they reach the last level. The strategy choice (Leveled vs Tiered) is fundamentally a trade-off between write amplification and read amplification, and getting it wrong for your workload means either burning CPU on rewrites or starving reads under too many SSTables.
+
+In TitanKV, this module is what turns the raw LSM-Tree from Module 07 into a production-grade engine: `CompactionManager` runs the background loop, `InternalKey` encoding gives us the sort order that makes merging deterministic, and MVCC snapshot reads layered on top of the sequence number let reads proceed without blocking writes. The Manifest persists the Version (which SSTables exist at which level) so that crash recovery can rebuild the file set, and the whole design mirrors what RocksDB, TiKV, and HBase do in the real world.
+
+By the end of this module, you should be able to explain why InternalKey puts `seq` in the high bits and `type` in the low bits, derive why Leveled compaction has `WA ≈ L×(L+1)/2`, and reason about when a tombstone can finally be dropped (only at the last level, otherwise older versions resurrect). You will also be able to answer "how do MVCC snapshot reads achieve reads-don't-block-writes" — a question that comes up in nearly every storage-engine interview, and one that candidates routinely botch by confusing it with MySQL's Undo Log approach.
+
 ## 1. Core Knowledge
 
 - InternalKey encoding: `[user_key | trailer(8)]`, trailer = `(seq << 8) | type`, little-endian.

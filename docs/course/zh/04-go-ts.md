@@ -2,6 +2,14 @@
 
 > 对应规划：[go.mod](file:///c:/Users/Administrator/Desktop/hellocpp/go.mod)（`github.com/titan-kv/titan`）、REFACTORING.md Phase 3-6（gateway/services/web）
 
+## 背景与动机
+
+讲到这一模块，常有同学会反问：「既然 C++ 性能这么好，为什么不全部用 C++ 写完？」我们的答案很务实：写网关、写认证、写限流中间件这些活，用 C++ 是自找罪受——没有 GC、没有反射、没有标准化的 HTTP/gRPC 框架，开发效率被 Go 甩开好几倍。分布式存储的真正瓶颈往往不在网关层，而在底层的 IO 和数据结构；把上层让给 Go，把性能留给 C++，这是工业界反复验证过的分工。Postgres、CockroachDB、TiDB 都是这套思路，TitanKV 也照搬过来。
+
+这一模块在 TitanKV 课程里是「上层服务层」的总入口：Module 02-03 打好了 C++ 这一头，Module 04 把 Go 和 TypeScript 这两头接上——Go 通过 gRPC 调 C++ 引擎，Next.js 通过 HTTP 调 Go 网关。三层之间的协议、错误传递、并发模型各有各的语言风格，我们在这里把它们摆在一起看，你才能理解「跨语言协作」到底协作在哪里。顺便也回答一个常见疑问：为什么前端非用 TypeScript 不可——因为大型前端项目没有静态类型，重构一次就敢崩三处。
+
+学完之后，你应该能讲清这几件事：为什么 goroutine 比 `std::thread` 轻、Go 的隐式接口和 C++ 虚函数各有什么取舍、gRPC 相比 REST 在内部 RPC 上的优势、Next.js 服务端组件为什么默认不发 JS 到浏览器。这些题在后端/全栈面试里几乎是标配，而 TitanKV 这套三层架构正好把它们串成一条线。TitanKV 的三层架构就是这套思路的样本，看完这一节你会知道每层各自的语言该怎么挑。
+
 ## 1. 核心知识
 
 - Go 语言定位：为后端微服务而生，原生并发（goroutine + channel）、静态编译、跨平台单文件部署。
@@ -26,6 +34,21 @@ Go 的优势在此场景：
 - `net/http` + `google.golang.org/grpc` 生态成熟，写网关/认证/限流中间件快。
 - 静态编译单二进制，容器镜像小、部署简单。
 - 与 C++ 通过 cgo 或 gRPC 互通（Phase 2 计划）。
+
+把上面这些点画成一张调用链路图，三种语言的分工就一目了然——TypeScript 管前端展示，Go 管业务编排，C++ 管数据落盘，每两跳之间都有清晰的协议边界：
+
+```mermaid
+flowchart TB
+    Browser["浏览器"] -->|HTTP| NextJS["Next.js 控制台<br/>TypeScript + RSC"]
+    NextJS -->|REST / fetch| Gateway["Go Gateway<br/>路由 + 限流 + 鉴权"]
+    Gateway -->|gRPC| Auth["Auth 服务<br/>Go"]
+    Gateway -->|gRPC| Data["Data 服务<br/>Go"]
+    Gateway -->|gRPC| Meta["Meta 服务<br/>Go"]
+    Data -->|gRPC / cgo| Engine["C++ minikv 引擎<br/>LSM-Tree"]
+    Meta --> Etcd[("etcd<br/>服务发现 / Raft 配置")]
+```
+
+可以看到 Go 在这张图里是「中间层枢纽」——向上对前端用 REST/HTTP，向下对引擎用 gRPC， sideways 用 etcd 做服务发现。这种「语言切换发生在协议边界」的设计，正是 TitanKV 选三套语言的核心理由。
 
 ### 2.2 goroutine 与 channel
 

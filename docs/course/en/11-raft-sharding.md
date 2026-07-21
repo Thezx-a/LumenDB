@@ -3,6 +3,14 @@
 > Source: REFACTORING.md Phase 5 (`distributed/` — etcd + hashicorp/raft + consistent-hash sharding)
 > References: the Raft paper "In Search of an Understandable Consensus Algorithm", TiKV architecture, etcd docs
 
+## Background & Motivation
+
+Paxos is mathematically elegant but notoriously hard to implement correctly — multi-Paxos is more of a "build your own consensus" toolkit than a usable algorithm, and most production teams that try it ship bugs. Raft was designed from the ground up for *understandability*: a strong Leader, a monotonically increasing Term, log replication via `AppendEntries`, and a random election timeout to split votes — every mechanism exists for an explicit, teachable reason. It is the algorithm behind etcd, Consul, TiKV, and CockroachDB, and it is what TitanKV Phase 5 plans to wrap around the minikv engine via `hashicorp/raft`.
+
+In TitanKV, this module is the leap from a single-node engine to a fault-tolerant, horizontally scalable distributed store: Raft gives us a replicated log so that a 3- or 5-node cluster survives node failures without losing committed data, and sharding (via consistent hashing from Module 06) spreads data across multiple Raft groups so the cluster grows beyond a single machine's disk and CPU. The PD (Placement Driver), itself built on etcd, maintains the routing table and schedules shard splits and migrations — exactly the architecture TiKV uses in production.
+
+After this module, you should be able to draw the Follower/Candidate/Leader state machine, walk through a full election and log-replication sequence, and explain why random timeouts prevent vote splitting and why PreVote avoids disruption from partitioned nodes returning with a high Term. You will also be ready for system-design questions like "design a 5-node Raft cluster tolerating 2 failures" and "consistent hash vs range sharding — why does TitanKV pick consistent hash" — both of which are common final-round questions for distributed-systems roles.
+
 ## 1. Core Knowledge
 
 - The consensus problem: multiple replicas agree on log order, tolerating minority failures.

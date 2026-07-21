@@ -2,6 +2,14 @@
 
 > Source: [slice.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/include/minikv/slice.h), [status.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/include/minikv/status.h), [coding.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/utils/coding.h), [db.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/include/minikv/db.h)
 
+## Background & Motivation
+
+Have you ever wondered why databases like LevelDB, RocksDB, and TiKV are written in C++ rather than Java or Go? The answer is performance predictability — no GC pauses, no JIT warmup, byte-level control over memory layout and disk format. In distributed storage, a single 50ms GC stall on the hot path can blow your p99 latency budget, and that's exactly the pain C++ spares us. This module builds the syntactic foundation you need to read and write the minikv engine, the C++17 LSM-Tree at the heart of TitanKV.
+
+This is Module 02, sitting right after the project overview and before modern C++ features. We focus on the bread-and-butter syntax that shows up everywhere in the codebase: the compilation model, value categories, pointers vs references, function overloading, and the project's signature idioms — `Slice` as a non-owning string view and `Status` as an explicit error channel. These idioms recur in every later module, so getting fluent now pays compound interest.
+
+After this module, you'll be able to explain why `Slice` avoids heap allocation on hot paths, why `Status` replaces exceptions in storage engines, how varint encoding saves disk space, and what RAII actually guarantees. Interview questions like "Implement a lightweight string view" or "Why avoid exceptions in a database?" will no longer be intimidating — you'll have written the same patterns LevelDB and RocksDB use.
+
 ## 1. Core Knowledge
 
 - C++ compilation model: headers (declarations) + source files (definitions); `#include` is textual paste; `#pragma once` prevents multiple inclusion.
@@ -16,6 +24,15 @@
 ### 2.1 Headers and the Compilation Model
 
 C++ uses separate compilation: declarations go in headers, definitions in source files. `#include` is **textual paste** at preprocess time, so multiple inclusion causes redefinition — guard with `#pragma once` or include guards.
+
+```mermaid
+flowchart LR
+    H[Header .h<br/>declarations] -.->|pasted in| P
+    S[Source .cpp] --> P[Preprocess<br/>#include / macros]
+    P --> C[Compile<br/>AST → object .o]
+    C --> L[Link<br/>.o + libs]
+    L --> E[Executable]
+```
 
 Every minikv header starts with `#pragma once` (see [slice.h:1](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/include/minikv/slice.h)). Namespaces `namespace minikv { ... }` prevent symbol collisions; utility functions add an inner `namespace utils` (see [coding.h:6-7](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/utils/coding.h)).
 

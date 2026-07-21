@@ -2,6 +2,14 @@
 
 > 对应源码：[db_impl.cpp](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/core/db_impl.cpp)、[wal.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/core/wal.h)、[sstable_builder.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/core/sstable_builder.h)、[memtable.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/core/memtable.h)
 
+## 背景与动机
+
+我们在 Module 03 里用跳表把 MemTable 跑了起来，但一个真正的存储引擎远不止内存里那点数据——数据要落盘、要能崩溃恢复、要支持范围扫描、还要在百万级 key 下保持稳定延迟。这时候如果还用 B+ 树，写一条 KV 就得随机 IO 改页、还要页分裂，机械盘上延迟直接飙到十毫秒级，SSD 寿命也被随机写磨得很快。写密集场景下，B+ 树这套「就地更新」的模型就显得力不从心了。
+
+这就是 LSM-Tree（Log-Structured Merge-Tree）登场的舞台。它的核心思想很反直觉：写不改旧数据，只追加到内存的 MemTable，满了再顺序 flush 成 SSTable；读的时候从新到旧层层查，靠 Compaction 在后台合并整理。这个「写快读慢」的权衡源自 1996 年 O'Neil 等人的论文，被 Bigtable、LevelDB、RocksDB、Cassandra、TiKV 一脉相承地发扬光大。它用读放大和空间放大换来了惊人的写吞吐——而我们的 minikv 正是这条 lineage 的一个教学版缩影。
+
+学完这一模块，你应该能在面试里把 LSM-Tree 讲得有理有据：写路径 WAL → MemTable → SSTable 的顺序为什么不能乱、`fsync` 到底保证了什么、SSTable 的文件格式为什么这样设计、读路径怎么用 Bloom Filter 减少磁盘 IO。更重要的是，你会理解为什么 TiKV 选 LSM 而不是 B+ 树——「缓存提升读性能比提升写性能容易」这句话，是整个 LSM 阵营的设计哲学。
+
 ## 1. 核心知识
 
 - LSM-Tree（Log-Structured Merge-Tree）：追加写 + 有序合并，用读放大 + Compaction 换写吞吐。

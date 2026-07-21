@@ -2,6 +2,14 @@
 
 > 对应源码：[slice.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/include/minikv/slice.h)、[status.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/include/minikv/status.h)、[coding.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/utils/coding.h)、[db.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/include/minikv/db.h)
 
+## 背景与动机
+
+每次讲到 C++ 核心语法，总会有人问：「老师，存储引擎为什么非得用 C++，用 Java 或者 Go 不行吗？」我们的回答很直接——在 MemTable 这种纳秒级热路径上，GC 的停顿、运行时的不确定性、字节码的解释开销，都会成为系统抖动的来源。C++ 给你的不是性能更快，而是性能可控：什么时候分配、什么时候释放、有没有拷贝，全都摆在你眼前。LevelDB、RocksDB、Redis 都是这套逻辑，TitanKV 也是顺着这条路走。
+
+这一模块在整个 TitanKV 课程里是「底层语言地基」的位置：Module 01 给你看了全局，Module 02 就带你下到 C++ 这块地基上，把 Slice、Status、varint 这些工业界惯用法一个一个掰开揉碎。后面 Module 03 讲现代 C++ 与并发、Module 05 讲跳表实现，都会反复用到这里的 Slice 比较、Status 返回、varint 编码，所以我们在这里把基础打实，后面读源码才不会卡壳。哪怕只是理解 `Status` 的错误码返回方式，也是看懂 `DBImpl::Get` 流程的前提。
+
+学完之后，你应该能讲清这几个面试高频题：为什么 LevelDB 风格的 Slice 不持有内存、为什么不抛异常而是返回 Status、varint 编码为什么每字节只用 7 位。更重要的是，下次你看 minikv 源码时，不会因为 `Slice(const char*, size_t)` 这种构造函数而发怵，因为你已经知道它背后那套「零拷贝视图」的设计哲学。走完这一节，你会发现自己看 LevelDB、RocksDB 源码时也轻松了一大截。
+
 ## 1. 核心知识
 
 - C++ 编译模型：头文件（声明）+ 源文件（定义），`#include` 是文本粘贴，`#pragma once` 防重复包含。
@@ -18,6 +26,19 @@
 C++ 采用分离编译：声明放头文件，定义放源文件。`#include` 是预处理期的**文本粘贴**，因此头文件被多次包含会重复定义，需用 `#pragma once` 或 include guard 防护。
 
 minikv 全部头文件以 `#pragma once` 开头（见 [slice.h:1](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/include/minikv/slice.h)）。命名空间用 `namespace minikv { ... }` 防止符号冲突，工具函数再套一层 `namespace utils`（见 [coding.h:6-7](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/utils/coding.h)）。
+
+理解分离编译最直观的方式是看一条 `.cpp` 文件是怎么变成可执行文件的——预处理、编译、汇编、链接四步，每一步产物不同、看的对象不同：
+
+```mermaid
+flowchart LR
+    Src["*.h + *.cpp<br/>源码"] --> PP["预处理<br/>#include 展开 / 宏替换"]
+    PP --> Comp["编译<br/>语法分析 + 优化"]
+    Comp --> Asm["汇编<br/>生成 .o 目标文件"]
+    Asm --> Link["链接<br/>合并静态库 / 解析符号"]
+    Link --> Bin["可执行文件<br/>minikv_test"]
+```
+
+`#pragma once` 在预处理这一步生效——预处理器看到同一头文件第二次被包含时直接跳过，避免重复定义；链接这一步则把 `minikv` 静态库和测试代码合到一起，最终得到 `ctest` 跑的可执行文件。
 
 ### 2.2 Slice —— 轻量字符串视图
 

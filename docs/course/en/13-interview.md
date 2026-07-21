@@ -3,6 +3,52 @@
 > Sources: LeetCode real problems (1206/146/460/707/380/381), NowCoder interview posts, CSDN big-tech compilations, TiKV/RocksDB official docs, etcd Raft docs, Stanford CS244b, LevelDB source comments.
 > Project mapping: each question is tagged with its TitanKV module so you can "learn by question."
 
+## Background & Motivation
+
+Interviews for storage and distributed-systems roles are not just about knowing concepts — they demand hand-writing a SkipList or LRU on a whiteboard under time pressure, and walking an interviewer through a system design from blank page to capacity estimate. That is a separate skill from "understanding the material," and it has to be practiced deliberately: the four-step whiteboard method (clarify → design → code → test) and the five-step DDIA system design method (requirements → capacity → interface → architecture → bottlenecks) are the scaffolds that keep you coherent when the interviewer pushes. This module is the drill book that turns the previous twelve modules into interview-ready reflexes.
+
+In TitanKV, this module is the capstone — it maps every interview theme (C++ basics, concurrency, coroutines, data structures, storage engine, networking, system design) back to the specific module and source file where you can study the production implementation. Instead of memorizing generic answers, you anchor each question in real code you have read: "SkipList? I implemented it in `skip_list.h` with `shared_mutex` and `thread_local` RNG." That is what makes TitanKV a resume highlight rather than another tutorial project.
+
+After this module, you should be able to frame TitanKV on your resume in STAR format with quantified results, hand-write any of the seven skeletons (SkipList, LRU, ThreadPool, unique_ptr, Singleton, epoll server, SPSC queue) from memory, and tackle system-design questions like "design a distributed KV store" or "design a distributed rate limiter" end to end. You will also have a checklist for the Q&A round — team size, stack, business direction, promotion path — so the interview ends with you looking like a thoughtful future colleague, not just a candidate who cleared the technical bar.
+
+```mermaid
+flowchart TD
+    Root["TitanKV Interview Knowledge Map"]
+    Root --> CPP["C++ Basics<br/>M02"]
+    Root --> Conc["Concurrency<br/>M03 / M05"]
+    Root --> Coro["Coroutines<br/>M09"]
+    Root --> DS["Data Structures"]
+    Root --> SE["Storage Engine<br/>M07 / M08"]
+    Root --> Net["Networking<br/>M09 / M10"]
+    Root --> SD["System Design"]
+    Root --> HW["Hand-Writes"]
+
+    CPP --> CPP1["smart pointers, RAII"]
+    CPP --> CPP2["move semantics, enum class"]
+
+    Conc --> Conc1["SkipList + shared_mutex"]
+    Conc --> Conc2["ThreadPool, atomic, cv"]
+
+    Coro --> Coro1["promise_type, co_await"]
+    Coro --> Coro2["Symmetric Transfer"]
+
+    DS --> DS1["SkipList LeetCode 1206"]
+    DS --> DS2["LRU 146 / LFU 460"]
+    DS --> DS3["BloomFilter formula"]
+
+    SE --> SE1["LSM vs B+, WAL, SSTable"]
+    SE --> SE2["Compaction, MVCC"]
+
+    Net --> Net1["epoll LT / ET"]
+    Net --> Net2["HTTP parser, TCP packets"]
+
+    SD --> SD1["Distributed KV / Lock"]
+    SD --> SD2["Rate limiter / Raft cluster"]
+
+    HW --> HW1["SkipList / LRU / ThreadPool"]
+    HW --> HW2["unique_ptr / epoll server"]
+```
+
 ## 1. Core Knowledge
 
 - **Whiteboard four steps**: ① clarify requirements (boundary, scale, concurrency) → ② pick data structure & algorithm + estimate complexity → ③ write code (signature first, body second) → ④ test cases + optimization discussion.

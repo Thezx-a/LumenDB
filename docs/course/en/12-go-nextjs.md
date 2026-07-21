@@ -4,6 +4,14 @@
 > Current status: `gateway/ services/ web/` contain only `.gitkeep`; this module is a *blueprint course* — design and code skeletons are explained against the plan; live sections will be back-filled once Phases land.
 > References: Gin docs, JWT RFC 7519, bcrypt paper, Redis Lua scripting guide, Next.js App Router docs, TanStack Query docs
 
+## Background & Motivation
+
+A monolithic "all-in-one" server sounds simple, but it scales badly: every change redeploys the whole binary, one bug crashes everything, and teams step on each other. Modern distributed stores split into a stateless Gateway plus Auth / Data / Meta / Observability services, each independently deployable and horizontally scalable. The frontend follows the same logic — React Server Components render the first paint on the server (SEO-friendly, zero JS shipped), while TanStack Query takes over live data on the client. JWT replaces sticky sessions so the Gateway stays stateless, and SSE pushes metrics without the complexity of WebSocket.
+
+In TitanKV, this module is the application layer that sits on top of the C++ engine: the Gin Gateway runs the middleware onion (RequestID → Logger → Recover → RateLimit → Auth → RBAC → Handler), the Data service wraps minikv and streams Scan results over SSE, the Meta service stores Collection metadata in etcd for hot reload, and the Next.js console renders a live dashboard. It is the user-facing surface of everything we built in Modules 01-11 — the part users actually touch.
+
+By the end of this module, you should be able to defend the middleware ordering (why Recover after Logger, why RateLimit before Auth), explain why JWT cannot truly log out and how a `jti` blacklist fixes it, and justify SSE over WebSocket for one-way metrics push. You will also be ready for questions like "why store SHA256 of API Keys instead of the raw value," "why etcd for Collection metadata but Redis for rate limiting," and "why bcrypt cost 12 instead of 14" — the kind of trade-off questions that distinguish backend engineers who have shipped production systems from those who have only read tutorials.
+
 ## 1. Core Knowledge
 
 - **Microservice topology**: Gateway (stateless) → Auth / Data / Meta / Observability services → minikv storage engine + etcd config center.

@@ -3,6 +3,36 @@
 > Source: [bloom_filter.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/core/bloom_filter.h), [hash.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/utils/hash.h)
 > Planned: consistent-hash sharding in the distributed layer (REFACTORING.md Phase 5)
 
+## Background & Motivation
+
+In an LSM-Tree, every read potentially has to walk MemTable, Immutable, L0, L1, and onward — each SSTable on the path is a candidate disk seek, and read amplification can quietly climb to 10× or more. That is exactly the pain point a BloomFilter attacks: before we ever touch disk, we ask a compact bitmap "could this key be in here?" and skip the SSTable entirely when the answer is no. The trade-off is probabilistic — we accept a small false-positive rate (typically 1%) in exchange for a massive reduction in disk IO. This is why Cassandra, HBase, LevelDB, and RocksDB all ship Bloom filters as a default, not an option.
+
+Inside TitanKV, this module sits right between the SkipList MemTable (Module 05) and the full LSM-Tree engine (Module 07): the BloomFilter is what makes the L1+ read path affordable, and the MurmurHash2 we study here is reused for InternalKey hashing and consistent-hash sharding later on. We also lay the groundwork for the distributed layer's consistent-hash ring, which Phase 5 of REFACTORING.md relies on for sharding and request routing.
+
+By the end of this module, you should be able to derive the optimal `k = (m/n)·ln2` and `m = -n·ln(p)/(ln2)²` from first principles on a whiteboard, explain why a Bloom filter has zero false negatives but nonzero false positives, and defend the choice of MurmurHash2 over SHA-256 in an interview. These are exactly the questions that come up when interviewers probe "how do you make an LSM-Tree read fast" — and they map directly to hand-writes like designing a Bloom filter under a given false-positive budget.
+
+```mermaid
+flowchart LR
+    Key["Insert key x"] --> H1["h1 = MurmurHash2<br/>seed A"]
+    Key --> H2["h2 = MurmurHash2<br/>seed B"]
+    H1 --> P1["pos1 = h1 mod m"]
+    H2 --> P2["pos2 = h1 + h2 mod m"]
+    H2 --> P3["pos3 = h1 + 2*h2 mod m"]
+    H2 --> Pk["posk = h1 + (k-1)*h2 mod m"]
+    P1 --> B1["Set bit 1"]
+    P2 --> B2["Set bit 2"]
+    P3 --> B3["Set bit 3"]
+    Pk --> Bk["Set bit k"]
+    B1 --> Bitmap[("m-bit bitmap")]
+    B2 --> Bitmap
+    B3 --> Bitmap
+    Bk --> Bitmap
+    Query["Query key y"] --> Q1["check k bits via<br/>h1 + i*h2"]
+    Q1 --> Dec{"All k bits = 1?"}
+    Dec -->|no| Skip["absent: skip SSTable<br/>save disk IO"]
+    Dec -->|yes| Maybe["maybe present<br/>read SSTable to confirm"]
+```
+
 ## 1. Core Knowledge
 
 - Bloom filter: an m-bit array + k hash functions; insert sets bits, query all-1s means "maybe present".

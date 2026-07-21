@@ -2,6 +2,14 @@
 
 > 对应源码：顶层 [CMakeLists.txt](file:///c:/Users/Administrator/Desktop/hellocpp/CMakeLists.txt)、[Makefile](file:///c:/Users/Administrator/Desktop/hellocpp/Makefile)、[README.md](file:///c:/Users/Administrator/Desktop/hellocpp/README.md)、[docs/REFACTORING.md](file:///c:/Users/Administrator/Desktop/hellocpp/docs/REFACTORING.md)
 
+## 背景与动机
+
+我们见过太多同学一上来就钻进某个文件埋头读代码，三天以后还在 CMakeLists.txt 里打转，连项目长什么样都没看清。盖房子之前先看图纸，是工程师的本能；研究一个分布式存储系统也是一样——先把分层、依赖、构建链路在脑子里铺开，再去抠某个模块的细节，每一步才落得踏实。这一模块就是 TitanKV 的「图纸」：把 C++ 引擎、Go 服务、Next.js 控制台三层之间的关系理顺，把 CMake、Make、docker-compose 三套构建工具的位置摆正。
+
+分布式 KV 这个题目本身并不新鲜，但真要从零写一个，大多数人会卡在「我不知道下一步该做什么」。TitanKV 用 9 个 Phase 把这件事拆开——存储引擎先跑通、再加网络层、再上 Go 网关、最后接前端，每个 Phase 都对应可交付的代码和面试可讲的成果。Module 01 的位置正在于此：它不教任何语法，但告诉你整个项目地图，让你后面读 Module 02-05 时心里有底，知道每个语法点会落到哪个子系统。
+
+学完这一模块，你应该能在白板上把 TitanKV 的分层架构画清楚，回答「这个项目用到了哪些语言、为什么用三套、它们怎么协作」，也能讲清 Phase 1 已经完成的 SSTable 块压缩、MVCC 快照、Manifest 持久化这三件事的来龙去脉。如果面试官问「你做的项目里最难的部分是什么」，你至少有了一张可以展开的全局地图。别因为这一节没有代码就跳过——全局地图不扎实，后面所有细节都会变成「为什么这里这样写」的迷宫。
+
 ## 1. 核心知识
 
 - TitanKV 是一个**从零实现**的分布式 KV 存储平台，不是一个对现有数据库的封装。
@@ -35,6 +43,20 @@ TitanKV 采用分层架构，自底向上：
 ```
 
 关键认知：**存储引擎和网络层是从零写的**（这是求职亮点），上层 Go/Next.js 部分尚在规划中（见 REFACTORING.md 状态表）。
+
+把上面那张分层图换成调用链视角，整个系统就是一条从浏览器到 SSTable 的链路，每一跳都换了语言和协议：
+
+```mermaid
+flowchart TB
+    Browser[浏览器] --> Next[Next.js 控制台 web/]
+    Next -->|HTTP / fetch| Gateway[Go Gateway]
+    Gateway -->|gRPC| Auth[Auth 服务]
+    Gateway -->|gRPC| Data[Data 服务]
+    Gateway -->|gRPC| Meta[Meta 服务]
+    Data -->|gRPC / cgo| Engine[C++ minikv 引擎<br/>LSM-Tree]
+    Meta --> Etcd[(etcd<br/>服务发现)]
+    Engine --> SST[(SSTable / WAL<br/>磁盘文件)]
+```
 
 ### 2.2 构建系统拆解
 

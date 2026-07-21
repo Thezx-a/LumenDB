@@ -2,6 +2,14 @@
 
 > 对应源码：[internal_key.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/core/internal_key.h)、[compaction.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/core/compaction.h)、[manifest.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/core/manifest.h)、[version.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/core/version.h)
 
+## 背景与动机
+
+上一模块我们把 LSM-Tree 的写路径和读路径跑通了，但留下两个致命隐患：第一，MemTable 不断 flush 成 L0 SSTable，key 还会重叠，如果不收拾，L0 会越积越多，读一次要扫几十个文件，延迟直接劣化；第二，同一条 key 可能被反复 Put，旧版本散落在各层 SSTable 里，既浪费空间又让「读不到最新值」成为可能。这两个问题不解，LSM 就只是个能写不能读的玩具。
+
+Compaction 就是来解决前者的——它把多层 SSTable 归并排序、去重、回收旧版本，是 LSM 引擎「自我维护」的生命线。Leveled 和 Tiered 两种策略代表了读优先还是写优先的取舍，RocksDB 和 Cassandra 各自的选择背后都有深刻的工程考量。而 MVCC（多版本并发控制）则解决后者——每条数据带一个序列号，读时只看 ≤ 快照 seq 的版本，写时不阻塞读，读也不阻塞写。这套机制让 LSM 天然支持事务隔离，是 TiKV、CockroachDB 这类分布式数据库的基础。
+
+学完这一模块，你会理解 InternalKey 为什么要把 seq 编进 trailer、墓碑为什么不能在 L0 就丢、Manifest 怎么容忍 torn write、MVCC 怎么实现可重复读。面试里被问到「LSM 的写放大怎么算」「Compaction 什么时候清墓碑」「MVCC 和 MySQL 的 Undo Log 有什么区别」时，你都能从容应对——因为你在 minikv 里亲手实现过这套逻辑。
+
 ## 1. 核心知识
 
 - InternalKey 编码：`[user_key | trailer(8)]`，trailer = `(seq << 8) | type`，小端。

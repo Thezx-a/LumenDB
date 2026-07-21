@@ -2,6 +2,14 @@
 
 > Source: top-level [CMakeLists.txt](file:///c:/Users/Administrator/Desktop/hellocpp/CMakeLists.txt), [Makefile](file:///c:/Users/Administrator/Desktop/hellocpp/Makefile), [README.md](file:///c:/Users/Administrator/Desktop/hellocpp/README.md), [docs/REFACTORING.md](file:///c:/Users/Administrator/Desktop/hellocpp/docs/REFACTORING.md)
 
+## Background & Motivation
+
+Before we write a single line of code, we need to read the blueprints. Would you start building a house without studying the architect's drawings first? Distributed storage systems are the same — without grasping the layered architecture, the build system, and the refactoring roadmap, every later module will feel like assembling furniture without the instructions. This module exists to give you that bird's-eye view of TitanKV, so you know which piece goes where and why before the details start flying.
+
+In the overall journey, this is Module 01 — the foundation. We deliberately walk through the directory layout, the CMake build graph, and the Makefile entry points before touching C++ syntax in Module 02 or concurrency in Module 03. By the end, you should be able to navigate the repository with confidence, run `make build` / `make test` locally, and trace a write request from the API down to the LSM-Tree engine on disk. Think of it as calibrating your mental map before the expedition begins.
+
+After this module, you'll be able to answer interview questions like "Walk me through the architecture of a distributed KV store," "Why split the storage engine from the network library in different C++ standards?", and "What does a typical local dev stack for a storage project look like?" You'll also have a clean mental scaffold onto which every subsequent module — C++ core, modern C++, Go services, SkipList — can hang its details. Most importantly, you'll stop feeling lost in the repo and start feeling at home.
+
 ## 1. Core Knowledge
 
 - TitanKV is a distributed KV storage platform **built from scratch** — not a wrapper over an existing database.
@@ -32,6 +40,18 @@ TitanKV is layered bottom-up:
 │  C++ Storage Engine (minikv/) C++17 LSM-Tree │
 │   WAL / MemTable / SSTable / Compaction / BF │
 └─────────────────────────────────────────────┘
+```
+
+```mermaid
+flowchart TB
+    A[Browser] --> B[Next.js Console<br/>web/]
+    B --> C[Go Gateway<br/>services/]
+    C --> D[Auth Service]
+    C --> E[Data Service]
+    C --> M[Meta Service]
+    E --> F[Distributed Layer<br/>Raft + Sharding + etcd]
+    F --> G[C++ skynet<br/>C++20 coroutines]
+    G --> H[C++ minikv Engine<br/>C++17 LSM-Tree]
 ```
 
 Key insight: **the storage engine and network layer are written from scratch** (a résumé highlight); the Go/Next.js upper layers are still planned (see the status table in REFACTORING.md).

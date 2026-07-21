@@ -19,7 +19,8 @@ cmake_install.cmake
 _deps/
 
 # Storage engine data (local test runs)
-data/
+# 注意: 用 /data/ 只忽略项目根目录的 data/, 不要影响 services/data/ 等子目录
+/data/
 *.sst
 *.log
 *.bin

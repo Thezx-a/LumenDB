@@ -2,6 +2,14 @@
 
 > Source: [go.mod](file:///c:/Users/Administrator/Desktop/hellocpp/go.mod) (`github.com/titan-kv/titan`), REFACTORING.md Phase 3-6 (gateway/services/web)
 
+## Background & Motivation
+
+Here's a question worth pausing on: if C++ is so fast, why not write the entire TitanKV in it? Because developer efficiency matters as much as runtime efficiency. The storage engine lives and dies by nanoseconds, so it earns its C++ complexity — but the gateway, auth, and observability services change every week as product requirements evolve, and Go's goroutines and simple syntax ship features far faster than C++ ever could. This module explores that deliberate split, plus the TypeScript frontend that has become the industry standard for type-safe web UIs.
+
+This is Module 04, bridging the C++ engine from Modules 02–03 and the web console that arrives later. We cover Go's concurrency trio (goroutine, channel, select), its implicit interfaces and `(T, error)` error handling, the gRPC + Protobuf bridge that lets Go talk to C++, and then pivot to TypeScript and Next.js App Router for the operator console. Think of it as learning the two upper layers of the stack the architecture diagram promised in Module 01.
+
+After this module, you'll be able to answer "Why use goroutines instead of OS threads?", "How do Go's implicit interfaces compare to C++ virtual functions?", "Why gRPC over REST for internal RPC?", and "What's the difference between Next.js server and client components?" You'll also see clearly why TitanKV doesn't write everything in one language — and be able to defend that choice in a system design interview.
+
 ## 1. Core Knowledge
 
 - Go's positioning: built for backend microservices, native concurrency (goroutine + channel), statically compiled, single-binary cross-platform deployment.
@@ -26,6 +34,21 @@ Go's advantages here:
 - Mature `net/http` + `google.golang.org/grpc` ecosystem; fast to write gateway/auth/rate-limit middleware.
 - Statically compiled single binary; small container images, easy deployment.
 - Talks to C++ via cgo or gRPC (planned in Phase 2).
+
+```mermaid
+flowchart TB
+    TS[TypeScript / Next.js Console<br/>Operator UI + Dashboard]
+    GW[Go Gateway Service<br/>Auth / Rate Limit / Routing]
+    AUTH[Go Auth Service]
+    DATA[Go Data Service]
+    META[Go Meta Service]
+    ENGINE[C++ minikv Engine<br/>LSM-Tree Storage]
+    TS -->|HTTP / REST| GW
+    GW --> AUTH
+    GW --> DATA
+    GW --> META
+    DATA -->|gRPC / Protobuf| ENGINE
+```
 
 ### 2.2 goroutines and channels
 

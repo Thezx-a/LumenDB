@@ -2,6 +2,14 @@
 
 > Source: [db_impl.cpp](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/core/db_impl.cpp), [wal.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/core/wal.h), [sstable_builder.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/core/sstable_builder.h), [memtable.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/core/memtable.h)
 
+## Background & Motivation
+
+B+ trees have served databases well for decades, but they break down under write-heavy workloads: every update is an in-place random IO, page splits ripple through the tree, and SSD lifespan erodes under the write amplification. The LSM-Tree (Log-Structured Merge-Tree), introduced in the Bigtable paper and refined by LevelDB, RocksDB, and TiKV, flips the model — writes become sequential appends to a MemTable plus a WAL, and reads pay the cost of merging across multiple sorted runs. It is a deliberate "fast writes, slow reads" trade-off, and it is the reason every major write-heavy system (Cassandra, HBase, TiKV, RocksDB) sits on an LSM core.
+
+In TitanKV, this module is the heart of the storage engine: everything before it (Slice, Status, SkipList, BloomFilter) is infrastructure, and everything after it (Compaction, MVCC, Raft, sharding) builds on top of the write path, read path, WAL, and SSTable format we study here. Once you understand `DBImpl::write` and `DBImpl::get`, you can reason about the entire engine's behavior — durability, crash recovery, read latency, and the amplification trade-offs that Compaction (Module 08) later tries to tame.
+
+After this module, you should be able to walk an interviewer through the full LSM write path (WAL → MemTable → flush → SSTable), explain why `fsync` is the real durability boundary and what `write()` alone does not guarantee, and design an SSTable file layout with data/index/filter/footer blocks. You will also be ready for classic questions like "why does L0 allow overlapping keys but L1+ does not" and "what happens if we crash between MemTable write and WAL write" — both of which distinguish candidates who have read about LSM from those who have implemented one.
+
 ## 1. Core Knowledge
 
 - LSM-Tree (Log-Structured Merge-Tree): append-only writes + ordered merges; trades read amplification + Compaction for write throughput.

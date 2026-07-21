@@ -2,6 +2,34 @@
 
 > Source: [parser.h](file:///c:/Users/Administrator/Desktop/hellocpp/skynet/include/skynet/http/parser.h), [router.h](file:///c:/Users/Administrator/Desktop/hellocpp/skynet/include/skynet/http/router.h), [load_balancer.h](file:///c:/Users/Administrator/Desktop/hellocpp/skynet/include/skynet/proxy/load_balancer.h), [connection_pool.h](file:///c:/Users/Administrator/Desktop/hellocpp/skynet/include/skynet/proxy/connection_pool.h), [health_check.h](file:///c:/Users/Administrator/Desktop/hellocpp/skynet/include/skynet/proxy/health_check.h)
 
+## Background & Motivation
+
+In a microservice system, the gateway is the throat every request passes through — it terminates TLS, parses HTTP, enforces auth and rate limits, picks a healthy backend, and forwards traffic, all while hiding the backend topology from clients. Nginx, Envoy, and HAProxy all play this role in production, and their internals (state-machine HTTP parsing, weighted round-robin, connection pools, health checks) are exactly what we reimplement in `skynet/gateway`. Get the gateway wrong and a single slow backend cascades into a full outage; get it right and burst traffic is absorbed, failing nodes are isolated, and the system degrades gracefully.
+
+In TitanKV, this module is where the storage engine meets the network: the `HttpParser` we build here feeds the router, the `LoadBalancer` picks a backend, the `ConnectionPool` reuses TCP connections to amortize handshake cost, and `HealthCheck` couples passive circuit-breaking back into `select()`. It sits between the epoll/coroutine layer (Module 09) and the full Go microservice stack (Module 12) — a native C++ gateway that can later be replaced or fronted by a Go service mesh.
+
+By the end of this module, you should be able to hand-write a streaming HTTP/1.1 parser with a state machine and defend it over `sscanf`/regex, explain Nginx's smooth weighted round-robin and why `{5,1,1}` yields `a a b a c a a` instead of `a a a a a b c`, and reason about the four load-balancing strategies and when each fits. You will also be ready for classic interview questions like "what if a pooled connection is stale" and "how do you defend against a forged huge `Content-Length`" — the kind of edge cases that distinguish "I've used Nginx" from "I can build one."
+
+```mermaid
+flowchart TD
+    Client["Client request"] --> Gateway["skynet Gateway<br/>epoll + coroutines"]
+    Gateway --> Parse["HttpParser<br/>state-machine parse"]
+    Parse --> Router["Router<br/>match route"]
+    Router --> LB["LoadBalancer.select<br/>RR / WRR / LeastConn / ConsHash"]
+    LB --> Pool["ConnectionPool.acquire<br/>reuse Keep-Alive conn"]
+    Pool --> Forward["Forward request<br/>to backend"]
+    Forward --> Backend1["Backend 1"]
+    Forward --> Backend2["Backend 2"]
+    Forward --> BackendN["Backend N"]
+    Backend1 --> Resp["Response"]
+    Backend2 --> Resp
+    BackendN --> Resp
+    Resp --> HC{"HealthCheck<br/>feedback success/fail"}
+    HC -->|fail| CB["Circuit Breaker<br/>mark node down"]
+    HC -->|success| Release["Return conn to pool"]
+    Release --> Gateway2["Return response to client"]
+```
+
 ## 1. Core Knowledge
 
 - HTTP/1.1 message structure: request line / headers / blank line / body; state-machine parsing.

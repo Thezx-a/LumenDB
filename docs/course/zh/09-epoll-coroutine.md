@@ -2,6 +2,14 @@
 
 > 对应源码：[io_context.h](file:///c:/Users/Administrator/Desktop/hellocpp/skynet/include/skynet/net/io_context.h)、[task.h](file:///c:/Users/Administrator/Desktop/hellocpp/skynet/include/skynet/core/task.h)、[executor.h](file:///c:/Users/Administrator/Desktop/hellocpp/skynet/include/skynet/core/executor.h)、[socket.h](file:///c:/Users/Administrator/Desktop/hellocpp/skynet/include/skynet/net/socket.h)
 
+## 背景与动机
+
+到目前为止，minikv 还是个「单线程同步」的存储引擎——`Get` 一次就阻塞一次，`Put` 一次就等一次 fsync。这种模型在 benchmark 里还能看，可一旦放到真实的服务端场景，几千个客户端同时连进来，每个都要 `Get`/`Put`，单线程同步立刻就崩了：一个慢请求阻塞所有连接，CPU 闲着却响应不过来。我们缺的是一个能扛住万级连接的高性能网络层。
+
+传统方案 `select`/`poll` 在万连接时代是行不通的——`select` 有 1024 的 fd 上限，`poll` 虽无上限但每次都要 O(n) 遍历所有 fd，连接数一上来 CPU 全耗在轮询上。epoll 用红黑树存注册 fd、用就绪链表返回活跃 fd，做到了 O(1) 的事件通知，这是 Linux 高并发网络的基石，Nginx、Redis、muduo 全靠它。但 epoll 配回调写起来太「碎」——层层 lambda 嵌套，代码可读性极差。C++20 协程正好补上这一环：它让我们用同步的写法写异步代码，`co_await` 一挂起一恢复，背后是编译器变换出的状态机。
+
+学完这一模块，你会理解 epoll 为什么比 select 快、ET 模式为什么必须配合非阻塞 IO 和循环读、C++20 协程的 `promise_type` 和 `awaiter` 三件套怎么协作、对称转移为什么能避免栈溢出。面试里被问到「epoll 原理」「Reactor 模式」「协程 vs 线程」时，你能从内核回调一路讲到编译器状态机变换——这是高级后端工程师的硬实力。
+
 ## 1. 核心知识
 
 - IO 多路复用：select / poll / epoll；epoll 用红黑树 + 就绪链表，O(1) 返回就绪 fd。

@@ -2,6 +2,14 @@
 
 > 对应源码：[skip_list.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/core/skip_list.h)、[thread_pool.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/utils/thread_pool.h)、[lru_cache.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/utils/lru_cache.h)、[db_impl.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/core/db_impl.h)
 
+## 背景与动机
+
+如果说 C++ 核心语法是地基，那现代 C++ 与并发就是承重墙。我们见过太多面试翻车现场——简历上写着「熟悉 C++」，一问裸指针就露馅：内存泄漏、双重释放、悬空指针、循环引用，每个坑都踩过一遍却讲不清。这不是因为大家不努力，而是因为裸指针这套心智模型太重，靠人工 review 根本兜不住。智能指针的出现，本质上是把「资源所有权」这件事从运行期错误提升到编译期类型，让你写代码的时候就在做选择题：这个对象是独占、共享、还是只观察？
+
+在 TitanKV 里，这堵「承重墙」承担两件事：一是 `DBImpl` 持有的 WAL/MemTable/Manifest 用 `unique_ptr` 自动释放，二是 SkipList 的并发读写用 `shared_mutex` 兜底。这一模块承上启下——向上接 Module 02 讲过的 RAII 雏形，向下铺 Module 05 跳表实现里会用到的读写锁和 `thread_local` RNG。如果你跳过这一模块直接看跳表，多半会被 `mutable mutex_`、`weak_ptr::lock()` 这些细节绊住。
+
+学完之后，你应该能从容回答这几类面试题：`unique_ptr` 凭什么说零开销、`shared_ptr` 的控制块里到底有什么、`std::move` 之后原对象还能不能用、`shared_mutex` 在什么场景下反而比普通 `mutex` 慢。再往深一层，你能讲清为什么 `condition_variable::wait` 必须配 `unique_lock`、为什么 `volatile` 在多线程里几乎没用——这两条几乎是 C++ 后端面试的必考题。一旦把这套词汇内化成肌肉记忆，你写并发代码会从「小心翼翼」变成「顺手就来」。
+
 ## 1. 核心知识
 
 - 智能指针：`unique_ptr`（独占）、`shared_ptr`（共享）、`weak_ptr`（弱引用）；控制块与循环引用。
@@ -30,6 +38,28 @@ std::unique_ptr<MemTable> memtable_;
 - `shared_ptr`：引用计数，控制块含 `use_count`（强）+ `weak_count`（弱），计数为原子操作。
 - `weak_ptr`：不增加 `use_count`，解决循环引用。`weak_ptr::lock()` 升级为 `shared_ptr`（若对象已释放返回空）。
 - **线程安全粒度**：引用计数本身原子安全；但同一 `shared_ptr` 对象的并发读写**不**安全，需加锁。
+
+三种智能指针的所有权关系用一张图最直观——`unique_ptr` 一根线独占对象，`shared_ptr` 多根线共享同一个控制块，`weak_ptr` 只观察控制块、不延长对象生命：
+
+```mermaid
+graph TB
+    subgraph 独占所有权
+        UP["unique_ptr<br/>单一所有者"]
+        UP --> Obj1["对象 A<br/>DBImpl 里的 WAL"]
+    end
+    subgraph 共享所有权
+        SP1["shared_ptr X"]
+        SP2["shared_ptr Y"]
+        CB[("控制块<br/>use_count = 2<br/>weak_count = 1")]
+        SP1 --> CB
+        SP2 --> CB
+        CB --> Obj2["对象 B"]
+        WP["weak_ptr<br/>不增 use_count"]
+        WP -. "仅观察" .-> CB
+    end
+```
+
+`weak_ptr::lock()` 会原子地检查 `use_count` 并尝试升级为 `shared_ptr`，这正是它解决循环引用的机制——对象 B 若已释放，`lock()` 返回空 `shared_ptr`，避免悬空访问。
 
 ### 2.2 移动语义
 

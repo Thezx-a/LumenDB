@@ -2,6 +2,14 @@
 
 > Source: [skip_list.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/core/skip_list.h), [thread_pool.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/utils/thread_pool.h), [lru_cache.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/utils/lru_cache.h), [db_impl.h](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/src/core/db_impl.h)
 
+## Background & Motivation
+
+If you've ever chased a heap corruption bug at 2am, you already know why raw pointers are the interview minefield every senior engineer is tested on. Memory leaks, use-after-free, double-free, dangling references — C++ gives you enough rope to hang yourself, and distributed storage amplifies every mistake because the hot path runs millions of times per second. This module shows how modern C++ (C++11/17/20) hands you a safety net without sacrificing the zero-overhead principle: smart pointers, move semantics, lambdas, and a concurrency toolkit that lets the SkipList serve concurrent reads under a `shared_mutex`.
+
+This is Module 03, building directly on the core syntax of Module 02 and setting up the concurrency vocabulary we'll reuse in Module 05's SkipList and beyond. We move from RAII basics to the full ownership story — `unique_ptr`, `shared_ptr`, `weak_ptr` — then cover move semantics, lambdas, `constexpr`, and the concurrency primitives (`mutex`, `shared_mutex`, `atomic`, `condition_variable`) that thread through minikv's thread pool and MemTable. By the end, the `shared_lock` in SkipList's `get` and the `unique_lock` in `put` will read like plain English.
+
+After this module, you'll be able to answer "When does `shared_ptr`'s control block get allocated?", "Why mark move constructors `noexcept`?", "Why is `volatile` not a threading primitive?", and "How does `condition_variable::wait` defend against spurious wakeups?" You'll also be ready to implement a thread-safe data structure without reaching for a single raw `new` or `delete`.
+
 ## 1. Core Knowledge
 
 - Smart pointers: `unique_ptr` (exclusive), `shared_ptr` (shared), `weak_ptr` (weak ref); control block & circular references.
@@ -30,6 +38,15 @@ Key points:
 - `shared_ptr`: reference counted; the control block holds `use_count` (strong) + `weak_count` (weak); counts are atomic.
 - `weak_ptr`: does not increase `use_count`; breaks circular references. `weak_ptr::lock()` upgrades to `shared_ptr` (returns empty if the object is gone).
 - **Thread-safety granularity**: ref counts are atomically safe; but concurrent read/write of the *same* `shared_ptr` object is **not** safe — lock it.
+
+```mermaid
+graph TD
+    U[unique_ptr&lt;T&gt;<br/>exclusive owner] -->|releases on destruction| T1[T object]
+    S[shared_ptr&lt;T&gt;<br/>ref-counted owner] -->|increments use_count| T1
+    W[weak_ptr&lt;T&gt;<br/>non-owning observer] -->|lock upgrades to| S
+    S -.->|expires when use_count = 0| CB[Control Block<br/>use_count + weak_count]
+    W -->|observes| CB
+```
 
 ### 2.2 Move Semantics
 

@@ -2,6 +2,14 @@
 
 > Source: [io_context.h](file:///c:/Users/Administrator/Desktop/hellocpp/skynet/include/skynet/net/io_context.h), [task.h](file:///c:/Users/Administrator/Desktop/hellocpp/skynet/include/skynet/core/task.h), [executor.h](file:///c:/Users/Administrator/Desktop/hellocpp/skynet/include/skynet/core/executor.h), [socket.h](file:///c:/Users/Administrator/Desktop/hellocpp/skynet/include/skynet/net/socket.h)
 
+## Background & Motivation
+
+The classic `select` and `poll` calls were fine when a server handled a few hundred connections, but they scale catastrophically: `select` is capped at 1024 fds by `FD_SETSIZE`, and both scan the entire fd set in O(n) on every call, copying the full set between user and kernel each time. At 10k+ connections (the C10k problem, then C100k), that overhead dominates — you spend more time scanning idle fds than servicing active ones. `epoll` was Linux's answer: a red-black tree holds registered fds, a ready list collects only the ones the kernel has marked active, and `epoll_wait` returns in O(1) for the ready set. It is the foundation of every high-concurrency Linux server from Nginx to Redis to skynet.
+
+In TitanKV, this module lifts us out of the single-threaded minikv engine and into the networked `skynet` layer: `IOContext` wraps epoll into a Reactor, `Task<T>` and `promise_type` give us stackless C++20 coroutines, and the `Executor` ties them together so that `co_await stream.read(1024)` looks synchronous but actually suspends and yields back to the event loop. This is exactly the machinery our HTTP proxy (Module 10) and gateway will run on — without it, we cannot serve thousands of concurrent client connections on a handful of threads.
+
+After this module, you should be able to answer "why is epoll faster than select" from both the data-structure and copy-cost angles, explain why edge-triggered mode mandates non-blocking IO and a loop-until-EAGAIN read, and articulate the difference between stackless C++20 coroutines and stackful goroutines. You will also be able to defend symmetric transfer as the fix for stack overflow in recursive `co_await` — a deep-dive question that separates coroutine users from coroutine implementers, and one that maps directly to the `final_awaiter` design in `task.h`.
+
 ## 1. Core Knowledge
 
 - IO multiplexing: select / poll / epoll; epoll uses a red-black tree + a ready list, returning ready fds in O(1).

@@ -1,91 +1,276 @@
 # TitanKV
 
+> 一个从零实现的分布式键值存储平台——C++ 写存储引擎、Go 写业务层、Next.js 写控制台。
+>
 > A distributed key-value storage platform built from scratch — storage engine in C++, business layer in Go, console in Next.js.
 
 <p align="center">
   <img src="https://img.shields.io/badge/C%2B%2B-17%2F20-00599C?style=flat-square&logo=cplusplus&logoColor=white" alt="C++17/20"/>
   <img src="https://img.shields.io/badge/Go-1.23-00ADD8?style=flat-square&logo=go&logoColor=white" alt="Go"/>
-  <img src="https://img.shields.io/badge/Next.js-15-000000?style=flat-square&logo=next.js&logoColor=white" alt="Next.js"/>
+  <img src="https://img.shields.io/badge/Next.js-14-000000?style=flat-square&logo=next.js&logoColor=white" alt="Next.js"/>
   <img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="MIT"/>
+  <img src="https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20WSL2-lightgrey?style=flat-square" alt="Platform"/>
 </p>
 
 ---
 
-## What is TitanKV?
+## 什么是 TitanKV？ / What is TitanKV？
 
-TitanKV is an end-to-end distributed storage platform, designed and built from the ground up to demonstrate serious backend engineering depth:
+### 中文
 
-- A **self-implemented LSM-Tree storage engine** in C++17 (WAL, MemTable, SSTable, Compaction, Bloom Filter).
-- A **C++20 coroutine network library** (SkyNet) for high-concurrency event loops.
-- A set of **Go microservices** (API gateway, auth, data, meta, observability) communicating over gRPC.
-- A **Raft-based replication layer** (using `hashicorp/raft`) and **consistent-hash sharding**.
-- A **Next.js admin console** for managing collections, keys, users, and the cluster.
-- A **Go CLI** and **multi-language SDK** for developer integration.
-- Kubernetes-native deployment with observability (Prometheus / Grafana / Jaeger).
+你好，欢迎来到 TitanKV。这不是一个把 RocksDB 或 Redis 包一层壳的练手项目，而是一次从存储引擎、网络层、服务层到前端控制台的完整重写。
 
-This is not a wrapper around an existing database. The storage engine, network layer, replication logic, and orchestration are all written here.
+如果你正在准备 C++ 后端或分布式系统的求职，TitanKV 想给你一个能讲清楚的完整故事：从一行 `db.Put()` 写入 WAL、落到 MemTable（跳表）、刷盘成 SSTable、被 Compaction 合并，到请求穿过 Gin 网关的 JWT/RBAC 中间件链、反向代理到后端微服务，最后在 Next.js 仪表盘上实时刷新——这条链路上每一行关键代码都在这个仓库里。
+
+我们刻意分了四层技术栈：**C++17/20** 负责存储引擎（minikv）与协程网络库（skynet），**Go 1.23** 负责网关与微服务，**Next.js 14** 负责管理控制台，**Docker + Prometheus + Grafana + Jaeger** 负责部署与可观测性。这不是为了炫技堆技术，而是因为每一层在工业界都有它真实的位置，分开练习才能讲得深。
+
+为什么值得放到简历上？因为面试官最爱追问「这里为什么这么设计」「换个场景你怎么改」——而 TitanKV 让你能从一个真实的、可运行的、有测试的代码库出发去回答，而不是背诵八股。
+
+### English
+
+Hi, welcome to TitanKV. This is not a thin wrapper around RocksDB or Redis — it is a from-scratch rewrite spanning the storage engine, the network layer, the service tier, and the front-end console.
+
+If you are preparing for a C++ backend or distributed-systems job hunt, TitanKV aims to give you one coherent story you can actually explain: from a `db.Put()` call that appends to the WAL, lands in the MemTable (a skip list), flushes to an SSTable, gets merged by Compaction, then travels through the Gin gateway's JWT/RBAC middleware chain, gets reverse-proxied to a backend microservice, and finally shows up live on the Next.js dashboard. Every line of that journey lives in this repository.
+
+We deliberately split the stack into four tiers: **C++17/20** for the storage engine (minikv) and the coroutine network library (skynet), **Go 1.23** for the gateway and microservices, **Next.js 14** for the admin console, and **Docker + Prometheus + Grafana + Jaeger** for deployment and observability. This is not about name-dropping technologies — it is because each layer has a real place in industry, and practising them in isolation is how you go deep.
+
+Why put it on your résumé? Because interviewers love to ask "why did you design it this way" and "how would you change it for a different scenario" — and TitanKV lets you answer from a real, runnable, tested codebase instead of reciting trivia.
 
 ---
 
-## Repository Layout
+## 架构总览 / Architecture Overview
+
+### 中文
+
+TitanKV 采用分层架构，每一层都可以独立编译、独立替换。请求自上而下穿过客户端、网关、微服务，最终落到 C++ 存储引擎；可观测性组件横切所有层。
+
+```mermaid
+graph TB
+    subgraph Client["客户端层 / Client Layer"]
+        WEBUI["Next.js 控制台<br/>web/ (App Router + TanStack Query)"]
+        CLI["CLI 工具<br/>client-cli/ (planned)"]
+        SDK["Go SDK<br/>client-go/titan/"]
+    end
+
+    subgraph Gateway["网关层 / Gateway Layer — Go + Gin"]
+        GW["API Gateway<br/>gateway/main.go :8080"]
+        MW["中间件链 (洋葱模型)<br/>RequestID → Logger → Recover<br/>→ RateLimit → Auth → RBAC"]
+        PROXY["反向代理<br/>gateway/handler/proxy.go"]
+    end
+
+    subgraph Services["微服务层 / Services Layer — Go"]
+        AUTH["Auth 服务<br/>services/auth/<br/>JWT / RBAC / APIKey :8082"]
+        DATA["Data 服务<br/>services/data/<br/>KV 读写 :8081"]
+        META["Meta 服务<br/>services/meta/<br/>Schema / 元数据 :8083"]
+        OBS["Observability 服务<br/>services/observability/<br/>Metrics / Trace :8084"]
+    end
+
+    subgraph Storage["存储引擎层 / Storage Engine — C++17"]
+        MINIKV["minikv LSM-Tree<br/>minikv/src/core/"]
+        WAL["WAL<br/>wal.cpp"]
+        MEM["MemTable<br/>memtable.cpp + skip_list.h"]
+        SST["SSTable<br/>sstable_builder / reader"]
+        COMP["Compaction<br/>compaction.cpp"]
+        MANIFEST["Manifest + Version<br/>manifest.cpp / version.cpp"]
+        BLOOM["BloomFilter<br/>bloom_filter.h"]
+        MVCC["MVCC<br/>internal_key.cpp"]
+    end
+
+    subgraph NetLib["网络库 / Network Library — C++20"]
+        SKYNET["skynet 协程框架<br/>skynet/src/"]
+        IO["epoll / io_context<br/>net/"]
+        HTTP["HTTP 解析 + Router<br/>http/"]
+        LB["负载均衡 + 连接池<br/>proxy/"]
+    end
+
+    subgraph Dist["分布式层 / Distributed (planned)"]
+        RAFT["Raft 共识<br/>hashicorp/raft"]
+        SHARD["一致性哈希分片<br/>distributed/"]
+        ETCD["etcd 服务发现"]
+    end
+
+    subgraph ObsStack["可观测性栈 / Observability Stack"]
+        PROM["Prometheus<br/>deploy/dev/prometheus.yml"]
+        GRAF["Grafana"]
+        JAEGER["Jaeger"]
+        REDIS[("Redis<br/>限流 + jti 黑名单")]
+    end
+
+    WEBUI -->|HTTP + SSE| GW
+    CLI --> GW
+    SDK --> GW
+    GW --> MW --> PROXY
+    PROXY --> AUTH
+    PROXY --> DATA
+    PROXY --> META
+    PROXY --> OBS
+    DATA -->|Phase 2: gRPC / cgo| MINIKV
+    MINIKV --- WAL
+    MINIKV --- MEM
+    MINIKV --- SST
+    MINIKV --- COMP
+    MINIKV --- MANIFEST
+    MINIKV --- BLOOM
+    MINIKV --- MVCC
+    SKYNET --- IO
+    SKYNET --- HTTP
+    SKYNET --- LB
+    GW -.->|Phase 5| RAFT
+    RAFT --- SHARD
+    SHARD --- ETCD
+    AUTH --> REDIS
+    GW --> REDIS
+    OBS --> PROM
+    PROM --> GRAF
+    OBS --> JAEGER
+```
+
+| 层 / Layer | 职责 / Responsibility | 关键代码 / Key Code |
+|---|---|---|
+| 客户端 / Client | 控制台、CLI、SDK 接入 | `web/`, `client-cli/`, `client-go/titan/` |
+| 网关 / Gateway | 鉴权、限流、RBAC、反向代理 | `gateway/` |
+| 微服务 / Services | Auth / Data / Meta / Observability | `services/{auth,data,meta,observability}/` |
+| 存储引擎 / Storage Engine | LSM-Tree：WAL/MemTable/SST/Compaction/MVCC | `minikv/src/core/` |
+| 网络库 / Network Library | C++20 协程、epoll、HTTP、负载均衡 | `skynet/src/` |
+| 分布式 / Distributed | Raft 复制、一致性哈希分片 | `distributed/` (planned) |
+| 可观测性 / Observability | Metrics、Trace、可视化 | `services/observability/`, `deploy/dev/` |
+
+---
+
+## 仓库结构 / Repository Layout
 
 ```
 titan-kv/
-├── storage-engine/   (planned) C++17 LSM-Tree KV engine + gRPC server
-├── minikv/           C++17 LSM-Tree core (WAL / MemTable / SST / Compaction)
-├── skynet/           C++20 coroutine network library
-├── deepvector/       (legacy) C++ HNSW vector index — to be refactored as a secondary index
-├── gateway/          (planned) Go API gateway (Gin, auth, rate-limit, routing)
-├── services/         (planned) Go microservices (auth / data / meta / observability)
-├── distributed/      (planned) Raft replication, sharding, etcd service discovery
-├── client-go/        (planned) Go SDK
-├── client-cli/       (planned) Cobra CLI tool
-├── web/              (planned) Next.js admin console
-├── proto/            (planned) gRPC / Protocol Buffers definitions
-├── deploy/           Docker Compose dev env / Helm chart / Kubernetes manifests
-├── docs/             Architecture and API documentation
-├── CMakeLists.txt    Top-level CMake entry
-├── go.mod            Go module root
-└── Makefile          Unified build / test / lint entry
+├── minikv/              # C++17 LSM-Tree 存储引擎 / C++17 LSM-Tree storage engine
+│   ├── src/core/        #   WAL / MemTable / SSTable / Compaction / MVCC
+│   ├── src/network/     #   原生网络层（epoll + connection）
+│   ├── src/utils/       #   coding / crc32 / hash / lru_cache / thread_pool
+│   ├── tests/           #   GoogleTest 单元测试
+│   └── benches/        #   Google Benchmark 基准
+├── skynet/             # C++20 协程网络库 / C++20 coroutine network library
+│   ├── src/net/        #   acceptor / io_context / socket / tcp_stream
+│   ├── src/core/       #   executor / task / thread_pool / timer_wheel
+│   ├── src/http/       #   parser / router / headers / response
+│   ├── src/proxy/      #   load_balancer / connection_pool / health_check / upstream
+│   └── gateway/        #   skynet 网关示例（gateway.yaml）
+├── deepvector/         # (legacy) C++ HNSW 向量索引 / legacy C++ HNSW vector index
+├── gateway/            # Go API 网关 (Gin) / Go API gateway (Gin)
+│   ├── handler/        #   ping / proxy
+│   └── middleware/     #   RequestID / Logger / Recover / RateLimit / Auth / RBAC
+├── services/           # Go 微服务 / Go microservices
+│   ├── auth/           #   JWT / RBAC / APIKey / bcrypt
+│   ├── data/           #   KV 读写服务 / KV data service (planned wiring)
+│   ├── meta/          #   Schema / 元数据 / metadata
+│   └── observability/  #   metrics / trace 聚合
+├── client-go/titan/     # Go SDK / Go SDK
+├── client-cli/         # (planned) Cobra CLI 工具 / planned Cobra CLI
+├── web/                # Next.js 14 管理控制台 / Next.js 14 admin console
+│   ├── app/           #   App Router (dashboard / login)
+│   ├── components/    #   live-metrics / metrics-card / nav / providers
+│   └── lib/           #   api.ts / types.ts
+├── distributed/        # (planned) Raft + 分片 / planned Raft + sharding
+├── proto/              # (planned) gRPC / protobuf 定义 / planned gRPC/protobuf
+├── deploy/             # 部署配置 / deployment config
+│   ├── dev/           #   docker-compose.yml + prometheus.yml
+│   ├── k8s/           #   Kubernetes manifests (planned)
+│   └── helm/          #   Helm chart (planned)
+├── docs/               # 文档 / documentation
+│   ├── course/{zh,en}/ #   13 模块中英双语课程 / 13-module bilingual course
+│   ├── REFACTORING.md #   重构计划 / refactoring plan
+│   └── STORAGE_ENGINE.md
+├── tests/course/       # 课程配套手撕题测试 (7 文件 / 37 用例)
+├── CMakeLists.txt      # 顶层 CMake 聚合 / top-level CMake
+├── go.mod              # Go module 根 / Go module root
+└── Makefile            # 统一构建/测试/运行入口 / unified entry
 ```
 
 ---
 
-## Status
+## 项目状态 / Project Status
 
-> **Project is being refactored from a previous AI/LLM-focused vector database into a general-purpose distributed KV storage platform.**
+> 当前正在从早期的 AI/向量数据库方向重构为通用分布式 KV 存储平台。详见 [`docs/REFACTORING.md`](docs/REFACTORING.md)。
 >
-> See `docs/REFACTORING.md` for the detailed plan and current progress.
+> The project is being refactored from an earlier AI/vector-DB direction into a general-purpose distributed KV platform. See [`docs/REFACTORING.md`](docs/REFACTORING.md).
 
-| Phase | Description | Status |
-|------|-------------|--------|
-| Phase 0 | Cleanup + repository restructure | done |
-| Phase 1 | C++ storage engine upgrade (MVCC, WAL, compaction, CF) | in-progress (WP 1.2.1 done) |
-| Phase 2 | C++ gRPC server + Go cgo client | planned |
-| Phase 3 | Go API gateway + auth service (JWT/RBAC/APIKey) | **MVP done** — `gateway/` + `services/auth/` |
-| Phase 4 | Go data / meta / observability services | **MVP done** — `services/{data,meta,observability}/` + `client-go/` |
-| Phase 5 | Distributed layer: etcd + hashicorp/raft + sharding | planned |
-| Phase 6 | Next.js admin console | **MVP done** — `web/` (App Router + TanStack Query + SSE) |
-| Phase 7 | Observability + Kubernetes + CI/CD | planned |
-| Phase 8 | CLI tool + multi-language SDK + documentation | planned |
+| Phase | 描述 / Description | 状态 / Status |
+|---|---|---|
+| Phase 0 | 清理 + 仓库重构 / Cleanup + repo restructure | ✅ done |
+| Phase 1 | C++ 存储引擎升级（MVCC / WAL / Compaction / CF） / C++ storage engine upgrade | ✅ done |
+| Phase 2 | C++ gRPC server + Go cgo 客户端 / C++ gRPC server + Go cgo client | ⏳ planned |
+| Phase 3 | Go API 网关 + Auth 服务（JWT/RBAC/APIKey） / Go gateway + auth | ✅ **MVP done** — `gateway/` + `services/auth/` |
+| Phase 4 | Go data / meta / observability 服务 / Go data/meta/observability | ✅ **MVP done** — `services/{meta,observability}/` + `client-go/` |
+| Phase 5 | 分布式层：etcd + hashicorp/raft + 分片 / Distributed layer | ⏳ planned |
+| Phase 6 | Next.js 管理控制台 / Next.js admin console | ✅ **MVP done** — `web/` (App Router + TanStack Query) |
+| Phase 7 | 可观测性 + Kubernetes + CI/CD / Observability + K8s + CI/CD | ⏳ planned |
+| Phase 8 | CLI 工具 + 多语言 SDK + 文档 / CLI + SDK + docs | ⏳ planned |
 
-> **Note on MVP**: Phase 3/4/6 use in-memory storage (data service) and
-> mock metrics (observability). They are fully runnable end-to-end via
-> `make run-all` + `make web-dev`. Phase 2 (gRPC server wrapping minikv)
-> will replace the in-memory backing store with the real LSM-Tree engine.
+> **MVP 说明 / MVP note**：Phase 3/4/6 的 data 服务目前使用内存存储，observability 使用 mock 指标，但已能通过 `make run-all` + `make web-dev` 完整跑通端到端。Phase 2 完成后，内存后端将被真正的 LSM-Tree 引擎替换。
+>
+> Phase 3/4/6 use in-memory storage (data service) and mock metrics (observability), but run end-to-end via `make run-all` + `make web-dev`. Phase 2 will replace the in-memory backing store with the real LSM-Tree engine.
 
 ---
 
-## Development Environment
+## 快速开始 / Quick Start
 
-### Requirements
+### 中文
 
-- **C++ build:** CMake 3.20+, GCC 12+ (Linux/WSL2), or Clang 15+
-- **Go:** 1.23+
-- **Node:** 20+ (for the web console)
-- **Docker:** 24+ (for the local dev stack)
+环境要求详见 [`docs/course/zh/01-overview.md`](docs/course/zh/01-overview.md)：CMake 3.20+、GCC 12+ / Clang 15+、Go 1.23+、Node 20+、Docker 24+。
 
-### Build (C++)
+三步跑起来：
+
+```bash
+git clone https://github.com/Thezx-a/LumenDB.git
+cd LumenDB
+
+# 1. 启动 5 个 Go 服务（auth/data/meta/observability/gateway）
+make run-all
+
+# 2. （新终端）启动 Web 控制台
+make web-dev
+
+# 3. 浏览器打开
+#    http://localhost:3000
+```
+
+### English
+
+Environment requirements are in [`docs/course/en/01-overview.md`](docs/course/en/01-overview.md): CMake 3.20+, GCC 12+ / Clang 15+, Go 1.23+, Node 20+, Docker 24+.
+
+Three steps to run:
+
+```bash
+git clone https://github.com/Thezx-a/LumenDB.git
+cd LumenDB
+
+# 1. Start the 5 Go services (auth/data/meta/observability/gateway)
+make run-all
+
+# 2. (new terminal) Start the web console
+make web-dev
+
+# 3. Open in your browser
+#    http://localhost:3000
+```
+
+---
+
+## 跨平台配置 / Cross-Platform Setup
+
+> 详细教程见 [`docs/course/zh/01-overview.md`](docs/course/zh/01-overview.md)。下方仅列要点。
+>
+> Full tutorial in [`docs/course/en/01-overview.md`](docs/course/en/01-overview.md). Below is a quick reference.
+
+| 平台 / Platform | 推荐方式 / Recommended | 要点 / Notes |
+|---|---|---|
+| **Windows** | WSL2 (Ubuntu 22.04) | 在 WSL2 内安装 GCC 12 + CMake；Docker Desktop 开启 WSL2 后端；不要在原生 cmd 跑 `make` |
+| **Linux** | Ubuntu 22.04 | `apt install build-essential cmake ninja-build golang nodejs docker.io`；GCC 12 需 PPA |
+| **macOS** | Homebrew | `brew install cmake ninja go node docker`;Apple Silicon 用 `g++-13` 编译 C++20 协程 |
+
+---
+
+## 构建与测试 / Build & Test
+
+### C++（minikv + skynet + deepvector）
 
 ```bash
 cmake -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=ON
@@ -93,63 +278,217 @@ cmake --build build -j
 ctest --test-dir build --output-on-failure
 ```
 
-### Local development stack
-
-Repositories for PostgreSQL / Redis / etcd / Jaeger / Prometheus / Grafana:
+### Go（gateway + services + SDK）
 
 ```bash
-docker compose -f deploy/dev/docker-compose.yml up -d
+go mod download
+go build ./...
+go test -race -count=1 ./...
 ```
 
-### Make targets (unified entry)
+### Web（Next.js 控制台 / console）
 
 ```bash
-make help        # list available targets
-make build       # build all C++ + Go services
-make test        # run C++ tests + Go tests
-make lint        # run clang-tidy + golangci-lint
-make docker-up   # bring up the local dev stack
-make docker-down # stop the local dev stack
-
-# Phase 3 / 4 — run Go services
-make run-auth    # auth service    (port 8082)
-make run-data    # data service    (port 8081)
-make run-meta    # meta service    (port 8083)
-make run-observ  # observability   (port 8084)
-make run-gateway # gateway         (port 8080)
-make run-all     # all 5 services in parallel
-
-# Phase 6 — Next.js console
-make web-install # npm install
-make web-dev     # dev server (port 3000)
-make web-build   # production build
+cd web && npm install
+npm run dev      # 开发服务器 :3000
+npm run build    # 生产构建
 ```
 
-### Quick start (end-to-end)
+### 统一入口 / Unified entry
 
 ```bash
-# 1. Bring up Redis + etcd (optional, services degrade gracefully without them)
-make docker-up
-
-# 2. Run all Go backend services
-make run-all
-
-# 3. (new terminal) Run the Next.js console
-make web-install && make web-dev
-
-# 4. Open http://localhost:3000 — register at /api/auth/register, login, dashboard.
+make build   # 构建 C++ + Go
+make test    # 运行 C++ (ctest) + Go 测试
+make lint    # clang-tidy + golangci-lint + next lint
 ```
 
-### Course & interview materials
+---
 
-A 13-module bilingual (zh / en) hands-on course is in [`docs/course/`](docs/course/),
-covering C++ basics → modern C++/concurrency → SkipList/BloomFilter → LSM-Tree →
-epoll/coroutines → HTTP/proxy → Raft/sharding → Go µServices → system design &
-interview Q&A (60+ real questions with LeetCode numbers and hand-write skeletons).
-Runnable C++ unit tests for the hands-on exercises live in [`tests/course/`](tests/course/).
+## 端到端复现 / End-to-End Reproduction
+
+### 中文
+
+完整复现步骤与排错指南见 [`docs/course/zh/12-go-nextjs.md`](docs/course/zh/12-go-nextjs.md)。下面给出一组 `curl` 验证示例，确认网关 + Auth 服务 + 反向代理链路正常。
+
+### English
+
+Full reproduction steps and troubleshooting are in [`docs/course/en/12-go-nextjs.md`](docs/course/en/12-go-nextjs.md). Below are `curl` examples to verify the gateway + auth + reverse-proxy chain.
+
+```bash
+# 1. 健康检查 / health check
+curl -s http://localhost:8080/ping
+# {"pong":true,"request_id":"..."}
+
+# 2. 注册用户（role 必填：admin/writer/reader）/ register
+curl -s -X POST http://localhost:8080/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"alice","password":"Secret123!","role":"writer"}'
+
+# 3. 登录拿 JWT / login for JWT
+TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"alice","password":"Secret123!"}' | jq -r .access_token)
+
+# 4. 带 token 访问业务接口（反向代理到 data 服务）/ call business API
+curl -s http://localhost:8080/api/data/kv/foo \
+  -H "Authorization: Bearer $TOKEN"
+
+# 5. 打开控制台 / open the console
+#    http://localhost:3000  →  登录 → 仪表盘
+```
+
+---
+
+## 课程与面试材料 / Course & Interview Materials
+
+### 中文
+
+[`docs/course/`](docs/course/) 下是一套**紧扣 TitanKV 源码**的中英双语实战课程，从 C++ 基础语法一路讲到分布式系统设计与面试真题。每个模块统一结构：**核心知识 → 内容详解 → 思考题 → 动手题 → 自检**。配套手撕题单元测试在 [`tests/course/`](tests/course/)（7 个文件，37 个用例，覆盖跳表 / LRU / 线程池 / 布隆过滤器 / MurmurHash / SPSC 队列 / unique_ptr）。
+
+### English
+
+[`docs/course/`](docs/course/) hosts a bilingual (zh/en) hands-on course tightly bound to the TitanKV source, from C++ basics all the way to distributed system design and real interview questions. Each module follows: **Core Knowledge → Deep Dive → Thinking Questions → Hands-on Exercises → Self-Check**. Companion hand-written unit tests live in [`tests/course/`](tests/course/) (7 files, 37 cases, covering skip list / LRU / thread pool / bloom filter / MurmurHash / SPSC queue / unique_ptr).
+
+### 模块地图 / Module Map
+
+| # | 模块 / Module | 层 / Layer | 对应源码 / Source |
+|---|---|---|---|
+| 01 | 环境搭建与项目概览 / Env Setup & Project Overview | 基础 / Foundation | `CMakeLists.txt` / `Makefile` / `go.mod` |
+| 02 | C++ 核心语法 / C++ Core Syntax | 基础 / Foundation | `minikv/src/utils/` |
+| 03 | 现代 C++ 与并发 / Modern C++ & Concurrency | 基础 / Foundation | `minikv/src/core/skip_list.h` |
+| 04 | Go 与 TypeScript 基础 / Go & TS Basics | 基础 / Foundation | `go.mod` / `web/` |
+| 05 | 跳表与有序结构 / SkipList & Ordered Structures | 数据结构 / Data Structure | `minikv/src/core/skip_list.h` |
+| 06 | 布隆过滤器与哈希 / BloomFilter & Hashing | 数据结构 / Data Structure | `minikv/src/core/bloom_filter.h` |
+| 07 | LSM-Tree 存储引擎 / LSM-Tree Engine | 存储引擎 / Storage | `minikv/src/core/{wal,memtable,sstable}` |
+| 08 | Compaction 与 MVCC / Compaction & MVCC | 存储引擎 / Storage | `minikv/src/core/{compaction,internal_key}` |
+| 09 | epoll 与 C++20 协程 / epoll & C++20 Coroutines | 网络 / Network | `skynet/src/{net,core}` |
+| 10 | HTTP 与反向代理 / HTTP & Reverse Proxy | 网络 / Network | `skynet/src/{http,proxy}` |
+| 11 | Raft 共识与分片 / Raft & Sharding | 分布式 / Distributed | `distributed/` (planned) |
+| 12 | Go 微服务与 Next.js 控制台 / Go µServices & Next.js | 应用 / Application | `services/` / `web/` |
+| 13 | 系统设计与面试题汇总 / System Design & Interview Q&A | 面试 / Interview | 全项目 / Whole project |
+
+> 进入 [`docs/course/zh/README.md`](docs/course/zh/README.md) 或 [`docs/course/en/README.md`](docs/course/en/README.md) 开始学习。
+>
+> Start at [`docs/course/zh/README.md`](docs/course/zh/README.md) or [`docs/course/en/README.md`](docs/course/en/README.md).
+
+---
+
+## 开发指南 / Development Guide
+
+### Make 目标速查 / Make targets
+
+| 目标 / Target | 说明 / Description |
+|---|---|
+| `make help` | 列出所有目标 / list all targets |
+| `make build` | 构建 C++ + Go / build C++ + Go |
+| `make test` | 运行 C++ (ctest) + Go 测试 / run all tests |
+| `make lint` | clang-tidy + golangci-lint + next lint / lint everything |
+| `make cmake-build` | 仅构建 C++ / build C++ only |
+| `make cpp-test` | 仅运行 C++ 测试 / run C++ tests only |
+| `make go-build` / `make go-test` | 仅 Go 构建 / 测试 / Go build / test |
+| `make run-gateway` | 网关 :8080 / gateway |
+| `make run-auth` | Auth 服务 :8082 / auth service |
+| `make run-data` | Data 服务 :8081 / data service |
+| `make run-meta` | Meta 服务 :8083 / meta service |
+| `make run-observ` | Observability 服务 :8084 / observability service |
+| `make run-all` | 并行启动 5 个 Go 服务 / run all 5 Go services |
+| `make web-install` / `make web-dev` / `make web-build` | Next.js 安装 / 开发 / 构建 |
+| `make docker-up` / `make docker-down` | 本地开发栈 (Postgres/Redis/etcd/Jaeger/Prometheus/Grafana) |
+| `make clean` | 清理构建产物 / clean build artifacts |
+
+### 添加一个新服务 / Add a new service
+
+1. 在 `services/<name>/` 下新建 `main.go` + `handler.go` + `store.go`，参考 [`services/meta/`](services/meta/)。
+2. 在 [`Makefile`](Makefile) 加 `run-<name>` 目标，并加入 `run-all`。
+3. 在 [`gateway/router.go`](gateway/router.go) 的 `NewReverseProxy` map 加一条 `/api/<name>` → 新服务地址。
+4. （可选）在 [`web/lib/api.ts`](web/lib/api.ts) 加调用方法。
+
+### 添加一个新中间件 / Add a new middleware
+
+1. 在 [`gateway/middleware/`](gateway/middleware/) 下新建 `xxx.go`，实现 `func XXX() gin.HandlerFunc`。
+2. 在 [`gateway/router.go`](gateway/router.go) 的 `r.Use(...)` 链里按顺序插入（洋葱模型，外层先执行）。
+3. 注意：`Auth` 必须在 `RBAC` 之前，`Recover` 必须在 `Logger` 之后。
+
+---
+
+## 可观测性 / Observability
+
+### 中文
+
+TitanKV 的可观测性栈基于三大件：
+
+- **Prometheus**：抓取各服务的 `/metrics` 端点（`services/observability/metrics.go` 暴露 Prometheus 指标）。
+- **Grafana**：基于 Prometheus 数据源做仪表盘可视化。
+- **Jaeger**：分布式链路追踪，跨网关 → 微服务 → 存储引擎的请求关联。
+
+本地一键拉起：`make docker-up`（依赖 [`deploy/dev/docker-compose.yml`](deploy/dev/docker-compose.yml) + [`deploy/dev/prometheus.yml`](deploy/dev/prometheus.yml)）。Grafana 默认 `http://localhost:3001`，Jaeger UI 默认 `http://localhost:16686`。
+
+### English
+
+TitanKV's observability stack rests on three pillars:
+
+- **Prometheus** scrapes each service's `/metrics` endpoint (`services/observability/metrics.go` exposes Prometheus metrics).
+- **Grafana** visualizes the Prometheus data source.
+- **Jaeger** provides distributed tracing across gateway → service → storage engine.
+
+Bring it up locally with `make docker-up` (driven by [`deploy/dev/docker-compose.yml`](deploy/dev/docker-compose.yml) + [`deploy/dev/prometheus.yml`](deploy/dev/prometheus.yml)). Grafana defaults to `http://localhost:3001`, Jaeger UI to `http://localhost:16686`.
+
+---
+
+## 路线图 / Roadmap
+
+| Phase | 内容 / Scope | 状态 / Status |
+|---|---|---|
+| 0 | 仓库重构 / Repo restructure | ✅ done |
+| 1 | C++ 存储引擎（WAL/MemTable/SST/Compaction/MVCC） / C++ storage engine | ✅ done |
+| 2 | gRPC server 接 minikv + Go cgo 客户端 / gRPC server wrapping minikv | ⏳ planned |
+| 3 | Go 网关 + Auth（JWT/RBAC/APIKey） / Go gateway + auth | ✅ MVP done |
+| 4 | Go data/meta/observability 服务 / Go services | ✅ MVP done |
+| 5 | Raft 复制 + 一致性哈希分片 + etcd / Raft + sharding + etcd | ⏳ planned |
+| 6 | Next.js 管理控制台 / Next.js console | ✅ MVP done |
+| 7 | K8s 部署 + Prometheus/Grafana/Jaeger + CI/CD | ⏳ planned |
+| 8 | Cobra CLI + 多语言 SDK + 文档完善 / CLI + SDK + docs | ⏳ planned |
+
+---
+
+## 贡献 / Contributing
+
+### 中文
+
+欢迎 PR。流程：
+
+1. Fork → 新建分支 `feat/<short-name>` 或 `fix/<issue-id>`。
+2. 保证 `make test` 与 `make lint` 全绿。
+3. 如果改动存储引擎或网络库，请补对应的 GoogleTest 用例。
+4. PR 描述里写清「改了什么、为什么、怎么测」。
+5. 等待 review，squash merge。
+
+### English
+
+PRs welcome. The flow:
+
+1. Fork → branch `feat/<short-name>` or `fix/<issue-id>`.
+2. Keep `make test` and `make lint` green.
+3. If you touch the storage engine or network library, add a GoogleTest case.
+4. In the PR description, explain "what changed, why, how to test".
+5. Wait for review, squash-merge.
 
 ---
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — 见 [`minikv/LICENSE`](minikv/LICENSE) / [`skynet/LICENSE`](skynet/LICENSE)。
+
+MIT — see [`minikv/LICENSE`](minikv/LICENSE) / [`skynet/LICENSE`](skynet/LICENSE).
+
+---
+
+## 致谢 / Acknowledgments
+
+### 中文
+
+TitanKV 的存储引擎设计参考了 LevelDB / RocksDB 的公开资料，网络库参考了 muduo 与 libco 的思路，课程模块的面试题来源于真实的求职面经与 LeetCode。感谢这些开源项目与社区分享的内容让从零实现成为可能。
+
+### English
+
+The storage engine design draws on public material from LevelDB / RocksDB, the network library takes cues from muduo and libco, and the course's interview questions come from real job-hunting experience reports and LeetCode. Thanks to these open-source projects and community sharing for making from-scratch implementation possible.

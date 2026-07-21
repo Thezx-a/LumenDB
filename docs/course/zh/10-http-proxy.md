@@ -2,6 +2,14 @@
 
 > 对应源码：[parser.h](file:///c:/Users/Administrator/Desktop/hellocpp/skynet/include/skynet/http/parser.h)、[router.h](file:///c:/Users/Administrator/Desktop/hellocpp/skynet/include/skynet/http/router.h)、[load_balancer.h](file:///c:/Users/Administrator/Desktop/hellocpp/skynet/include/skynet/proxy/load_balancer.h)、[connection_pool.h](file:///c:/Users/Administrator/Desktop/hellocpp/skynet/include/skynet/proxy/connection_pool.h)、[health_check.h](file:///c:/Users/Administrator/Desktop/hellocpp/skynet/include/skynet/proxy/health_check.h)
 
+## 背景与动机
+
+到这一模块为止，我们的 minikv 已经能存能取，skynet 也能用 epoll + 协程扛住高并发连接。可问题来了：真实的生产环境里，后端绝不会只有一个进程——你有 Data 服务、Auth 服务、Meta 服务，还要面对突发流量、节点故障、滚动发布。如果让客户端直连后端，那拓扑一变就得全体改配置，一个节点挂了就整片不可用。这时候我们就需要一个「咽喉」：网关。
+
+反向代理就是这个咽喉。它站在客户端和后端集群之间，屏蔽内部拓扑、分担负载、卸载 SSL、做健康检查和熔断——Nginx 多年来就是干这个的，原理值得每一位后端工程师吃透。更进一步，网关还要抗突发流量：连接池复用 TCP 长连接避免反复握手，令牌桶限流把流量洪峰削平，一致性哈希让同一用户的请求始终落到有本地缓存的节点。这些都是微服务时代网关的「标配」能力。
+
+学完这一模块，你会理解 skynet `gateway/` 那个看似简单的反向代理是怎么把 HttpParser、LoadBalancer、ConnectionPool、HealthCheck 四件套串起来的。面试里被问到「设计一个 API 网关」或「Nginx 反向代理原理」时，你能从状态机解析一路讲到熔断器状态机，把这条链路讲透。
+
 ## 1. 核心知识
 
 - HTTP/1.1 报文结构：请求行 / 头部 / 空行 / body；状态机解析。
@@ -127,6 +135,33 @@ class ConsistentHashLB : public LoadBalancer {
 - 与 `LoadBalancer::feedback(success)` 联动：失败时反馈，影响后续 select。
 
 ### 2.6 反向代理整体流程
+
+```mermaid
+flowchart TD
+    Client[客户端请求] --> Gateway[skynet Gateway<br/>反向代理]
+
+    Gateway --> Parse[HttpParser 解析请求]
+    Parse --> Route[Router 路由匹配]
+    Route --> LB{LoadBalancer.select<br/>选后端}
+
+    LB -->|轮询/加权/最少连接/一致性哈希| Pool[ConnectionPool<br/>借出长连接]
+    Pool --> Forward[转发请求到后端]
+
+    Forward --> B1[Backend 1<br/>Data Service]
+    Forward --> B2[Backend 2<br/>Data Service]
+    Forward --> B3[Backend 3<br/>Data Service]
+
+    B1 --> Resp[后端响应]
+    B2 --> Resp
+    B3 --> Resp
+
+    Resp --> HC{HealthCheck.feedback<br/>成功/失败}
+    HC -->|失败累计超阈值| Down[标记后端下线<br/>熔断器 Open]
+    HC -->|成功| Ret[连接归还池]
+    Down --> Ret
+    Ret --> Gateway
+    Gateway --> ClientResp[返回客户端]
+```
 
 ```
 Client ──► [skynet Gateway]
