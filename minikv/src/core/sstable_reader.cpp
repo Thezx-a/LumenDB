@@ -1,115 +1,137 @@
 ﻿#include "core/sstable_reader.h"
+
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
 #include <algorithm>
+
+#include "core/sstable_builder.h"  // kSSTableFooterSize, kSSTableMagic, kSSTableBlockHeader, kSSTableFormatVersion
+#include "core/compression.h"
 #include "utils/coding.h"
 
 namespace minikv {
 namespace core {
 
-static const size_t kFooterSize = 48;
-static const uint64_t kSSTableMagic = 0x4D4B53535441424CULL;
-
 std::unique_ptr<SSTableReader> SSTableReader::open(const std::string& path) {
     auto reader = std::unique_ptr<SSTableReader>(new SSTableReader());
     reader->path_ = path;
-    reader->fd_ = ::open(path.c_str(), O_RDONLY);
+    reader->fd_   = ::open(path.c_str(), O_RDONLY);
     if (reader->fd_ < 0) return nullptr;
 
     struct stat st;
     ::fstat(reader->fd_, &st);
     reader->file_size_ = st.st_size;
-    if (static_cast<size_t>(st.st_size) < kFooterSize) return nullptr;
+    if (static_cast<size_t>(st.st_size) < kSSTableFooterSize) return nullptr;
 
-    char footer[kFooterSize];
-    ::lseek(reader->fd_, st.st_size - kFooterSize, SEEK_SET);
-    ::read(reader->fd_, footer, kFooterSize);
+    char footer[kSSTableFooterSize];
+    ::lseek(reader->fd_, st.st_size - static_cast<off_t>(kSSTableFooterSize), SEEK_SET);
+    if (::read(reader->fd_, footer, kSSTableFooterSize) != static_cast<ssize_t>(kSSTableFooterSize))
+        return nullptr;
 
     uint64_t magic = utils::decodeFixed64(footer + 40);
     if (magic != kSSTableMagic) return nullptr;
 
-    reader->index_offset_ = utils::decodeFixed64(footer);
-    reader->index_size_ = utils::decodeFixed64(footer + 8);
+    reader->format_version_ = static_cast<uint8_t>(footer[16]);
+    if (reader->format_version_ > kSSTableFormatVersion) return nullptr;
 
-    // Read index block (skip CRC header)
+    reader->index_offset_ = utils::decodeFixed64(footer);
+    reader->index_size_   = utils::decodeFixed64(footer + 8);
+
+    // Read index block (8-byte [crc][size] header kept uncompressed).
     ::lseek(reader->fd_, reader->index_offset_, SEEK_SET);
     char idxHeader[8];
-    ::read(reader->fd_, idxHeader, 8);
+    if (::read(reader->fd_, idxHeader, 8) != 8) return nullptr;
     uint32_t idxLen = utils::decodeFixed32(idxHeader + 4);
-    std::string idxData(idxLen, '\0');
-    ::read(reader->fd_, idxData.data(), idxLen);
-    reader->index_data_ = idxData;
+    reader->index_data_.resize(idxLen);
+    if (::read(reader->fd_, reader->index_data_.data(), idxLen) != static_cast<ssize_t>(idxLen))
+        return nullptr;
 
-    // Parse index entries (simplified)
     size_t offset = 0;
-    while (offset < idxData.size()) {
-        const char* p = idxData.data() + offset;
-        const char* limit = idxData.data() + idxData.size();
-        uint32_t keyLen;
-        uint32_t consumed;
+    while (offset < reader->index_data_.size()) {
+        const char* p     = reader->index_data_.data() + offset;
+        const char* limit = reader->index_data_.data() + reader->index_data_.size();
+        uint32_t    keyLen, consumed;
         if (!utils::decodeVariant32(p, limit, keyLen, consumed)) break;
         p += consumed;
-        std::string key(p, keyLen);
+        std::string lastKey(p, keyLen);
         p += keyLen;
-        uint64_t blockOffset = utils::decodeFixed64(p);
-        uint64_t blockSize = utils::decodeFixed64(p + 8);
-        reader->index_entries_.push_back({key, {blockOffset, blockSize}});
-        offset = (p + 16) - idxData.data();
+        IndexEntry e;
+        e.last_user_key = std::move(lastKey);
+        e.handle.offset = utils::decodeFixed64(p);
+        e.handle.size   = utils::decodeFixed64(p + 8);
+        p += 16;
+        reader->index_entries_.push_back(std::move(e));
+        offset = static_cast<size_t>(p - reader->index_data_.data());
     }
 
     reader->bloom_ = BloomFilter::load(path + ".bloom");
-
     return reader;
+}
+
+Status SSTableReader::readBlock(const BlockHandle& h, std::string* out) const {
+    if (h.size < kSSTableBlockHeader)
+        return Status::Corruption("SSTable block handle size too small");
+
+    ::lseek(fd_, static_cast<off_t>(h.offset), SEEK_SET);
+    char hdr[kSSTableBlockHeader];
+    if (::read(fd_, hdr, kSSTableBlockHeader) != static_cast<ssize_t>(kSSTableBlockHeader))
+        return Status::IOError("failed to read block header");
+
+    uint32_t           crc              = utils::decodeFixed32(hdr);
+    uint32_t           payload_size     = utils::decodeFixed32(hdr + 4);
+    uint32_t           uncompressed_sz  = utils::decodeFixed32(hdr + 8);
+    CompressionType    type             = static_cast<CompressionType>(
+                                            static_cast<uint8_t>(hdr[12]));
+
+    if (payload_size == 0) {
+        out->clear();
+        return Status::Ok();
+    }
+
+    std::string payload(payload_size, '\0');
+    if (::read(fd_, payload.data(), payload_size) != static_cast<ssize_t>(payload_size))
+        return Status::IOError("failed to read block payload");
+
+    uint32_t actual = utils::crc32c(payload.data(), static_cast<int>(payload_size));
+    if (actual != crc)
+        return Status::Corruption("SSTable block CRC mismatch");
+
+    return decompressBlock(type, Slice(payload), uncompressed_sz, *out);
 }
 
 std::optional<std::string> SSTableReader::get(const Slice& key) const {
     if (index_entries_.empty()) return std::nullopt;
     if (bloom_ && !bloom_->mightContain(key)) return std::nullopt;
 
-    // Binary search index to find the block that might contain key
     auto it = std::upper_bound(
         index_entries_.begin(), index_entries_.end(), key.toString(),
-        [](const std::string& k, const std::pair<std::string, BlockHandle>& entry) {
-            return k < entry.first;
-        });
+        [](const std::string& k, const IndexEntry& e) { return k < e.last_user_key; });
     if (it == index_entries_.begin()) return std::nullopt;
     --it;
 
-    // Read the data block
-    const BlockHandle& handle = it->second;
-    ::lseek(fd_, handle.offset, SEEK_SET);
-    char blockHeader[8];
-    ::read(fd_, blockHeader, 8);
-    uint32_t blockLen = utils::decodeFixed32(blockHeader + 4);
-    std::string blockData(blockLen, '\0');
-    ::read(fd_, blockData.data(), blockLen);
+    std::string block;
+    Status s = readBlock(it->handle, &block);
+    if (!s.ok()) return std::nullopt;
 
-    BlockReader reader{Slice(blockData)};
+    BlockReader reader{Slice(block)};
     return reader.get(key);
 }
 
 Status SSTableReader::scan(const Slice& start, const Slice& end,
-                            std::function<void(const Slice&, const Slice&)> callback) const {
-    for (const auto& [lastKey, handle] : index_entries_) {
-        if (!end.empty() && lastKey > end.toString()) break;
+                           std::function<void(const Slice&, const Slice&)> cb) const {
+    for (const auto& e : index_entries_) {
+        if (!end.empty() && e.last_user_key > end.toString()) break;
 
-        ::lseek(fd_, handle.offset, SEEK_SET);
-        char blockHeader[8];
-        if (::read(fd_, blockHeader, 8) != 8) {
-            return Status::IOError("failed to read block header");
-        }
-        uint32_t blockLen = utils::decodeFixed32(blockHeader + 4);
-        std::string blockData(blockLen, '\0');
-        if (::read(fd_, blockData.data(), blockLen) != static_cast<ssize_t>(blockLen)) {
-            return Status::IOError("failed to read block data");
-        }
+        std::string block;
+        Status s = readBlock(e.handle, &block);
+        if (!s.ok()) return s;
 
-        BlockReader reader{Slice(blockData)};
+        BlockReader reader{Slice(block)};
         reader.forEach([&](const Slice& k, const Slice& v) {
             if (!start.empty() && k.toString() < start.toString()) return;
             if (!end.empty() && k.toString() > end.toString()) return;
-            callback(k, v);
+            cb(k, v);
         });
     }
     return Status::Ok();

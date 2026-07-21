@@ -59,8 +59,8 @@ titan-kv/
 
 | Phase | Description | Status |
 |------|-------------|--------|
-| Phase 0 | Cleanup + repository restructure | in-progress |
-| Phase 1 | C++ storage engine upgrade (MVCC, WAL, compaction, CF) | planned |
+| Phase 0 | Cleanup + repository restructure | done |
+| Phase 1 | C++ storage engine upgrade (MVCC, WAL, compaction, CF) | in-progress (WP 1.2.1 done) |
 | Phase 2 | C++ gRPC server + Go cgo client | planned |
 | Phase 3 | Go API gateway + auth service (JWT/RBAC/APIKey) | planned |
 | Phase 4 | Go data / meta / observability services | planned |

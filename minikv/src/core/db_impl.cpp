@@ -3,6 +3,7 @@
 #include "core/sstable_reader.h"
 #include "core/sstable_iterator.h"
 #include "core/merging_iterator.h"
+#include "core/compression.h"
 #include "utils/coding.h"
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -149,7 +150,8 @@ Status DBImpl::flushMemTable() {
     auto entries = immutable_memtable_->entries();
     std::string filePath = db_path_ + "/level-0/" +
         std::to_string(version_.nextFileNumber()) + ".sst";
-    SSTableBuilder builder(filePath, options_.block_size);
+    CompressionType ctype = static_cast<CompressionType>(options_.compression);
+    SSTableBuilder builder(filePath, options_.block_size, ctype);
     for (const auto& entry : entries) {
         char keyBuf[8];
         uint64_t ik = entry.internal_key;

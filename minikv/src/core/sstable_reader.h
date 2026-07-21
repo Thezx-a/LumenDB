@@ -22,16 +22,26 @@ public:
 
     const std::string& path() const { return path_; }
     uint64_t fileSize() const { return file_size_; }
+    uint8_t  formatVersion() const { return format_version_; }
 
 private:
-    std::string path_;
-    int fd_;
-    uint64_t file_size_;
-    uint64_t index_offset_;
-    uint64_t index_size_;
-    std::string index_data_;
-    std::vector<std::pair<std::string, BlockHandle>> index_entries_;
-    std::unique_ptr<BloomFilter> bloom_;
+    struct IndexEntry {
+        std::string  last_user_key;
+        BlockHandle  handle;     // offset, total size (incl. 13B header)
+    };
+
+    // Read a single data block described by `h` and return its decoded bytes.
+    Status readBlock(const BlockHandle& h, std::string* out) const;
+
+    std::string                       path_;
+    int                               fd_            = -1;
+    uint64_t                          file_size_     = 0;
+    uint8_t                           format_version_ = 0;
+    uint64_t                          index_offset_  = 0;
+    uint64_t                          index_size_    = 0;
+    std::string                       index_data_;
+    std::vector<IndexEntry>           index_entries_;
+    std::unique_ptr<BloomFilter>      bloom_;
 };
 
 }  // namespace core

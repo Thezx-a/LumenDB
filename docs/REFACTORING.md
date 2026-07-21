@@ -18,8 +18,17 @@
 
 ## Phase 1 — C++ storage engine upgrade
 
-- [ ] WP 1.2.1  SSTable block compression (Snappy / ZSTD)
+- [x] WP 1.2.1  SSTable block compression (Snappy / ZSTD)
+      - Added `core/compression.{h,cpp}` with `compressBlock` / `decompressBlock`
+      - Added `cmake/FetchCompression.cmake` pulling snappy 1.2.1 + zstd 1.5.6 via FetchContent
+      - New on-disk block format: `[crc(4)][physical_size(4)][uncompressed_size(4)][type(1)][payload]`
+      - Footer gains 1-byte `format_version` (currently 1)
+      - `Options::compression` (uint8_t, default 1=snappy) propagated through `DBImpl::flushMemTable`
+      - Tests: `test_compression.cpp` (round-trip, mismatch detection) and `test_sstable_compression.cpp`
+      - Status: code-reviewed, awaiting Linux/WSL build verification (Windows native unsupported)
 - [ ] WP 1.2.2  MVCC snapshot reads (internal key = user_key | seq | type)
+      - Includes a hard prerequisite: rewrite `InternalKey` from hash-of-user-key to a real
+        `[user_key | ~seq | type]` encoding so different user keys never collide
 - [ ] WP 1.2.3  Range Delete (WriteBatch::deleteRange, MemTable tombstones)
 - [ ] WP 1.2.4  Manifest persistence (recover Version on restart)
 - [ ] WP 1.2.5  Column Family (per-CF MemTable + SST, shared WAL)

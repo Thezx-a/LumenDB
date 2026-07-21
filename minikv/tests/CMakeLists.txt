@@ -6,6 +6,8 @@
     test_lru_cache.cpp
     test_wal.cpp
     test_memtable.cpp
+    test_compression.cpp
+    test_sstable_compression.cpp
 )
 target_link_libraries(minikv_tests PRIVATE minikv GTest::gtest_main)
 include(GoogleTest)

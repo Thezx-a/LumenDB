@@ -16,6 +16,12 @@ option(ENABLE_SANITIZERS "Enable AddressSanitizer and ThreadSanitizer" OFF)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CompilerWarnings.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Sanitizers.cmake)
 
+# Compression dependencies (Snappy + Zstd). Pulled via FetchContent.
+# These are required for SSTable block compression in WP 1.2.1.
+if(NOT TARGET snappy)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FetchCompression.cmake)
+endif()
+
 add_library(minikv STATIC
     src/core/wal.cpp
     src/core/memtable.cpp
@@ -29,6 +35,7 @@ add_library(minikv STATIC
     src/core/memtable_iterator.cpp
     src/core/sstable_iterator.cpp
     src/core/merging_iterator.cpp
+    src/core/compression.cpp
     src/network/event_loop.cpp
     src/network/server.cpp
     src/network/connection.cpp
@@ -45,12 +52,32 @@ target_compile_features(minikv PUBLIC cxx_std_17)
 apply_compiler_warnings(minikv)
 apply_sanitizers(minikv)
 
+# Link compression libraries. Snappy exports a CMake target named `snappy`;
+# Zstd's CMake build defines `libzstd_static` (or `libzstd_shared`).
+target_link_libraries(minikv PUBLIC snappy)
+
+if(TARGET libzstd_static)
+    target_link_libraries(minikv PUBLIC libzstd_static)
+elseif(TARGET libzstd_shared)
+    target_link_libraries(minikv PUBLIC libzstd_shared)
+elseif(TARGET zstd::libzstd_static)
+    target_link_libraries(minikv PUBLIC zstd::libzstd_static)
+else()
+    # Fallback: try pkg-config / system library.
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(ZSTD IMPORTED_TARGET libzstd)
+        if(ZSTD_FOUND)
+            target_link_libraries(minikv PUBLIC PkgConfig::ZSTD)
+        endif()
+    endif()
+endif()
+
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     add_executable(minikv_server src/main.cpp)
     target_link_libraries(minikv_server PRIVATE minikv)
 endif()
 
-# Tests and benchmarks only when MiniKV is the top-level project
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     if(ENABLE_TESTS)
         include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FetchGoogleTest.cmake)
