@@ -30,7 +30,14 @@
       - Includes a hard prerequisite: rewrite `InternalKey` from hash-of-user-key to a real
         `[user_key | ~seq | type]` encoding so different user keys never collide
 - [ ] WP 1.2.3  Range Delete (WriteBatch::deleteRange, MemTable tombstones)
-- [ ] WP 1.2.4  Manifest persistence (recover Version on restart)
+- [x] WP 1.2.4  Manifest persistence (recover Version on restart)
+      - Added `core/manifest.{h,cpp}` with appended [crc(4)][size(4)][payload] records.
+      - Records cover kReset / kAdd / kDel by level+file_path+file_number.
+      - On `DBImpl::open`, Manifest replays to rebuild Version snapshot before WAL replay.
+      - `Version` writes through to Manifest on every add/remove; fsync'd both on add and remove.
+      - Truncated tail record (CRC fail / short read) is ignored — torn-write tolerant recovery.
+      - Tests: 5 cases incl. round-trip, remove-persist, reset-clears, truncated-tail tolerance.
+      - Fixed a latent durability gap: prior code restarted with empty Version and lost existing SSTs.
 - [ ] WP 1.2.5  Column Family (per-CF MemTable + SST, shared WAL)
 - [ ] WP 1.2.6  Optimistic transactions (Begin/Commit/Rollback, OCC)
 - [ ] WP 1.2.7  Configurable compaction strategy (Leveled vs Size-tiered)

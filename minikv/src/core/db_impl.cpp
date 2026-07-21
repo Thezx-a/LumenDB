@@ -42,6 +42,19 @@ Status DBImpl::open(const Options& options, std::unique_ptr<DB>* dbptr) {
 }
 
 Status DBImpl::recover() {
+    // 1) Reopen the Manifest and rebuild Version's in-memory snapshot.
+    manifest_ = std::make_unique<Manifest>(db_path_);
+    Status ms = manifest_->open();
+    if (!ms.ok()) return ms;
+    version_.setManifest(manifest_.get());
+    version_.restoreFrom(manifest_->levels());
+
+    // 2) Mark a fresh session boundary in MANIFEST (helps debugging).
+    (void)manifest_->recordReset();
+    (void)manifest_->sync();
+
+    // 3) Replay WAL into a fresh MemTable — only data not yet flushed to SSTs
+    //    should be present here, because flushMemTable truncates WAL.
     std::string wal_path = db_path_ + "/wal.log";
     wal_ = std::make_unique<WAL>(wal_path);
     memtable_ = std::make_unique<MemTable>(options_.memtable_size);

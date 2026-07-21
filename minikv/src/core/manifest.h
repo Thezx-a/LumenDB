@@ -1,0 +1,74 @@
+#pragma once
+
+#include <cstdint>
+#include <mutex>
+#include <string>
+#include <vector>
+
+#include "core/version.h"
+#include "minikv/status.h"
+
+namespace minikv {
+namespace core {
+
+// Manifest — durable record of Version mutations (which SST files exist
+// and at which level). On DBImpl::open, the MANIFEST is replayed so the
+// in-memory Version reflects every SST produced across previous sessions.
+//
+// === On-disk record format ===
+// Each record is appended atomically and fsync'd:
+//     [crc(4)][payload_size(4)][payload...]
+// payload:
+//     type     : 1 byte (kAddFile=1, kRemoveFile=2, kReset=3)
+//     level    : 4 bytes (LE uint32)
+//     file_no  : 8 bytes (LE uint64) — Monotonic id assigned by Version
+//     path_len : 4 bytes (LE uint32)
+//     path     : path_len bytes (raw)
+// kReset records simply mark that the database is freshly opened; payload
+// contains only `type` (no body). Used as a soft marker.
+//
+// Recovery:
+//   Read records sequentially, verify CRC, apply to in-memory levels
+//   vector. A truncated tail record (CRC mismatch / short read) is dropped;
+//   this matches the "crash mid-append is safe" invariant of LSM engines.
+
+class Manifest {
+public:
+    explicit Manifest(const std::string& db_path);
+    ~Manifest();
+
+    // Open MANIFEST file (creating it if absent), replay records, and fix up
+    // in-memory levels_. Returns IOError on filesystem failure.
+    Status open();
+
+    // Append a single AddFile record. Fsync is caller-controlled.
+    Status recordAddFile(int level, const std::string& path, uint64_t file_no);
+    Status recordRemoveFile(int level, const std::string& path, uint64_t file_no);
+    Status recordReset();
+    Status sync();
+
+    // Snapshot of currently-tracked SSTables per level.
+    const std::vector<std::vector<SSTableMeta>>& levels() const { return levels_; }
+    size_t totalFiles() const;
+
+    // For debugging / tests.
+    const std::string& path() const { return manifest_path_; }
+
+private:
+    enum RecordType : uint8_t {
+        kReset = 0,
+        kAdd   = 1,
+        kDel   = 2,
+    };
+    Status writeRecord(RecordType type, int level,
+                       const std::string& path, uint64_t file_no);
+    Status replay();
+
+    std::string manifest_path_;
+    int        fd_ = -1;
+    std::vector<std::vector<SSTableMeta>> levels_;
+    mutable std::mutex mutex_;
+};
+
+}  // namespace core
+}  // namespace minikv

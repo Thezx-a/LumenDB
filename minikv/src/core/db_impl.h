@@ -4,6 +4,7 @@
 #include <mutex>
 #include <string>
 #include "core/compaction.h"
+#include "core/manifest.h"
 #include "core/memtable.h"
 #include "core/memtable_iterator.h"
 #include "core/version.h"
@@ -35,12 +36,13 @@ private:
 
     Options options_;
     std::string db_path_;
-    std::unique_ptr<WAL> wal_;
+    std::unique_ptr<WAL>      wal_;
+    std::unique_ptr<Manifest> manifest_;
     std::unique_ptr<MemTable> memtable_;
     std::unique_ptr<MemTable> immutable_memtable_;
-    std::atomic<uint64_t> seq_;
-    std::mutex write_mutex_;
-    Version version_;
+    std::atomic<uint64_t>     seq_;
+    std::mutex                write_mutex_;
+    Version                   version_;
     std::unique_ptr<CompactionManager> compaction_mgr_;
 };
 
