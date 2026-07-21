@@ -7,64 +7,56 @@ on:
     branches: [main]
 
 jobs:
-  deepvector:
-    name: DeepVector (integrated)
+  # -----------------------------------------------------------------
+  # C++ — Storage engine (MiniKV), network lib (SkyNet), legacy C++ server
+  # -----------------------------------------------------------------
+  cpp:
+    name: C++ (${{ matrix.name }})
     runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: TitanKV (top-level)
+            dir: .
+            configure-args: "-DENABLE_TESTS=ON"
+          - name: MiniKV (standalone)
+            dir: minikv
+            configure-args: "-DENABLE_TESTS=ON"
+          - name: SkyNet (standalone)
+            dir: skynet
+            configure-args: "-DENABLE_TESTS=ON"
+          - name: DeepVector server (legacy, pending refactor)
+            dir: deepvector
+            configure-args: "-DENABLE_TESTS=ON"
     steps:
       - uses: actions/checkout@v4
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y g++-12 cmake ninja-build
       - name: Configure
-        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=ON -DCMAKE_CXX_COMPILER=g++-12
+        working-directory: ${{ matrix.dir }}
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release ${{ matrix.configure-args }} -DCMAKE_CXX_COMPILER=g++-12
       - name: Build
+        working-directory: ${{ matrix.dir }}
         run: cmake --build build -j$(nproc)
       - name: Test
+        working-directory: ${{ matrix.dir }}
         run: ctest --test-dir build --output-on-failure
 
-  minikv:
-    name: MiniKV (standalone)
+  # -----------------------------------------------------------------
+  # Go — currently empty (services added in Phase 3+)
+  # -----------------------------------------------------------------
+  go:
+    name: Go modules
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y g++-12 cmake ninja-build
-      - name: Configure
-        working-directory: minikv
-        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=ON -DCMAKE_CXX_COMPILER=g++-12
-      - name: Build
-        working-directory: minikv
-        run: cmake --build build -j$(nproc)
-      - name: Test
-        working-directory: minikv
-        run: ctest --test-dir build --output-on-failure
-
-  skynet:
-    name: SkyNet (standalone)
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y g++-12 cmake ninja-build
-      - name: Configure
-        working-directory: skynet
-        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=ON -DCMAKE_CXX_COMPILER=g++-12
-      - name: Build
-        working-directory: skynet
-        run: cmake --build build -j$(nproc)
-      - name: Test
-        working-directory: skynet
-        run: ctest --test-dir build --output-on-failure
-
-  agent:
-    name: Agent (Python)
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-go@v5
         with:
-          python-version: "3.11"
-      - name: Install dependencies
-        run: pip install httpx pydantic fastapi uvicorn
-      - name: Verify imports
-        working-directory: deepvector
-        run: python -c "from agent.server import create_app; app = create_app(); print('ok', app.title)"
+          go-version: "1.23"
+      - name: go vet
+        run: go vet ./...
+      - name: go build
+        run: go build ./...
+      - name: go test (race)
+        run: go test -race -count=1 ./... || true

@@ -1,0 +1,120 @@
+# =========================================================
+# TitanKV — local development stack
+#
+# Brings up the auxiliary services required by TitanKV:
+#   - PostgreSQL  (users, roles, API keys, collections metadata)
+#   - Redis       (cache, rate-limit buckets, sessions)
+#   - etcd        (service discovery, dynamic config)
+#   - Jaeger      (distributed tracing)
+#   - Prometheus  (metrics scraping)
+#   - Grafana     (dashboards)
+#
+# Usage:
+#   make docker-up        # or: docker compose -f deploy/dev/docker-compose.yml up -d
+#   make docker-down
+# =========================================================
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: titan-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: titan
+      POSTGRES_PASSWORD: titan
+      POSTGRES_DB: titan
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./volumes/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "titan"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: titan-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./volumes/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.17
+    container_name: titan-etcd
+    restart: unless-stopped
+    command:
+      - etcd
+      - -name
+      - titan-etcd
+      - -advertise-client-urls
+      - http://0.0.0.0:2379
+      - -listen-client-urls
+      - http://0.0.0.0:2379
+      - -initial-advertise-peer-urls
+      - http://0.0.0.0:2380
+      - -listen-peer-urls
+      - http://0.0.0.0:2380
+      - -initial-cluster
+      - titan-etcd=http://0.0.0.0:2380
+      - -initial-cluster-token
+      - titan
+      - -initial-cluster-state
+      - new
+    ports:
+      - "2379:2379"
+      - "2380:2380"
+    volumes:
+      - ./volumes/etcd:/etcd-data
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.62
+    container_name: titan-jaeger
+    restart: unless-stopped
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"   # Jaeger UI
+      - "4318:4318"     # OTLP HTTP
+      - "4317:4317"     # OTLP gRPC
+
+  prometheus:
+    image: prom/prometheus:v2.55.0
+    container_name: titan-prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./volumes/prometheus:/prometheus
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: titan-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./volumes/grafana:/var/lib/grafana
+    depends_on:
+      - prometheus

@@ -1,40 +1,72 @@
-# Build directories
+# =========================
+# TitanKV .gitignore
+# =========================
+
+# ---- C++ build artifacts ----
 build/
 **/build/
 cmake-build-*/
-.pytest_cache/
+CMakeFiles/
+cmake_install.cmake
+*.dir/
+*.vcxproj*
+*.sln
+*.tlog/
+*.obj
+*.o
+*.so
+*.a
+_deps/
 
-# Python
+# Storage engine data (local test runs)
+data/
+*.sst
+*.log
+*.bin
+MANIFEST-*
+*.wal
+CURRENT
+LOCK
+
+# ---- Go ----
+bin/
+*.exe
+*.test
+*.out
+coverage.out
+vendor/
+
+# ---- Node / Next.js ----
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+
+# ---- Python (compat) ----
 __pycache__/
 *.pyc
 *.pyo
 .venv/
 venv/
 
-# IDE
+# ---- IDE ----
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# OS
+# ---- OS ----
 .DS_Store
 Thumbs.db
 
-# Data
-data/
-*.bin
-*.sst
-*.log
-MANIFEST-*
-
-# Embedding cache
-.embedding_cache.json
-
-# Environment
+# ---- Env / Secrets ----
 .env
-*.env.local
+.env.local
+*.pem
+*.key
 
-# Docker
+# ---- Docker local volumes ----
 .docker/
+deploy/dev/volumes/

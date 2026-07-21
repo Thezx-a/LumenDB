@@ -1,147 +1,114 @@
-<p align="center">
-  <img src="https://img.shields.io/badge/C++17-00599C?style=for-the-badge&logo=c%2B%2B" alt="C++17"/>
-  <img src="https://img.shields.io/badge/C++20-00599C?style=for-the-badge&logo=c%2B%2B" alt="C++20"/>
-  <img src="https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python" alt="Python 3.11"/>
-  <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="MIT"/>
-  <img src="https://img.shields.io/badge/GitHub-Thezx_a%2FDeepVector-blue?style=for-the-badge&logo=github" alt="GitHub"/>
-</p>
+# TitanKV
 
-<h1 align="center">DeepVector</h1>
+> A distributed key-value storage platform built from scratch — storage engine in C++, business layer in Go, console in Next.js.
 
 <p align="center">
-  <b>全栈向量数据库与 AI Agent 智能检索系统</b><br/>
-  <i>Full-Stack Vector Database & AI Agent Retrieval System</i>
-</p>
-
-<p align="center">
-  <b>MiniKV</b> · <b>SkyNet</b> · <b>DeepVector DB</b> · <b>AgenticDB</b><br/>
-  <i>LSM-Tree KV 存储 · C++20 协程网络 · 零拷贝向量数据库 · LLM Agent 智能检索</i>
-</p>
-
-<p align="center">
-  <a href="#项目概览">中文</a> •
-  <a href="#project-overview">English</a> •
-  <a href="./deepvector/course/README.md">📚 课程</a> •
-  <a href="./deepvector/course/FREE_RESOURCES_zh.md">🆓 免费资源</a> •
-  <a href="./RUN.md">▶ 运行</a> •
+  <img src="https://img.shields.io/badge/C%2B%2B-17%2F20-00599C?style=flat-square&logo=cplusplus&logoColor=white" alt="C++17/20"/>
+  <img src="https://img.shields.io/badge/Go-1.23-00ADD8?style=flat-square&logo=go&logoColor=white" alt="Go"/>
+  <img src="https://img.shields.io/badge/Next.js-15-000000?style=flat-square&logo=next.js&logoColor=white" alt="Next.js"/>
+  <img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="MIT"/>
 </p>
 
 ---
 
-```mermaid
-mindmap
-  root((DeepVector))
-    MiniKV
-      LSM-Tree 存储引擎
-      WAL + MemTable + SST
-      Bloom 过滤器
-      Compaction
-    SkyNet
-      C++20 协程
-      Task<T> 异步框架
-      HTTP Parser/Router
-      负载均衡
-    DeepVector DB
-      向量数据库
-      HNSW 索引
-      mmap 零拷贝存储
-      PQ/SQ 量化压缩
-      pybind11 Python 绑定
-    AgenticDB
-      LLM Agent 层
-      多轮智能检索
-      MCP 协议集成
-      生产部署文档
+## What is TitanKV?
+
+TitanKV is an end-to-end distributed storage platform, designed and built from the ground up to demonstrate serious backend engineering depth:
+
+- A **self-implemented LSM-Tree storage engine** in C++17 (WAL, MemTable, SSTable, Compaction, Bloom Filter).
+- A **C++20 coroutine network library** (SkyNet) for high-concurrency event loops.
+- A set of **Go microservices** (API gateway, auth, data, meta, observability) communicating over gRPC.
+- A **Raft-based replication layer** (using `hashicorp/raft`) and **consistent-hash sharding**.
+- A **Next.js admin console** for managing collections, keys, users, and the cluster.
+- A **Go CLI** and **multi-language SDK** for developer integration.
+- Kubernetes-native deployment with observability (Prometheus / Grafana / Jaeger).
+
+This is not a wrapper around an existing database. The storage engine, network layer, replication logic, and orchestration are all written here.
+
+---
+
+## Repository Layout
+
+```
+titan-kv/
+├── storage-engine/   (planned) C++17 LSM-Tree KV engine + gRPC server
+├── minikv/           C++17 LSM-Tree core (WAL / MemTable / SST / Compaction)
+├── skynet/           C++20 coroutine network library
+├── deepvector/       (legacy) C++ HNSW vector index — to be refactored as a secondary index
+├── gateway/          (planned) Go API gateway (Gin, auth, rate-limit, routing)
+├── services/         (planned) Go microservices (auth / data / meta / observability)
+├── distributed/      (planned) Raft replication, sharding, etcd service discovery
+├── client-go/        (planned) Go SDK
+├── client-cli/       (planned) Cobra CLI tool
+├── web/              (planned) Next.js admin console
+├── proto/            (planned) gRPC / Protocol Buffers definitions
+├── deploy/           Docker Compose dev env / Helm chart / Kubernetes manifests
+├── docs/             Architecture and API documentation
+├── CMakeLists.txt    Top-level CMake entry
+├── go.mod            Go module root
+└── Makefile          Unified build / test / lint entry
 ```
 
 ---
 
-## 项目概览
+## Status
 
-这个仓库里有四个子项目，合在一起是一套「向量库 + Agent 检索」：
+> **Project is being refactored from a previous AI/LLM-focused vector database into a general-purpose distributed KV storage platform.**
+>
+> See `docs/REFACTORING.md` for the detailed plan and current progress.
 
-| 项目 | 语言 | 干什么 | 课程 |
-|------|------|--------|------|
-| **MiniKV** | C++17 | LSM 键值存储（WAL、MemTable、SST） | [ch05_lsm_tree](./deepvector/course/ch05_lsm_tree/) |
-| **SkyNet** | C++20 | 协程网络框架 | [ch11_coroutines](./deepvector/course/ch11_coroutines/) |
-| **DeepVector DB** | C++17 | HNSW 向量库、mmap、HTTP 服务 | [course/](./deepvector/course/) |
-| **AgenticDB** | Python | 多轮检索、MCP、FastAPI | [course/](./deepvector/course/) |
+| Phase | Description | Status |
+|------|-------------|--------|
+| Phase 0 | Cleanup + repository restructure | in-progress |
+| Phase 1 | C++ storage engine upgrade (MVCC, WAL, compaction, CF) | planned |
+| Phase 2 | C++ gRPC server + Go cgo client | planned |
+| Phase 3 | Go API gateway + auth service (JWT/RBAC/APIKey) | planned |
+| Phase 4 | Go data / meta / observability services | planned |
+| Phase 5 | Distributed layer: etcd + hashicorp/raft + sharding | planned |
+| Phase 6 | Next.js admin console | planned |
+| Phase 7 | Observability + Kubernetes + CI/CD | planned |
+| Phase 8 | CLI tool + multi-language SDK + documentation | planned |
 
-## 快速开始
+---
 
-详细步骤（含 Windows / Docker）：[RUN.md](./RUN.md)  
-免费 LLM / Ollama 配置：[FREE_RESOURCES_zh.md](./deepvector/course/FREE_RESOURCES_zh.md)
+## Development Environment
+
+### Requirements
+
+- **C++ build:** CMake 3.20+, GCC 12+ (Linux/WSL2), or Clang 15+
+- **Go:** 1.23+
+- **Node:** 20+ (for the web console)
+- **Docker:** 24+ (for the local dev stack)
+
+### Build (C++)
 
 ```bash
-# 编译 C++ 项目 / Build all C++ projects
-cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j$(nproc)
-
-# 安装 Python 依赖 / Install Python deps
-cd deepvector && pip install -r requirements.txt
-
-# 启动 DeepVector DB 服务器（维度需与 embedding 一致，默认 384）
-./build/deepvector/deepvector_server --port 8080 --dim 384
-
-# 启动 Agent 层 / Start Agent layer
-cd deepvector && python -m agent.server.app
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=ON
+cmake --build build -j
+ctest --test-dir build --output-on-failure
 ```
 
-## 课程目录 / Course Index
+### Local development stack
 
-| 课程 | 链接 | 章节数 |
-|------|------|--------|
-| 🎓 DeepVector 从零到一（点→线→面） | [course/](./deepvector/course/README.md) | 双轨 + Capstone |
-| 🧭 学习路线 | [LEARNING_PATH.md](./deepvector/course/LEARNING_PATH.md) | 积木顺序 |
-| 🎤 面试题库 | [INTERVIEW_BANK.md](./deepvector/course/INTERVIEW_BANK.md) | 真实考点映射 |
-| 🏗 架构 | [ARCHITECTURE.md](./deepvector/ARCHITECTURE.md) | Registry /metrics |
+Repositories for PostgreSQL / Redis / etcd / Jaeger / Prometheus / Grafana:
 
-## 文档 / Documentation
-
-| 文档 | 链接 | 内容 |
-|------|------|------|
-| 📖 架构 | [AGENTICDB.md](./deepvector/docs/AGENTICDB.md) | AgenticDB 系统架构 |
-| 🔧 操作手册 | [OPERATIONS.md](./deepvector/docs/OPERATIONS.md) | 安装/配置/排错 |
-| 🎯 面试题 | [PRODUCTION_QA.md](./deepvector/docs/PRODUCTION_QA.md) | 生产部署深度问答 |
-| 📚 API 参考 | [API_REFERENCE.md](./deepvector/API_REFERENCE.md) | C++/Python/HTTP API |
-
-## 技术栈 / Tech Stack
-
-```mermaid
-graph TB
-    subgraph C["C++ 层"]
-        MK["MiniKV<br/>LSM-Tree"]
-        SN["SkyNet<br/>C++20 Coroutines"]
-        DV["DeepVector DB<br/>HNSW + mmap"]
-    end
-    subgraph Py["Python 层"]
-        AG["AgenticDB<br/>LLM Agent"]
-        EM["Embedding<br/>sentence-transformers"]
-        MC["MCP Server<br/>协议集成"]
-    end
-    subgraph LLM["LLM 后端"]
-        OA["OpenAI API"]
-        OL["Ollama 本地"]
-    end
-    AG --> OA
-    AG --> OL
-    AG --> DV
-    MC --> DV
-    DV --> MK
-    DV --> SN
+```bash
+docker compose -f deploy/dev/docker-compose.yml up -d
 ```
 
-## Repository / 仓库
+### Make targets (unified entry)
 
-原四个独立仓库已合并为这个 monorepo:
+```bash
+make help        # list available targets
+make build       # build all C++ + Go services
+make test        # run C++ tests + Go tests
+make lint        # run clang-tidy + golangci-lint
+make docker-up   # bring up the local dev stack
+make docker-down # stop the local dev stack
+```
 
-| 原仓库 | 新位置 | 状态 |
-|--------|--------|------|
-| `MiniKV` | `./minikv/` | ✅ 已合并 |
-| `SkyNet` | `./skynet/` | ✅ 已合并 |
-| `LumenDB` | `./deepvector/` | ✅ 已合并 (已重命名) |
-| `lumendb-course` | `./deepvector/course/` | ✅ 已合并 (已删除远端) |
+---
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).
