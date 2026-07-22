@@ -13,9 +13,9 @@ After this module, you'll be able to answer interview questions like "Walk me th
 ## 1. Core Knowledge
 
 - TitanKV is a distributed KV storage platform **built from scratch** — not a wrapper over an existing database.
-- Three C++ subsystems: `minikv` (C++17 LSM-Tree engine), `skynet` (C++20 coroutine network lib), `deepvector` (HNSW vector index, legacy).
+- Two C++ subsystems: `minikv` (C++17 LSM-Tree engine), `skynet` (C++20 coroutine network lib).
 - The refactoring roadmap has 9 phases (see REFACTORING.md); currently in Phase 1.
-- Build system: top-level CMake aggregates `minikv`/`deepvector`; `skynet` builds standalone; Go uses `go.mod`; Next.js lives in `web/`.
+- Build system: top-level CMake aggregates `minikv`; `skynet` builds standalone; Go uses `go.mod`; Next.js lives in `web/`.
 - Unified entry: `make help` lists all targets; `make build`/`make test`/`make docker-up`.
 
 ## 2. Deep Dive
@@ -58,7 +58,7 @@ Key insight: **the storage engine and network layer are written from scratch** (
 
 ### 2.2 Build System Breakdown
 
-The top-level [CMakeLists.txt](file:///c:/Users/Administrator/Desktop/hellocpp/CMakeLists.txt) sets `CMAKE_CXX_STANDARD 17` and aggregates `minikv` and `deepvector` via `add_subdirectory`:
+The top-level [CMakeLists.txt](file:///c:/Users/Administrator/Desktop/hellocpp/CMakeLists.txt) sets `CMAKE_CXX_STANDARD 17` and aggregates `minikv` via `add_subdirectory`:
 
 ```cmake
 set(CMAKE_CXX_STANDARD 17)
@@ -66,7 +66,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)          # disable GNU extensions for portability
 option(ENABLE_TESTS "Enable unit tests" OFF)
 option(ENABLE_SANITIZERS "Enable Address/Thread sanitizers" OFF)
 add_subdirectory(minikv)
-add_subdirectory(deepvector)
 ```
 
 `minikv/CMakeLists.txt` compiles the core into a static library `minikv` and pulls Snappy + Zstd via `FetchContent` for block compression (see [cmake/FetchCompression.cmake](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/cmake/FetchCompression.cmake)).

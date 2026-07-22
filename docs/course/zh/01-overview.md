@@ -13,9 +13,9 @@
 ## 1. 核心知识
 
 - TitanKV 是一个**从零实现**的分布式 KV 存储平台，不是一个对现有数据库的封装。
-- 三大 C++ 子系统：`minikv`（C++17 LSM-Tree 存储引擎）、`skynet`（C++20 协程网络库）、`deepvector`（HNSW 向量索引，legacy）。
+- 两大 C++ 子系统：`minikv`（C++17 LSM-Tree 存储引擎）、`skynet`（C++20 协程网络库）。
 - 重构路线分 9 个 Phase（见 REFACTORING.md），当前处于 Phase 1。
-- 构建系统：顶层 CMake 聚合 `minikv`/`deepvector`；`skynet` 独立构建；Go 走 `go.mod`；Next.js 在 `web/`。
+- 构建系统：顶层 CMake 聚合 `minikv`；`skynet` 独立构建；Go 走 `go.mod`；Next.js 在 `web/`。
 - 统一入口：`make help` 列出全部目标；`make build`/`make test`/`make docker-up`。
 
 ## 2. 内容详解
@@ -60,7 +60,7 @@ flowchart TB
 
 ### 2.2 构建系统拆解
 
-顶层 [CMakeLists.txt](file:///c:/Users/Administrator/Desktop/hellocpp/CMakeLists.txt) 设定 `CMAKE_CXX_STANDARD 17`，并通过 `add_subdirectory` 聚合 `minikv` 与 `deepvector`：
+顶层 [CMakeLists.txt](file:///c:/Users/Administrator/Desktop/hellocpp/CMakeLists.txt) 设定 `CMAKE_CXX_STANDARD 17`，并通过 `add_subdirectory` 聚合 `minikv`：
 
 ```cmake
 set(CMAKE_CXX_STANDARD 17)
@@ -68,7 +68,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)          # 关闭 GNU 扩展，保证可移植
 option(ENABLE_TESTS "Enable unit tests" OFF)
 option(ENABLE_SANITIZERS "Enable Address/Thread sanitizers" OFF)
 add_subdirectory(minikv)
-add_subdirectory(deepvector)
 ```
 
 `minikv/CMakeLists.txt` 把核心编译为静态库 `minikv`，并通过 `FetchContent` 拉取 Snappy + Zstd 做块压缩（见 [cmake/FetchCompression.cmake](file:///c:/Users/Administrator/Desktop/hellocpp/minikv/cmake/FetchCompression.cmake)）。

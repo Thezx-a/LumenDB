@@ -153,7 +153,6 @@ titan-kv/
 │   ├── src/http/       #   parser / router / headers / response
 │   ├── src/proxy/      #   load_balancer / connection_pool / health_check / upstream
 │   └── gateway/        #   skynet 网关示例（gateway.yaml）
-├── deepvector/         # (legacy) C++ HNSW 向量索引 / legacy C++ HNSW vector index
 ├── gateway/            # Go API 网关 (Gin) / Go API gateway (Gin)
 │   ├── handler/        #   ping / proxy
 │   └── middleware/     #   RequestID / Logger / Recover / RateLimit / Auth / RBAC
@@ -188,9 +187,9 @@ titan-kv/
 
 ## 项目状态 / Project Status
 
-> 当前正在从早期的 AI/向量数据库方向重构为通用分布式 KV 存储平台。详见 [`docs/REFACTORING.md`](docs/REFACTORING.md)。
+> 详见 [`docs/REFACTORING.md`](docs/REFACTORING.md) 获取详细的重构计划与当前进度。
 >
-> The project is being refactored from an earlier AI/vector-DB direction into a general-purpose distributed KV platform. See [`docs/REFACTORING.md`](docs/REFACTORING.md).
+> See [`docs/REFACTORING.md`](docs/REFACTORING.md) for the detailed refactoring plan and current progress.
 
 | Phase | 描述 / Description | 状态 / Status |
 |---|---|---|
@@ -270,7 +269,7 @@ make web-dev
 
 ## 构建与测试 / Build & Test
 
-### C++（minikv + skynet + deepvector）
+### C++（minikv + skynet）
 
 ```bash
 cmake -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=ON

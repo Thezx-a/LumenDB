@@ -8,7 +8,7 @@ on:
 
 jobs:
   # -----------------------------------------------------------------
-  # C++ — Storage engine (MiniKV), network lib (SkyNet), legacy C++ server
+  # C++ — Storage engine (MiniKV), network lib (SkyNet)
   # -----------------------------------------------------------------
   cpp:
     name: C++ (${{ matrix.name }})
@@ -25,9 +25,6 @@ jobs:
             configure-args: "-DENABLE_TESTS=ON"
           - name: SkyNet (standalone)
             dir: skynet
-            configure-args: "-DENABLE_TESTS=ON"
-          - name: DeepVector server (legacy, pending refactor)
-            dir: deepvector
             configure-args: "-DENABLE_TESTS=ON"
     steps:
       - uses: actions/checkout@v4

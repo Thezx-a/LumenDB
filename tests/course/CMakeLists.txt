@@ -4,7 +4,7 @@
 # GoogleTest 通过 FetchContent 拉取（若上层未提供 GTest::gtest_main target）。
 # 参考: minikv/cmake/FetchGoogleTest.cmake
 
-# 若上层（minikv / deepvector 作为顶层项目时）已拉取 GTest，则直接复用。
+# 若上层（minikv 作为顶层项目时）已拉取 GTest，则直接复用。
 if(NOT TARGET GTest::gtest_main)
     include(FetchContent)
     FetchContent_Declare(

@@ -834,6 +834,25 @@ export function LiveMetrics() {
 
 ## 5. 自检
 
+1. Gin 中间件洋葱模型中，`c.Next()` 之前是____阶段，之后是____阶段。
+2. JWT 三段是____、____、____，TitanKV 用____算法签名，且必须拒绝____攻击。
+3. bcrypt 的 cost 每增加 1，计算耗时____（翻倍/减半）；cost=12 大约耗时____ms。
+4. 令牌桶限流必须用 Lua 是因为____需要原子性，Redis 执行 Lua 是____（单/多）线程故天然原子。
+5. Next.js RSC 默认____（发送/不发送）JS 到浏览器，需要交互（state/effect）的组件必须加____指令。
+
+<details>
+<summary>参考答案</summary>
+
+1. 请求；响应
+2. Header；Payload；Signature；HMAC-SHA256；`alg: none`
+3. 翻倍；约 250
+4. 「读令牌数 → 补充 → 写回」三步；单
+5. 不发送；`'use client'`
+
+</details>
+
+以下为各思考题的参考答案：
+
 <details>
 <summary>题 1 答案</summary>
 

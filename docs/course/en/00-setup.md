@@ -24,7 +24,7 @@ Let's first draw the TitanKV toolchain relationships with a Mermaid diagram. Wit
 ```mermaid
 flowchart LR
     subgraph Source["Source (Repository)"]
-        CPP["C++ Source<br/>minikv/ + skynet/ + deepvector/"]
+        CPP["C++ Source<br/>minikv/ + skynet/"]
         GO["Go Source<br/>gateway/ + services/"]
         WEB["Web Source<br/>web/ (Next.js)"]
     end
@@ -872,6 +872,325 @@ Expected output (all green ✓):
 
 If any `[✗]` appears, go back to the relevant platform section and reinstall that tool.
 
+### 6.1 Deep Verification (Compile & Build Tests)
+
+The `check-env.sh` script above only verifies version numbers, but a passing version check does not guarantee the toolchain actually works. In this section we go one step deeper: we actually compile/run a minimal piece of code with each toolchain. If all four checks below pass, your environment is 100% ready.
+
+#### 6.1.1 Verify the C++ Compiler Can Build C++17 Code
+
+```bash
+cat > /tmp/test_cpp17.cpp << 'EOF'
+#include <iostream>
+#include <string_view>
+#include <optional>
+
+// C++17 features: string_view + optional
+std::optional<std::string_view> greet(std::string_view name) {
+    if (name.empty()) return std::nullopt;
+    return "Hello, " + std::string(name);
+}
+
+int main() {
+    if (auto msg = greet("TitanKV")) {
+        std::cout << *msg << '\n';
+    }
+    return 0;
+}
+EOF
+
+g++ -std=c++17 /tmp/test_cpp17.cpp -o /tmp/test_cpp17
+/tmp/test_cpp17
+# Expected output: Hello, TitanKV
+```
+
+On macOS with Clang, replace `g++` with `clang++`.
+
+#### 6.1.2 Verify Go Can Build
+
+```bash
+mkdir -p /tmp/test_go && cd /tmp/test_go
+cat > main.go << 'EOF'
+package main
+
+import "fmt"
+
+func main() {
+    fmt.Println("Hello, TitanKV from Go!")
+}
+EOF
+
+go mod init test_go
+go build -o /tmp/test_go_bin .
+/tmp/test_go_bin
+# Expected output: Hello, TitanKV from Go!
+cd - && rm -rf /tmp/test_go
+```
+
+#### 6.1.3 Verify Node.js Can Run
+
+```bash
+node -e "console.log('Hello, TitanKV from Node.js ' + process.version)"
+# Expected output: Hello, TitanKV from Node.js v20.x.x
+```
+
+#### 6.1.4 Verify CMake Can Configure a Project
+
+```bash
+mkdir -p /tmp/test_cmake && cd /tmp/test_cmake
+cat > CMakeLists.txt << 'EOF'
+cmake_minimum_required(VERSION 3.20)
+project(test_cmake LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 17)
+add_executable(test_cmake main.cpp)
+EOF
+
+cat > main.cpp << 'EOF'
+#include <iostream>
+int main() { std::cout << "CMake build works!\n"; return 0; }
+EOF
+
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
+./build/test_cmake
+# Expected output: CMake build works!
+cd - && rm -rf /tmp/test_cmake
+```
+
+If all four pass, your C++ / Go / Node.js / CMake toolchains are fully usable and you can proceed to Module 01.
+
+### 6.2 Proxy & Mirror Configuration (Mainland China Users)
+
+If you are in mainland China, many dependency sources point to overseas servers by default and downloads may time out. This section collects all mirror/proxy configurations in one place so you can set them up once.
+
+#### 6.2.1 Go Module Proxy
+
+```bash
+go env -w GO111MODULE=on
+go env -w GOPROXY=https://goproxy.cn,direct
+go env -w GOSUMDB=sum.golang.google.cn
+```
+
+> `goproxy.cn` is a public Go module proxy operated by Qiniu Cloud, stable and fast. `direct` is the fallback that connects directly to the origin when the proxy has no cache.
+
+#### 6.2.2 npm Mirror
+
+```bash
+# Permanently switch to the Taobao mirror
+npm config set registry https://registry.npmmirror.com
+
+# Verify
+npm config get registry
+# Expected output: https://registry.npmmirror.com/
+
+# If you only want to use the mirror for a single install without the global --registry switch:
+npm install --registry=https://registry.npmmirror.com
+```
+
+#### 6.2.3 Docker Registry Mirrors
+
+**Linux (daemon.json):**
+
+```bash
+sudo mkdir -p /etc/docker
+sudo tee /etc/docker/daemon.json <<EOF
+{
+  "registry-mirrors": [
+    "https://docker.m.daocloud.io",
+    "https://dockerproxy.com",
+    "https://docker.mirrors.ustc.edu.cn"
+  ]
+}
+EOF
+sudo systemctl daemon-reload
+sudo systemctl restart docker
+```
+
+**Docker Desktop (Windows/macOS):**
+
+Open Docker Desktop → Settings → Docker Engine and add the `registry-mirrors` field to the JSON:
+
+```json
+{
+  "registry-mirrors": [
+    "https://docker.m.daocloud.io",
+    "https://dockerproxy.com"
+  ]
+}
+```
+
+Click Apply & Restart.
+
+#### 6.2.4 Git Proxy
+
+If you run a local proxy tool (e.g., Clash listening on port 7890):
+
+```bash
+# Set global proxy
+git config --global http.proxy http://127.0.0.1:7890
+git config --global https.proxy http://127.0.0.1:7890
+
+# Remove the proxy
+git config --global --unset http.proxy
+git config --global --unset https.proxy
+
+# Only proxy github.com (does not affect corporate intranet git)
+git config --global http.https://github.com.proxy http://127.0.0.1:7890
+```
+
+#### 6.2.5 CMake FetchContent Proxy
+
+FetchContent also hits the network when pulling GitHub dependencies (gtest/snappy/zstd), so you need to set environment variables:
+
+```bash
+export HTTP_PROXY=http://127.0.0.1:7890
+export HTTPS_PROXY=http://127.0.0.1:7890
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+```
+
+### 6.3 Docker Desktop Advanced Configuration
+
+Installing Docker is only the first step; resource allocation and backend choice directly affect the experience when running `docker compose up` for the full stack later.
+
+#### 6.3.1 Windows: WSL2 Backend Configuration
+
+Docker Desktop on Windows has two backends: Hyper-V and WSL2. **The WSL2 backend is strongly recommended** — it starts faster and uses resources more efficiently.
+
+1. Open Docker Desktop → Settings → General;
+2. Make sure **Use the WSL 2 based engine** is checked;
+3. Go to Settings → Resources → WSL Integration and enable the distro you use (e.g., Ubuntu-22.04);
+4. Verify inside a WSL2 terminal:
+
+```bash
+docker --version
+docker ps
+# If docker runs directly inside WSL2, the integration is configured correctly
+```
+
+5. To limit WSL2 memory usage, create/edit `.wslconfig` in your Windows user directory:
+
+```ini
+# C:\Users\<your-username>\.wslconfig
+[wsl2]
+memory=8GB
+processors=4
+swap=2GB
+```
+
+Run `wsl --shutdown` and reopen the WSL terminal for the changes to take effect.
+
+#### 6.3.2 macOS: Resource Limit Configuration
+
+Docker Desktop on Mac requires manual resource allocation. The default 2GB of memory will OOM when running the full TitanKV stack (Postgres + Redis + etcd + Jaeger + Prometheus + Grafana).
+
+1. Open Docker Desktop → Settings → Resources;
+2. **Memory**: at least 4GB, 6GB recommended;
+3. **CPUs**: at least 2 cores, 4 recommended;
+4. **Swap**: 1GB;
+5. **Disk image size**: at least 64GB;
+6. Click Apply & Restart.
+
+Additional notes for Apple Silicon users:
+- Make sure Settings → General has **Use Virtualization framework** checked (enabled by default in newer versions);
+- If amd64 images fail to run, make sure **Use Rosetta for x86/amd64 emulation** is checked.
+
+#### 6.3.3 Linux: Post-Install User Group Configuration
+
+On Linux, Docker requires `sudo` by default, and typing `sudo docker` every time is tedious. After installation, always add your user to the `docker` group:
+
+```bash
+# Add to the docker group
+sudo usermod -aG docker $USER
+
+# Make the group change take effect (one of the following)
+newgrp docker        # Takes effect in the current terminal immediately
+# Or log out and log back in  # Takes effect in all terminals
+
+# Verify (no sudo needed)
+docker ps
+docker run --rm hello-world
+```
+
+If you still get `permission denied` after `newgrp docker`, rebooting is the most reliable fix.
+
+Configure Docker to start on boot:
+
+```bash
+sudo systemctl enable docker
+sudo systemctl start docker
+```
+
+### 6.4 Environment Variables Reference
+
+This section summarizes the environment variables commonly used during TitanKV development and explains how to persist them on each platform.
+
+#### 6.4.1 Common Environment Variables
+
+| Variable | Typical Value | Purpose |
+|----------|---------------|---------|
+| `GOROOT` | `/usr/local/go` | Go installation directory (usually auto-inferred, no need to set manually) |
+| `GOPATH` | `$HOME/go` | Go workspace (where third-party packages and build artifacts live) |
+| `GOPROXY` | `https://goproxy.cn,direct` | Go module proxy |
+| `NODE_PATH` | `/usr/lib/node_modules` | Node.js global module search path (usually no need to set manually) |
+| `CMAKE_PREFIX_PATH` | `/usr/local;/opt/homebrew` | Extra paths for CMake's `find_package` |
+| `PKG_CONFIG_PATH` | `/usr/local/lib/pkgconfig` | Path where pkg-config looks for `.pc` files |
+| `HTTP_PROXY` | `http://127.0.0.1:7890` | HTTP proxy (used by FetchContent / go mod) |
+| `HTTPS_PROXY` | `http://127.0.0.1:7890` | HTTPS proxy |
+
+#### 6.4.2 Linux / macOS / WSL2 (.bashrc / .zshrc)
+
+Append the following to `~/.bashrc` (Bash) or `~/.zshrc` (Zsh, the macOS default):
+
+```bash
+# Go
+export GOROOT=/usr/local/go
+export GOPATH=$HOME/go
+export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+export GOPROXY=https://goproxy.cn,direct
+
+# CMake / pkg-config (as needed)
+export CMAKE_PREFIX_PATH=/usr/local:/opt/homebrew
+export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
+
+# Proxy (enable as needed; comment out when not in use)
+# export HTTP_PROXY=http://127.0.0.1:7890
+# export HTTPS_PROXY=http://127.0.0.1:7890
+```
+
+Apply the configuration:
+
+```bash
+source ~/.bashrc   # or source ~/.zshrc
+```
+
+> On macOS Apple Silicon, Homebrew installs into `/opt/homebrew`; on Intel Macs it installs into `/usr/local`. `CMAKE_PREFIX_PATH` should match accordingly.
+
+#### 6.4.3 Windows (System Environment Variables)
+
+**Option A: GUI**
+
+1. Press `Win + R`, type `sysdm.cpl`, and press Enter;
+2. Switch to the "Advanced" tab → "Environment Variables";
+3. Under "User variables", create/edit:
+   - `GOPATH` = `C:\Users\<you>\go`
+   - Append `C:\Go\bin` to `Path` (if you used the MSI installer, the installer already configured this)
+4. After confirming, **restart your terminal** (not the computer) for the changes to take effect.
+
+**Option B: PowerShell (persistent)**
+
+```powershell
+# Set a user-level environment variable (persistent)
+[Environment]::SetEnvironmentVariable("GOPATH", "$env:USERPROFILE\go", "User")
+
+# Append to Path
+$currentPath = [Environment]::GetEnvironmentVariable("Path", "User")
+[Environment]::SetEnvironmentVariable("Path", "$currentPath;C:\Go\bin", "User")
+
+# Verify (reopen the terminal first)
+go env GOPATH
+```
+
+> On Windows, `GOROOT` is usually set automatically by the Go installer and does not need to be configured manually.
+
 ## 7. Common Issues Troubleshooting
 
 This section collects the pitfalls students hit most often, grouped by issue type.
@@ -1121,19 +1440,32 @@ VSCode is TitanKV's primary IDE for three reasons: free, cross-platform, and Rem
 
 #### 8.1.1 Must-Have Extensions
 
-Open the VSCode Extensions Marketplace (`Ctrl+Shift+X`) and search for and install:
+Open the VSCode Extensions Marketplace (`Ctrl+Shift+X`) and search for and install. You can also batch-install from the command line with `code --install-extension <extension-id>`:
 
-| Extension | Publisher | Purpose |
-|---|---|---|
-| **C/C++** | Microsoft | C/C++ IntelliSense, debugging |
-| **CMake Tools** | Microsoft | CMake project integration, build, debug |
-| **Go** | Go Team | Go language support, debug, testing |
-| **Remote - WSL** | Microsoft | WSL2 remote development (must-have for Windows users) |
-| **Remote - SSH** | Microsoft | Remote Linux server development (optional) |
-| **Docker** | Microsoft | Docker container management |
-| **YAML** | Red Hat | docker-compose.yml highlighting |
-| **Markdown All in One** | Yu Zhang | Writing docs (this project has many .md files) |
-| **Tailwind CSS IntelliSense** | Tailwind Labs | web/ frontend development |
+| Extension | Extension ID | Publisher | Purpose |
+|---|---|---|---|
+| **C/C++** | `ms-vscode.cpptools` | Microsoft | C/C++ IntelliSense, debugging |
+| **CMake Tools** | `ms-vscode.cmake-tools` | Microsoft | CMake project integration, build, debug |
+| **Go** | `golang.go` | Go Team | Go language support, debug, testing |
+| **Remote - WSL** | `ms-vscode-remote.remote-wsl` | Microsoft | WSL2 remote development (must-have for Windows users) |
+| **Remote - SSH** | `ms-vscode-remote.remote-ssh` | Microsoft | Remote Linux server development (optional) |
+| **Docker** | `ms-azuretools.vscode-docker` | Microsoft | Docker container management |
+| **YAML** | `redhat.vscode-yaml` | Red Hat | docker-compose.yml highlighting |
+| **Markdown All in One** | `yzhang.markdown-all-in-one` | Yu Zhang | Writing docs (this project has many .md files) |
+| **Tailwind CSS IntelliSense** | `bradlc.vscode-tailwindcss` | Tailwind Labs | web/ frontend development |
+
+One-shot install script (Linux/macOS/WSL):
+
+```bash
+code --install-extension ms-vscode.cpptools \
+     --install-extension ms-vscode.cmake-tools \
+     --install-extension golang.go \
+     --install-extension ms-vscode-remote.remote-wsl \
+     --install-extension ms-azuretools.vscode-docker \
+     --install-extension redhat.vscode-yaml \
+     --install-extension yzhang.markdown-all-in-one \
+     --install-extension bradlc.vscode-tailwindcss
+```
 
 #### 8.1.2 c_cpp_properties.json Example
 
@@ -1152,7 +1484,6 @@ Create `.vscode/c_cpp_properties.json` in the project root so IntelliSense resol
                 "${workspaceFolder}/minikv/src/utils",
                 "${workspaceFolder}/minikv/src/network",
                 "${workspaceFolder}/skynet/include",
-                "${workspaceFolder}/deepvector/include",
                 "${workspaceFolder}/build/_deps/*-src/**",
                 "${workspaceFolder}/minikv/build/_deps/*-src/**"
             ],
@@ -1171,8 +1502,7 @@ Create `.vscode/c_cpp_properties.json` in the project root so IntelliSense resol
             "includePath": [
                 "${workspaceFolder}/**",
                 "${workspaceFolder}/minikv/include",
-                "${workspaceFolder}/skynet/include",
-                "${workspaceFolder}/deepvector/include"
+                "${workspaceFolder}/skynet/include"
             ],
             "defines": [],
             "cStandard": "c17",
@@ -1252,6 +1582,73 @@ Note the `_deps/*-src/**` in `includePath` — that's where CMake FetchContent d
     ]
 }
 ```
+
+#### 8.1.5 launch.json (Debug Configuration)
+
+`.vscode/launch.json` is used to launch the debugger with F5. The configuration below covers both C++ (GDB/LLDB) and Go (Delve) debugging scenarios — keep only the entries you need:
+
+```json
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "C++ Debug (minikv)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/minikv/minikv_tests",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "setupCommands": [
+                { "description": "Enable pretty-printing for gdb", "text": "-enable-pretty-printing", "ignoreFailures": true }
+            ],
+            "preLaunchTask": "TitanKV: CMake Build (Debug)"
+        },
+        {
+            "name": "C++ Debug (skynet, macOS LLDB)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/skynet/build/skynet_demo",
+            "args": [],
+            "cwd": "${workspaceFolder}/skynet",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb",
+            "preLaunchTask": "TitanKV: CMake Build (Debug)"
+        },
+        {
+            "name": "Go Debug (gateway)",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/gateway",
+            "env": {
+                "TITANKV_ENV": "dev",
+                "TITANKV_LOG_LEVEL": "debug"
+            },
+            "args": ["-config", "deploy/dev/gateway.yaml"]
+        },
+        {
+            "name": "Go Debug (current file)",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${fileDirname}"
+        }
+    ]
+}
+```
+
+Usage notes:
+
+- **C++ debugging**: the `program` field must point to the actual built executable path. Use `MIMode: gdb` on Linux, `lldb` on macOS (on Windows with MSVC, use the `cppvsdbg` type). Build once first (`preLaunchTask` triggers the build task in tasks.json), then press F5.
+- **Go debugging**: you need the Go extension (`golang.go`) and the Delve debugger (`go install github.com/go-delve/delve/cmd/dlv@latest`) installed first. `mode: debug` compiles and attaches the debugger directly; to attach to an already-running process, change `request` to `attach` and specify `processId`.
+- **Breakpoint navigation**: set breakpoints in source files under `minikv/src/` or `skynet/src/`; they will be hit automatically when you start a C++ debug session.
+- **WSL users**: after connecting from the Windows-side VSCode via Remote-WSL, `launch.json` paths and toolchain are all treated as Linux — no special changes needed.
 
 ### 8.2 CLion (Paid but Excellent)
 

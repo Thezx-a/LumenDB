@@ -51,7 +51,7 @@ cpp-test: cmake-build ## Run C++ unit tests (ctest)
 	cd $(CMAKE_BUILD_DIR) && ctest --output-on-failure --parallel $(JOBS)
 
 cpp-lint: ## Run clang-tidy on C++ sources
-	@find minikv skynet deepvector -name '*.cpp' -o -name '*.h' \
+	@find minikv skynet -name '*.cpp' -o -name '*.h' \
 		| xargs -r $(CLANG_TIDY) -p $(CMAKE_BUILD_DIR)
 
 # ---------------------------------------------------------

@@ -152,6 +152,306 @@ web/app/
 - **客户端组件**：`'use client'` 指令，用于交互（useState、事件）。
 - **TanStack Query**：客户端数据缓存、失效、乐观更新；与服务端组件互补。
 
+### 2.7 Go 语言基础：变量、类型、控制流、函数、`defer`
+
+上面讲了 goroutine/channel 这套并发心脏，但读 TitanKV 的 Go 代码你还得先过基础语法关。我们用最小篇幅把 Go 最常用的货色过一遍。
+
+**变量声明**有三种姿势，按场景挑：
+
+```go
+var a int           // 零值初始化（a = 0），显式类型
+var b = 42          // 类型推断（b 是 int）
+c := "hello"        // 短变量声明（函数内专用），最常用
+var d, e int = 1, 2 // 多变量
+```
+
+`:=` 只能在函数内用；包级变量必须用 `var`。Go 没有「未初始化」——所有变量有**零值**（int 是 0、string 是 `""`、指针是 `nil`、slice 是 `nil`），不会像 C++ 那样读到垃圾值。
+
+**基本类型**：
+
+```go
+var s string = "key"
+var i int = 100              // 平台相关宽度，通常 64 位
+var u uint64 = 1 << 40
+var f float64 = 3.14
+var ok bool = true
+nums := []int{1, 2, 3}       // slice（变长数组）
+m := map[string]int{"a": 1}  // map（哈希表）
+type Pair struct { K, V string }
+p := Pair{K: "x", V: "y"}
+```
+
+- `slice` 是 `([]T, len, cap)` 三元组，`append` 可能重新分配底层数组——这跟 C++ `std::vector` 类似但**没有迭代器失效警告**，靠纪律。
+- `map` 是哈希表，遍历顺序随机（Go 故意打乱以防依赖顺序）。
+- `struct` 是值类型，赋值是拷贝；要共享就传指针 `*Pair`。
+
+**控制流**——Go 把流程控制砍到极简：
+
+```go
+// if：条件不加括号，但花括号必填
+if err != nil { return err }
+
+// for：唯一循环关键字，当 while 用也行
+for i := 0; i < 10; i++ { /* C 风格 */ }
+for n > 0 { n-- }              // 当 while 用
+for range nums { /* index */ } // 遍历
+for i, v := range nums { /* i 索引, v 值 */ }
+
+// switch：默认 break，不穿透（除非 fallthrough）
+switch s {
+case "GET", "HEAD": handleRead()
+case "POST": handleWrite()
+default: NotFound()
+}
+
+// select：多路复用 channel（见 2.2）
+select {
+case v := <-ch: fmt.Println(v)
+case <-time.After(time.Second): fmt.Println("timeout")
+}
+```
+
+**函数**：多返回值、闭包、`defer` 三件套：
+
+```go
+// 多返回值：Go 错误处理的基础
+func Get(key string) (string, error) {
+    if key == "" { return "", errors.New("empty key") }
+    return "val", nil
+}
+
+// 闭包：捕获外层变量
+func counter() func() int {
+    n := 0
+    return func() int { n++; return n }
+}
+
+// defer：函数返回前执行，常用于资源释放
+func readFile(path string) error {
+    f, err := os.Open(path)
+    if err != nil { return err }
+    defer f.Close()           // 无论怎么 return 都会关
+    // ... 读文件 ...
+    return nil
+}
+```
+
+- `defer` 按 LIFO 顺序执行（栈），多个 defer 反向出栈。
+- `defer` 的实参在 defer 语句处求值，不是真正执行时——这是高频面试坑。
+- 多返回值让 Go 不用异常也能优雅传递错误，配合 `if err != nil` 是社区惯例。
+
+### 2.8 Go 包管理、`panic`/`recover`、`sync` 补遗
+
+**包管理**用 `go mod`，TitanKV 的 [go.mod](file:///c:/Users/Administrator/Desktop/hellocpp/go.mod) 声明模块路径 `github.com/titan-kv/titan`：
+
+```
+module github.com/titan-kv/titan
+go 1.22
+require (
+    google.golang.org/grpc v1.62.0
+    github.com/redis/go-redis/v9 v9.5.0
+)
+```
+
+- `go mod init <module>` 初始化，`go get <pkg>` 加依赖，`go mod tidy` 清理。
+- import 路径就是模块路径 + 子目录：`import "github.com/titan-kv/titan/internal/gateway"`。
+- 大写开头是导出（`Get`），小写开头是包内私有（`get`）——这条规则替代了 `public`/`private` 关键字。
+
+**`panic` / `recover`**：Go 不用异常做常规错误处理，但 `panic` 用于「不该发生的不可恢复错误」（类似 `assert` 失败）：
+
+```go
+func mustGet(key string) string {
+    v, ok := data[key]
+    if !ok { panic("key must exist: " + key) }
+    return v
+}
+
+// recover 只在 defer 里有效，捕获 panic 让程序不崩
+func safeRun(f func()) (err error) {
+    defer func() {
+        if r := recover(); r != nil {
+            err = fmt.Errorf("panic: %v", r)
+        }
+    }()
+    f()
+    return nil
+}
+```
+
+社区惯例：库代码**不**该 panic 给调用方，应该返回 error；只有「初始化失败就该挂」或「不变量被破坏」才 panic。
+
+**`sync` 包补遗**：除了 channel，Go 也有显式锁：
+
+```go
+var mu sync.Mutex
+mu.Lock(); defer mu.Unlock()
+
+var wg sync.WaitGroup
+for i := 0; i < 10; i++ {
+    wg.Add(1)
+    go func() { defer wg.Done(); work() }()
+}
+wg.Wait()   // 等所有 goroutine 完成
+```
+
+`sync.WaitGroup` 是「等一批 goroutine 结束」的标准姿势，对应 C++ 的 `barrier`；`sync.Mutex` 就是普通互斥锁。Go 的口号是「不要通过共享内存通信，而要通过通信共享内存」，但真要共享内存时 `sync` 一点也不少用。
+
+### 2.9 TypeScript 类型系统补全：联合/交叉类型、泛型、枚举、类型守卫
+
+2.5 讲了 `type` vs `interface` 和工具类型，这里把剩下的基础补齐。
+
+**联合类型与可选属性**：联合类型是 TS 表达「多种可能」的核心：
+
+```typescript
+type ID = string | number;          // 联合：ID 可以是 string 或 number
+type Response =
+  | { status: 'ok'; data: Collection[] }   // 可辨识联合
+  | { status: 'error'; message: string };
+
+type User = {
+  id: string;
+  name: string;
+  email?: string;                   // 可选属性（email 可能 undefined）
+  role: 'admin' | 'viewer' | 'editor';  // 字面量联合
+};
+```
+
+- 联合类型用 `|`，交叉类型用 `&`（取并集）：
+  ```typescript
+  type Timestamps = { createdAt: Date; updatedAt: Date };
+  type NamedEntity = { id: string; name: string };
+  type Record = NamedEntity & Timestamps;   // 三个字段都有
+  ```
+- 可选属性 `?` 等价于 `field: T | undefined`，但严格模式下 `undefined` 要显式区分。
+- 可辨识联合（discriminated union）是 TS 模拟「标签枚举」的标准模式，配合类型守卫很好用。
+
+**泛型基础**：跟 C++ 模板神似但更轻（编译期擦除）：
+
+```typescript
+function getOrDefault<K>(map: Map<K, string>, key: K, def: string): string {
+  return map.get(key) ?? def;
+}
+
+interface Repo<T> {
+  get(id: string): Promise<T | null>;
+  list(): Promise<T[]>;
+  create(input: Omit<T, 'id'>): Promise<T>;
+}
+
+class CollectionRepo implements Repo<Collection> { /* ... */ }
+```
+
+- 泛型约束：`<T extends { id: string }>` 限制 T 必须有 id 字段。
+- 泛型默认值：`<T = string>` 调用时不传默认是 string。
+
+**枚举**：分数字枚举和字符串枚举：
+
+```typescript
+enum ShardStatus {
+  Healthy = 'HEALTHY',
+  Degraded = 'DEGRADED',
+  Offline = 'OFFLINE',
+}
+// 字符串枚举更安全，调试时打印可读
+```
+
+注意：`enum` 会生成运行时代码（不是纯类型），追求零运行时开销可用 `as const` 对象替代：
+
+```typescript
+const ShardStatus = { Healthy: 'HEALTHY', Degraded: 'DEGRADED' } as const;
+type ShardStatus = typeof ShardStatus[keyof typeof ShardStatus];
+```
+
+**类型守卫**：在联合类型里「收窄」出具体分支：
+
+```typescript
+function handle(resp: Response) {
+  if (resp.status === 'ok') {
+    console.log(resp.data);   // TS 知道这里 resp 是 { status:'ok'; data:... }
+  } else {
+    console.log(resp.message); // TS 知道这里 resp 是 { status:'error'; message:... }
+  }
+}
+
+// typeof：区分原始类型
+function len(x: string | string[]) {
+  if (typeof x === 'string') return x.length;
+  return x.length;
+}
+
+// instanceof：区分类实例
+if (err instanceof ValidationError) { /* ... */ }
+
+// in：区分有某属性的对象
+if ('code' in err) { console.log(err.code); }
+```
+
+类型守卫是 TS 把「运行时检查」和「编译时类型」绑在一起的关键——检查通过后，TS 在该分支内自动收窄类型，免得你手动断言。
+
+### 2.10 React 基础：函数组件、Props、`useState`、`useEffect`
+
+TitanKV 控制台用 Next.js（基于 React），这里把 React 函数组件和最常用的两个 Hook 过一遍。
+
+**函数组件 + Props**：现代 React 不用 class 了，一切是函数：
+
+```tsx
+type ShardCardProps = {
+  shard: { id: string; qps: number; latency: number };
+  onRefresh?: () => void;          // 可选回调
+};
+
+function ShardCard({ shard, onRefresh }: ShardCardProps) {
+  return (
+    <div className="card">
+      <h3>分片 {shard.id}</h3>
+      <p>QPS: {shard.qps} · 延迟: {shard.latency}ms</p>
+      {onRefresh && <button onClick={onRefresh}>刷新</button>}
+    </div>
+  );
+}
+```
+
+- 组件名首字母大写（`ShardCard`），否则 React 当 HTML 标签。
+- Props 是只读的，组件内绝不能改 `shard` 本身；要交互就用 state。
+- `children` prop 让组件可嵌套：`function Card({ children }: { children: React.ReactNode })`。
+
+**`useState`**：组件内的可变状态，触发重渲染：
+
+```tsx
+function Counter() {
+  const [count, setCount] = useState<number>(0);   // 泛型指定类型
+  return <button onClick={() => setCount(c => c + 1)}>点击 {count}</button>;
+}
+```
+
+- `useState` 返回 `[当前值, setter]` 二元组。
+- setter 接受新值或函数 `prev => next`（推荐函数式，避免闭包读到旧 state）。
+- 状态更新是异步批量的，连续 `setCount` 不会立刻反映。
+
+**`useEffect`**：处理副作用（订阅、定时器、数据请求）：
+
+```tsx
+function useShardMetrics(id: string) {
+  const [metrics, setMetrics] = useState<Metrics | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/shards/${id}/metrics`)
+      .then(r => r.json())
+      .then(m => { if (!cancelled) setMetrics(m); });
+    return () => { cancelled = true; };   // 清理函数：组件卸载或 id 变化时跑
+  }, [id]);                               // 依赖数组：仅 id 变化时重新执行
+
+  return metrics;
+}
+```
+
+- 第二个参数是**依赖数组**：`[]` 只跑一次（挂载时），`[id]` 在 id 变化时重跑，省略则每次渲染都跑（通常不是你想要的）。
+- 返回的清理函数在组件卸载或下次 effect 跑之前执行，用来取消订阅、清定时器——**忘记清理是最常见的内存泄漏来源**。
+- 服务端组件里**不能**用 `useState`/`useEffect`，要用它们必须 `'use client'`。
+
+读 TitanKV 控制台代码时，记住这条心智：**服务端组件取数据，客户端组件管交互**，两者用 props 串联。
+
 ## 3. 思考题
 
 1. goroutine 和 C++ 的 `std::thread`、`std::coroutine` 各有什么本质区别？

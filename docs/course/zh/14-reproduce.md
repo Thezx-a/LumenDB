@@ -176,7 +176,7 @@ git clone https://github.com/Thezx-a/LumenDB.git
 cd LumenDB
 ```
 
-> 说明：GitHub 上的仓库名是 `LumenDB`（项目正在从向量库重构为 KV 平台，见 `docs/REFACTORING.md`），代码内部模块名是 `titan`（Go module path 为 `github.com/titan-kv/titan`）。两者指的是同一个项目。
+> 说明：GitHub 上的仓库名是 `LumenDB`（一个从零实现的分布式 KV 平台，见 `docs/REFACTORING.md`），代码内部模块名是 `titan`（Go module path 为 `github.com/titan-kv/titan`）。两者指的是同一个项目。
 
 拉下来之后，项目根目录长这样：
 
@@ -184,7 +184,6 @@ cd LumenDB
 LumenDB/
 ├── minikv/              # C++17 LSM-Tree 存储引擎（Module 05-08 的主角）
 ├── skynet/              # C++20 协程网络库（Module 09-10 的主角）
-├── deepvector/          # HNSW 向量索引（待重构为二级索引）
 ├── gateway/             # Go API 网关（Gin + 中间件链）
 ├── services/            # Go 微服务
 │   ├── auth/            #   认证服务（JWT + APIKey + RBAC）
@@ -196,7 +195,7 @@ LumenDB/
 ├── tests/course/        # 课程单元测试（7 个文件，独立构建）
 ├── deploy/dev/          # Docker Compose 本地开发栈
 ├── docs/course/         # 中英双语课程（你正在看的这个）
-├── CMakeLists.txt       # 顶层 CMake（聚合 minikv + deepvector + 课程测试）
+├── CMakeLists.txt       # 顶层 CMake（聚合 minikv + 课程测试）
 ├── go.mod               # Go module 根
 └── Makefile             # 统一构建/测试/启动入口
 ```
@@ -374,7 +373,7 @@ cmake --build build -j
 
 `-DENABLE_TESTS=ON` 会开启 `tests/course/` 的构建。GoogleTest 会通过 FetchContent 自动拉取（首次需要联网）。
 
-> 坑提醒：顶层 CMake 的选项是 `ENABLE_TESTS`（不是 `ENABLE_COURSE_TESTS`）。`tests/course/CMakeLists.txt` 是独立子项目，即使 minikv/deepvector 编译失败，课程测试也能单独跑。
+> 坑提醒：顶层 CMake 的选项是 `ENABLE_TESTS`（不是 `ENABLE_COURSE_TESTS`）。`tests/course/CMakeLists.txt` 是独立子项目，即使 minikv 编译失败，课程测试也能单独跑。
 
 ### 8.2 运行测试
 

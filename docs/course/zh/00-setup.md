@@ -24,7 +24,7 @@
 ```mermaid
 flowchart LR
     subgraph 源码["源码 (Repository)"]
-        CPP["C++ 源码<br/>minikv/ + skynet/ + deepvector/"]
+        CPP["C++ 源码<br/>minikv/ + skynet/"]
         GO["Go 源码<br/>gateway/ + services/"]
         WEB["Web 源码<br/>web/ (Next.js)"]
     end
@@ -872,6 +872,325 @@ chmod +x check-env.sh
 
 如果有任何 `[✗]`，回到对应平台的章节重装那个工具。
 
+### 6.1 深度验证（编译与构建测试）
+
+上面的 `check-env.sh` 只验证了版本号，但版本号达标不等于工具链真能用。这一节我们做更深一步的验证：用每套工具链实际编译/运行一段最小代码。如果以下四项全部通过，你的环境就 100% 就绪。
+
+#### 6.1.1 验证 C++ 编译器能编译 C++17 代码
+
+```bash
+cat > /tmp/test_cpp17.cpp << 'EOF'
+#include <iostream>
+#include <string_view>
+#include <optional>
+
+// C++17 特性：string_view + optional
+std::optional<std::string_view> greet(std::string_view name) {
+    if (name.empty()) return std::nullopt;
+    return "Hello, " + std::string(name);
+}
+
+int main() {
+    if (auto msg = greet("TitanKV")) {
+        std::cout << *msg << '\n';
+    }
+    return 0;
+}
+EOF
+
+g++ -std=c++17 /tmp/test_cpp17.cpp -o /tmp/test_cpp17
+/tmp/test_cpp17
+# 应输出：Hello, TitanKV
+```
+
+如果用 Clang（macOS），把 `g++` 换成 `clang++` 即可。
+
+#### 6.1.2 验证 Go 能构建
+
+```bash
+mkdir -p /tmp/test_go && cd /tmp/test_go
+cat > main.go << 'EOF'
+package main
+
+import "fmt"
+
+func main() {
+    fmt.Println("Hello, TitanKV from Go!")
+}
+EOF
+
+go mod init test_go
+go build -o /tmp/test_go_bin .
+/tmp/test_go_bin
+# 应输出：Hello, TitanKV from Go!
+cd - && rm -rf /tmp/test_go
+```
+
+#### 6.1.3 验证 Node.js 能运行
+
+```bash
+node -e "console.log('Hello, TitanKV from Node.js ' + process.version)"
+# 应输出：Hello, TitanKV from Node.js v20.x.x
+```
+
+#### 6.1.4 验证 CMake 能配置项目
+
+```bash
+mkdir -p /tmp/test_cmake && cd /tmp/test_cmake
+cat > CMakeLists.txt << 'EOF'
+cmake_minimum_required(VERSION 3.20)
+project(test_cmake LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 17)
+add_executable(test_cmake main.cpp)
+EOF
+
+cat > main.cpp << 'EOF'
+#include <iostream>
+int main() { std::cout << "CMake build works!\n"; return 0; }
+EOF
+
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
+./build/test_cmake
+# 应输出：CMake build works!
+cd - && rm -rf /tmp/test_cmake
+```
+
+四项全绿，说明你的 C++ / Go / Node.js / CMake 工具链完全可用，可以进入 Module 01 了。
+
+### 6.2 代理与镜像配置（中国大陆用户）
+
+如果你在中国大陆，很多依赖源默认走境外服务器，下载可能超时。这一节把所有镜像/代理配置集中列出，一次性配好。
+
+#### 6.2.1 Go 模块代理
+
+```bash
+go env -w GO111MODULE=on
+go env -w GOPROXY=https://goproxy.cn,direct
+go env -w GOSUMDB=sum.golang.google.cn
+```
+
+> `goproxy.cn` 是七牛云运营的公共 Go 模块代理，稳定且速度快。`direct` 作为 fallback，在代理没有缓存时直连源站。
+
+#### 6.2.2 npm 镜像
+
+```bash
+# 永久切换到淘宝镜像
+npm config set registry https://registry.npmmirror.com
+
+# 验证
+npm config get registry
+# 应输出：https://registry.npmmirror.com/
+
+# 如果只想单次安装用镜像，不加 --registry 全局切换：
+npm install --registry=https://registry.npmmirror.com
+```
+
+#### 6.2.3 Docker 镜像加速器
+
+**Linux（daemon.json）：**
+
+```bash
+sudo mkdir -p /etc/docker
+sudo tee /etc/docker/daemon.json <<EOF
+{
+  "registry-mirrors": [
+    "https://docker.m.daocloud.io",
+    "https://dockerproxy.com",
+    "https://docker.mirrors.ustc.edu.cn"
+  ]
+}
+EOF
+sudo systemctl daemon-reload
+sudo systemctl restart docker
+```
+
+**Docker Desktop（Windows/macOS）：**
+
+打开 Docker Desktop → Settings → Docker Engine，在 JSON 中添加 `registry-mirrors` 字段：
+
+```json
+{
+  "registry-mirrors": [
+    "https://docker.m.daocloud.io",
+    "https://dockerproxy.com"
+  ]
+}
+```
+
+点 Apply & Restart。
+
+#### 6.2.4 Git 代理
+
+如果你有本地代理工具（如 Clash 监听 7890 端口）：
+
+```bash
+# 设置全局代理
+git config --global http.proxy http://127.0.0.1:7890
+git config --global https.proxy http://127.0.0.1:7890
+
+# 取消代理
+git config --global --unset http.proxy
+git config --global --unset https.proxy
+
+# 只对 github.com 走代理（不影响公司内网 git）
+git config --global http.https://github.com.proxy http://127.0.0.1:7890
+```
+
+#### 6.2.5 CMake FetchContent 代理
+
+FetchContent 拉取 GitHub 依赖（gtest/snappy/zstd）时也会走网络，需要配环境变量：
+
+```bash
+export HTTP_PROXY=http://127.0.0.1:7890
+export HTTPS_PROXY=http://127.0.0.1:7890
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+```
+
+### 6.3 Docker Desktop 进阶配置
+
+安装 Docker 只是第一步，资源分配和后端选择直接影响后续 `docker compose up` 跑全栈时的体验。
+
+#### 6.3.1 Windows：WSL2 Backend 配置
+
+Docker Desktop on Windows 有两种后端：Hyper-V 和 WSL2。**强烈建议用 WSL2 后端**，它启动更快、资源利用率更高。
+
+1. 打开 Docker Desktop → Settings → General；
+2. 确认勾选 **Use the WSL 2 based engine**；
+3. 进入 Settings → Resources → WSL Integration，开启你用的发行版（如 Ubuntu-22.04）；
+4. 在 WSL2 终端里验证：
+
+```bash
+docker --version
+docker ps
+# 如果在 WSL2 内能直接跑 docker，说明 integration 配好了
+```
+
+5. 限制 WSL2 内存占用：在 Windows 用户目录下创建/编辑 `.wslconfig`：
+
+```ini
+# C:\Users\<你的用户名>\.wslconfig
+[wsl2]
+memory=8GB
+processors=4
+swap=2GB
+```
+
+修改后需 `wsl --shutdown` 再重新打开 WSL 终端生效。
+
+#### 6.3.2 macOS：资源限制配置
+
+Docker Desktop on Mac 需要手动分配资源，默认 2GB 内存跑 TitanKV 全栈（Postgres + Redis + etcd + Jaeger + Prometheus + Grafana）会 OOM。
+
+1. 打开 Docker Desktop → Settings → Resources；
+2. **Memory**：至少 4GB，建议 6GB；
+3. **CPUs**：至少 2 核，建议 4 核；
+4. **Swap**：1GB；
+5. **Disk image size**：至少 64GB；
+6. 点 Apply & Restart。
+
+Apple Silicon 用户额外注意：
+- 确认 Settings → General 里勾选 **Use Virtualization framework**（新版本默认开启）；
+- 如果遇到 amd64 镜像跑不了，确认勾选 **Use Rosetta for x86/amd64 emulation**。
+
+#### 6.3.3 Linux：安装后用户组配置
+
+Linux 上 Docker 默认需要 `sudo`，每次敲 `sudo docker` 很烦。安装后务必把当前用户加到 `docker` 组：
+
+```bash
+# 加入 docker 组
+sudo usermod -aG docker $USER
+
+# 让组变更生效（二选一）
+newgrp docker        # 当前终端立即生效
+# 或注销重新登录      # 所有终端生效
+
+# 验证（不需要 sudo）
+docker ps
+docker run --rm hello-world
+```
+
+如果 `newgrp docker` 后仍报 `permission denied`，重启电脑最稳。
+
+配置 Docker 开机自启：
+
+```bash
+sudo systemctl enable docker
+sudo systemctl start docker
+```
+
+### 6.4 环境变量配置参考
+
+这一节汇总 TitanKV 开发中常用的环境变量，并说明在各个平台上如何持久化设置。
+
+#### 6.4.1 常用环境变量一览
+
+| 变量 | 典型值 | 用途 |
+|------|--------|------|
+| `GOROOT` | `/usr/local/go` | Go 安装目录（通常自动推断，不需手动设） |
+| `GOPATH` | `$HOME/go` | Go 工作区（第三方包和编译产物存放处） |
+| `GOPROXY` | `https://goproxy.cn,direct` | Go 模块代理 |
+| `NODE_PATH` | `/usr/lib/node_modules` | Node.js 全局模块搜索路径（通常不需手动设） |
+| `CMAKE_PREFIX_PATH` | `/usr/local;/opt/homebrew` | CMake 查找包的额外路径 |
+| `PKG_CONFIG_PATH` | `/usr/local/lib/pkgconfig` | pkg-config 查找 .pc 文件的路径 |
+| `HTTP_PROXY` | `http://127.0.0.1:7890` | HTTP 代理（FetchContent / go mod 用） |
+| `HTTPS_PROXY` | `http://127.0.0.1:7890` | HTTPS 代理 |
+
+#### 6.4.2 Linux / macOS / WSL2（.bashrc / .zshrc）
+
+在 `~/.bashrc`（Bash）或 `~/.zshrc`（Zsh，macOS 默认）末尾追加：
+
+```bash
+# Go
+export GOROOT=/usr/local/go
+export GOPATH=$HOME/go
+export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+export GOPROXY=https://goproxy.cn,direct
+
+# CMake / pkg-config（按需）
+export CMAKE_PREFIX_PATH=/usr/local:/opt/homebrew
+export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
+
+# 代理（按需开启，不用时注释掉）
+# export HTTP_PROXY=http://127.0.0.1:7890
+# export HTTPS_PROXY=http://127.0.0.1:7890
+```
+
+让配置生效：
+
+```bash
+source ~/.bashrc   # 或 source ~/.zshrc
+```
+
+> macOS Apple Silicon 上 Homebrew 装在 `/opt/homebrew`，Intel Mac 装在 `/usr/local`，`CMAKE_PREFIX_PATH` 要对应。
+
+#### 6.4.3 Windows（系统环境变量）
+
+**方式 A：图形界面**
+
+1. 按 `Win + R`，输入 `sysdm.cpl`，回车；
+2. 切到「高级」选项卡 →「环境变量」；
+3. 在「用户变量」里新建/编辑：
+   - `GOPATH` = `C:\Users\<你>\go`
+   - `Path` 里追加 `C:\Go\bin`（如果用 MSI 安装包，安装程序已自动配好）
+4. 确定后**重启终端**（不是重启电脑）让配置生效。
+
+**方式 B：PowerShell（永久设置）**
+
+```powershell
+# 设置用户级环境变量（永久）
+[Environment]::SetEnvironmentVariable("GOPATH", "$env:USERPROFILE\go", "User")
+
+# 追加 Path
+$currentPath = [Environment]::GetEnvironmentVariable("Path", "User")
+[Environment]::SetEnvironmentVariable("Path", "$currentPath;C:\Go\bin", "User")
+
+# 验证（需重开终端）
+go env GOPATH
+```
+
+> Windows 上 `GOROOT` 通常由 Go 安装程序自动设置，不需要手动配。
+
 ## 7. 常见问题排查
 
 这一节我们收集了同学们最常遇到的坑，按问题类型分类。
@@ -1121,19 +1440,32 @@ VSCode 是 TitanKV 项目的首选 IDE，原因有三：免费、跨平台、Rem
 
 #### 8.1.1 必装扩展
 
-打开 VSCode 扩展市场（`Ctrl+Shift+X`），搜索并安装：
+打开 VSCode 扩展市场（`Ctrl+Shift+X`），搜索并安装。也可在命令行用 `code --install-extension <扩展ID>` 批量安装：
 
-| 扩展 | 发布者 | 用途 |
-|---|---|---|
-| **C/C++** | Microsoft | C/C++ IntelliSense、调试 |
-| **CMake Tools** | Microsoft | CMake 项目集成、构建、调试 |
-| **Go** | Go Team | Go 语言支持、调试、测试 |
-| **Remote - WSL** | Microsoft | WSL2 远程开发（Windows 用户必装） |
-| **Remote - SSH** | Microsoft | 远程 Linux 服务器开发（可选） |
-| **Docker** | Microsoft | Docker 容器管理 |
-| **YAML** | Red Hat | docker-compose.yml 高亮 |
-| **Markdown All in One** | Yu Zhang | 写文档（本项目有大量 .md） |
-| **Tailwind CSS IntelliSense** | Tailwind Labs | web/ 前端开发 |
+| 扩展 | 扩展 ID | 发布者 | 用途 |
+|---|---|---|---|
+| **C/C++** | `ms-vscode.cpptools` | Microsoft | C/C++ IntelliSense、调试 |
+| **CMake Tools** | `ms-vscode.cmake-tools` | Microsoft | CMake 项目集成、构建、调试 |
+| **Go** | `golang.go` | Go Team | Go 语言支持、调试、测试 |
+| **Remote - WSL** | `ms-vscode-remote.remote-wsl` | Microsoft | WSL2 远程开发（Windows 用户必装） |
+| **Remote - SSH** | `ms-vscode-remote.remote-ssh` | Microsoft | 远程 Linux 服务器开发（可选） |
+| **Docker** | `ms-azuretools.vscode-docker` | Microsoft | Docker 容器管理 |
+| **YAML** | `redhat.vscode-yaml` | Red Hat | docker-compose.yml 高亮 |
+| **Markdown All in One** | `yzhang.markdown-all-in-one` | Yu Zhang | 写文档（本项目有大量 .md） |
+| **Tailwind CSS IntelliSense** | `bradlc.vscode-tailwindcss` | Tailwind Labs | web/ 前端开发 |
+
+一键安装脚本（Linux/macOS/WSL）：
+
+```bash
+code --install-extension ms-vscode.cpptools \
+     --install-extension ms-vscode.cmake-tools \
+     --install-extension golang.go \
+     --install-extension ms-vscode-remote.remote-wsl \
+     --install-extension ms-azuretools.vscode-docker \
+     --install-extension redhat.vscode-yaml \
+     --install-extension yzhang.markdown-all-in-one \
+     --install-extension bradlc.vscode-tailwindcss
+```
 
 #### 8.1.2 c_cpp_properties.json 示例
 
@@ -1152,7 +1484,6 @@ VSCode 是 TitanKV 项目的首选 IDE，原因有三：免费、跨平台、Rem
                 "${workspaceFolder}/minikv/src/utils",
                 "${workspaceFolder}/minikv/src/network",
                 "${workspaceFolder}/skynet/include",
-                "${workspaceFolder}/deepvector/include",
                 "${workspaceFolder}/build/_deps/*-src/**",
                 "${workspaceFolder}/minikv/build/_deps/*-src/**"
             ],
@@ -1171,8 +1502,7 @@ VSCode 是 TitanKV 项目的首选 IDE，原因有三：免费、跨平台、Rem
             "includePath": [
                 "${workspaceFolder}/**",
                 "${workspaceFolder}/minikv/include",
-                "${workspaceFolder}/skynet/include",
-                "${workspaceFolder}/deepvector/include"
+                "${workspaceFolder}/skynet/include"
             ],
             "defines": [],
             "cStandard": "c17",
@@ -1252,6 +1582,73 @@ VSCode 是 TitanKV 项目的首选 IDE，原因有三：免费、跨平台、Rem
     ]
 }
 ```
+
+#### 8.1.5 launch.json（调试配置）
+
+`.vscode/launch.json` 用于 F5 一键启动调试器。下方配置覆盖 C++（GDB/LLDB）与 Go（Delve）两种调试场景，按需保留对应条目：
+
+```json
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "C++ Debug (minikv)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/minikv/minikv_tests",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "setupCommands": [
+                { "description": "为 pretty-printer 启用美化打印", "text": "-enable-pretty-printing", "ignoreFailures": true }
+            ],
+            "preLaunchTask": "TitanKV: CMake Build (Debug)"
+        },
+        {
+            "name": "C++ Debug (skynet, macOS LLDB)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/skynet/build/skynet_demo",
+            "args": [],
+            "cwd": "${workspaceFolder}/skynet",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb",
+            "preLaunchTask": "TitanKV: CMake Build (Debug)"
+        },
+        {
+            "name": "Go Debug (gateway)",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/gateway",
+            "env": {
+                "TITANKV_ENV": "dev",
+                "TITANKV_LOG_LEVEL": "debug"
+            },
+            "args": ["-config", "deploy/dev/gateway.yaml"]
+        },
+        {
+            "name": "Go Debug (current file)",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${fileDirname}"
+        }
+    ]
+}
+```
+
+使用要点：
+
+- **C++ 调试**：`program` 字段要对应实际构建出的可执行文件路径，`MIMode` 在 Linux 用 `gdb`、macOS 用 `lldb`（Windows MSVC 用 `cppvsdbg` 类型）。先构建一次（`preLaunchTask` 会触发 tasks.json 里的构建任务）再按 F5。
+- **Go 调试**：需要先安装 Go 扩展（`golang.go`）和 Delve 调试器（`go install github.com/go-delve/delve/cmd/dlv@latest`）。`mode: debug` 直接编译并附加调试器；若要在已运行进程上附加，把 `request` 改为 `attach` 并指定 `processId`。
+- **断点跳转**：在 `minikv/src/` 或 `skynet/src/` 的源文件里打断点，启动 C++ 调试后会自动命中。
+- **WSL 用户**：在 Windows 端 VSCode 通过 Remote-WSL 连入后，`launch.json` 的路径与工具链都按 Linux 处理，无需特殊改动。
 
 ### 8.2 CLion（付费但好用）
 

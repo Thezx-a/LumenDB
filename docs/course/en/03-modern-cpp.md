@@ -156,6 +156,103 @@ private:
 
 `get` is a `const` member but needs to lock `mutex_` (the lock itself is mutable state). `mutable` allows modifying this member inside a const function. This is the classic "logical const vs physical const" distinction — locking a cache does not change its logically observable state.
 
+### 2.9 `make_unique` / `make_shared` — Why Prefer Factory Functions
+
+```cpp
+auto p = std::make_unique<WAL>(path);     // C++14
+auto s = std::make_shared<MemTable>();    // one allocation for object + control block
+```
+
+- **`make_unique`** (C++14): allocates and constructs in one step; exception-safe (no leak if a function call between `new` and the ctor throws).
+- **`make_shared`**: allocates the object **and** the control block in a single heap allocation — faster and more cache-friendly than `shared_ptr<T>(new T(...))` which needs two allocations.
+- **When not to use `make_shared`**: when you need a custom deleter, or when memory must be freed promptly (the control block outlives the object if `weak_ptr`s linger, since they share the allocation).
+- minikv's `DBImpl` uses `std::unique_ptr<WAL>` members — `make_unique` is the preferred construction form for exclusive ownership.
+
+### 2.10 Move Constructors and Move Assignment
+
+```cpp
+class Status {
+public:
+    Status(Status&& o) noexcept                      // move ctor
+        : code_(o.code_), msg_(std::move(o.msg_)) {}
+    Status& operator=(Status&& o) noexcept {          // move assignment
+        if (this != &o) {
+            code_ = o.code_;
+            msg_ = std::move(o.msg_);
+        }
+        return *this;
+    }
+};
+```
+
+- **Move ctor**: steals resources from the source (rather than deep-copying), leaving the source in a "valid but unspecified" state — typically cheap (pointer swaps, no heap allocation).
+- **`noexcept` is critical**: `std::vector` only uses the move ctor during reallocation if it is `noexcept`; otherwise it falls back to copy to preserve the strong exception guarantee. Always mark move operations `noexcept`.
+- **Rule of Five**: if you declare a move ctor, you typically need move assignment, destructor, and should explicitly delete or define copy operations.
+
+### 2.11 Perfect Forwarding with `std::forward`
+
+```cpp
+template <typename T>
+void submit(T&& task) {                      // T&& is a forwarding reference
+    tasks_.push(std::forward<T>(task));      // preserve lvalue/rvalue-ness
+}
+```
+
+- **`T&&` in a template** is a *forwarding reference* (not a pure rvalue ref): with reference collapsing, it binds both lvalues and rvalues.
+- **`std::forward<T>(arg)`** casts `arg` back to its original value category: an rvalue stays an rvalue (moved), an lvalue stays an lvalue (copied). This is the core of perfect forwarding.
+- Together they let a wrapper pass arguments through without losing move-eligibility — essential for generic factory functions like `std::make_unique`.
+- minikv's `ThreadPool::submit(std::function<void()>)` takes by value; a template version would use `std::forward` to avoid an extra copy when the caller passes a movable lambda.
+
+### 2.12 Lambda Return Types and `std::function`
+
+```cpp
+auto cmp = [](int a, int b) -> bool { return a < b; };   // explicit return type
+auto add = [](int a, int b) { return a + b; };           // deduced return type (C++14)
+
+std::function<bool(int,int)> fn = cmp;   // type-erased, stores any callable
+```
+
+- **Return type**: `-> T` for explicit; otherwise deduced from the `return` statement (C++14 auto return deduction). Multi-statement lambdas with inconsistent returns need an explicit trailing return type.
+- **`std::function`**: a type-erased wrapper that can hold any callable (lambda, function pointer, functor). Costs a heap allocation + virtual dispatch vs a template parameter.
+- **When to template vs `std::function`**: if the callable is used immediately in one place and performance matters, use a template parameter `template <class F> void submit(F&& f)`. If you need to store callables in a container (`std::queue<std::function<void()>>`), use `std::function` — type erasure is the only option for heterogeneous signatures.
+- minikv's `ThreadPool` stores `std::queue<std::function<void()>>` because tasks have heterogeneous signatures.
+
+### 2.13 `std::thread` Basics
+
+```cpp
+std::thread t([&] { compactionLoop(); });   // launch a 1:1 kernel thread
+t.join();        // wait for completion
+// or t.detach(); // let it run independently (ownership severed)
+```
+
+- **`std::thread`**: a 1:1 kernel thread (unlike goroutines which are M:N user-mode). Creating thousands is expensive (~1MB stack each).
+- **`join`** blocks until the thread finishes; **`detach`** severs ownership. A thread that is neither joined nor detached when its `std::thread` object is destroyed calls `std::terminate` — a common crash source.
+- **Passing arguments**: by default arguments are copied; wrap in `std::ref` for by-reference, or capture in a lambda. Beware of dangling references to local variables.
+- minikv's `CompactionManager` and `ThreadPool` spawn `std::thread` workers that run until `stop()` sets a flag and joins them.
+
+### 2.14 Template Basics
+
+```cpp
+// Function template
+template <typename T>
+T maxof(T a, T b) { return a > b ? a : b; }
+
+// Class template
+template <typename K, typename V>
+class HashMap { /* ... */ };
+
+// Variadic template (parameter pack) + C++17 fold expression
+template <typename... Args>
+void log(Args&&... args) {
+    (std::cout << ... << args) << '\n';   // fold: expands the pack
+}
+```
+
+- **Function template**: the compiler generates a specialization per `T` used. `maxof(1, 2)` and `maxof(1.5, 2.5)` produce two distinct functions — zero runtime overhead, but larger binary.
+- **Class template**: `HashMap<std::string, int>` — the type arguments must be specified at use.
+- **Variadic template**: accepts any number of arguments via a parameter pack `Args...`. C++17 fold expressions let you expand them concisely; pre-C++17 needed recursive specialization.
+- Templates are compile-time (no dynamic dispatch), but they increase compile time and can produce verbose error messages — use concepts (C++20) to constrain and improve diagnostics.
+
 ## 3. Thinking Questions
 
 1. Why is `unique_ptr` "zero-overhead"? How does its size differ from a raw pointer? When is there extra overhead?

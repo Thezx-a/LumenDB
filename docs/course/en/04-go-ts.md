@@ -152,6 +152,272 @@ web/app/
 - **Client Components**: the `'use client'` directive, for interactivity (useState, events).
 - **TanStack Query**: client-side data caching, invalidation, optimistic updates; complements server components.
 
+### 2.7 Go Variable Declaration and Basic Types
+
+```go
+var name string          // zero value ""
+var count int = 10       // explicit init
+port := 8080             // short declaration (type inferred, inside functions only)
+var (                    // block declaration
+    host string = "0.0.0.0"
+    port int    = 8080
+)
+```
+
+- **`var`** declares with a type; **`:=`** declares and infers (only inside functions). Package-level variables must use `var`.
+- **Zero values**: `0` for numbers, `""` for strings, `nil` for pointers/slices/maps/channels/interfaces, `false` for bool — no uninitialized memory in Go.
+- Basic types: `string`, `int`/`int64`, `float64`, `bool`, `byte` (= `uint8`), `rune` (= `int32`, a Unicode code point).
+- **Slice** (`[]int`): a dynamic array header of `{ptr, len, cap}`. `make([]int, 0, 10)` preallocates capacity. Slices are references — passing one shares the backing array.
+- **Map** (`map[string]int`): a hash map. `make(map[string]int)` initializes it; reading a missing key returns the zero value (no panic), but writing to a nil map panics.
+- **Struct**: a record of named fields. Go has no `class` keyword; structs + methods are the OOP building blocks.
+
+### 2.8 Go Control Flow: `if` / `for` / `switch` / `select`
+
+```go
+if err := db.Get(key); err != nil {   // if with init statement
+    return err
+}
+for i := 0; i < 10; i++ { ... }       // C-style for
+for _, v := range slice { ... }       // for-each (index, value)
+for { ... }                            // infinite loop (break to exit)
+
+switch n {                            // no fallthrough by default!
+case 1: ...
+case 2, 3: ...
+default: ...
+}
+
+select {                              // channel multiplexing
+case v := <-ch:  ...                  // receive
+case ch <- 42:   ...                  // send
+default:         ...                  // non-blocking
+}
+```
+
+- **`if` init**: `if x := f(); x > 0` — `x` is scoped to the if/else block, keeping the variable close to its use.
+- **`for` is the only loop keyword**: it serves as while (`for cond {}`), for-each (`for range`), and infinite loop (`for {}`).
+- **`switch` breaks by default** (unlike C/Java); use an explicit `fallthrough` to continue to the next case.
+- **`select`** blocks until one case is ready; `default` makes it non-blocking. It is the channel equivalent of `epoll` — multiplexing concurrent operations.
+
+### 2.9 Go Functions: Multiple Returns, Closures, `defer`
+
+```go
+func divide(a, b int) (int, error) {           // multiple returns
+    if b == 0 { return 0, errors.New("div by zero") }
+    return a / b, nil
+}
+
+func adder(x int) func(int) int {              // closure: returns a function
+    return func(y int) int { return x + y }    // captures x
+}
+
+func readFile(f *os.File) error {
+    defer f.Close()                             // runs when readFile returns
+    // ... use f ...
+    return nil
+}
+```
+
+- **Multiple returns**: Go's signature idiom is `(result, error)`. There are no exceptions for ordinary control flow — errors are values.
+- **Closures**: functions capture their surrounding variables by reference. Useful for callbacks, decorators, and goroutine-safe encapsulation.
+- **`defer`**: schedules a call to run when the enclosing function returns (LIFO order — deferred calls stack up). Used for cleanup: closing files, releasing locks. It is Go's analog to C++ RAII scope-exit, though manual rather than automatic.
+
+### 2.10 Go OOP: Struct, Method, Interface, Composition
+
+```go
+type Engine struct {
+    db *C.DBImpl
+}
+
+func (e *Engine) Get(key string) (string, error) { ... }   // pointer receiver method
+
+type Storage interface {
+    Get(ctx context.Context, key string) (string, error)
+}
+
+// Composition via embedding — Go's alternative to inheritance
+type Service struct {
+    *Engine          // embedded: Service "has-a" Engine and inherits its methods
+    timeout time.Duration
+}
+```
+
+- **Struct + methods** = Go's OOP. Methods are defined with a receiver (`func (e *Engine) ...`), not inside the struct.
+- **Pointer vs value receiver**: pointer receivers can modify the struct and avoid copying; value receivers work on a copy. Be consistent within a type.
+- **Interfaces are implicit**: a type satisfies an interface by having all the required methods — no `implements` keyword. This enables duck typing and easy mocking.
+- **Composition over inheritance**: Go has no inheritance. Embed a struct to reuse its fields and methods (the embedded type's methods are promoted). This is the Go philosophy — prefer composition to deep hierarchies.
+
+### 2.11 Go Concurrency Primitives: `sync.WaitGroup` and `sync.Mutex`
+
+```go
+var wg sync.WaitGroup
+for i := 0; i < 10; i++ {
+    wg.Add(1)
+    go func() {
+        defer wg.Done()
+        // work
+    }()
+}
+wg.Wait()   // block until all 10 goroutines call Done()
+
+var mu sync.Mutex
+mu.Lock()
+// critical section
+mu.Unlock()
+
+var rw sync.RWMutex
+rw.RLock()    // shared read lock (many readers)
+rw.RUnlock()
+rw.Lock()     // exclusive write lock
+rw.Unlock()
+```
+
+- **`sync.WaitGroup`**: a counter for waiting on N goroutines. `Add(1)` increments, `Done()` decrements, `Wait()` blocks until zero. Always pair with `defer wg.Done()`.
+- **`sync.Mutex`**: exclusive lock — only one goroutine holds it at a time. The Go equivalent of C++ `std::mutex`.
+- **`sync.RWMutex`**: read-write lock — many readers or one writer. The Go equivalent of C++ `std::shared_mutex`.
+- These are the lower-level primitives; channels (2.2) are preferred for *communicating* between goroutines, but mutexes suit simple shared-state protection.
+
+### 2.12 Go Error Handling: `panic` / `recover`
+
+```go
+func safeDiv(a, b int) (r int) {
+    defer func() {
+        if rec := recover(); rec != nil {
+            r = 0   // recover stops the panic, r is set to 0
+        }
+    }()
+    if b == 0 { panic("div by zero") }
+    return a / b
+}
+```
+
+- **`error` interface**: the normal error path. The convention is to return `error` as the last value and always check `if err != nil`.
+- **`panic`**: a runtime crash (like a `throw`). Use only for truly unrecoverable conditions — invariant violations, index out of range, nil map writes. Not for business errors.
+- **`recover`**: catches a panic inside a deferred function, stopping the crash. Use sparingly — mainly at service boundaries to keep one bad request from crashing the whole server.
+- **Convention**: business errors use `error`; programmer errors (bugs) use `panic`. The TitanKV Gateway's `Recover` middleware wraps handlers in a `recover` so a panic becomes a 500 instead of a crash.
+
+### 2.13 Go Package Management: `go mod` and `import`
+
+```
+module github.com/titan-kv/titan    // go.mod first line
+
+go 1.22
+
+require (
+    github.com/gin-gonic/gin v1.10.0
+    google.golang.org/grpc v1.65.0
+)
+```
+
+```go
+import (
+    "fmt"                                 // stdlib (no domain prefix)
+    "github.com/titan-kv/titan/gateway"   // local module
+    "github.com/gin-gonic/gin"            // third-party
+)
+```
+
+- **`go mod init <module>`** creates `go.mod`; `go get <pkg>` adds a dependency; `go mod tidy` cleans up unused entries.
+- **Imports**: an import path maps to a package. The package name (usually the last path segment) is the identifier you use (`gin.Default()`, `fmt.Println`).
+- Go's module system (post-1.11) replaced GOPATH; versions are semver-tagged and a `go.sum` file pins hashes for reproducible builds.
+
+### 2.14 TypeScript Type System Deep Dive: Union, Intersection, Generics
+
+```typescript
+// Union type: a value can be one of several types
+type ID = string | number;
+type ApiResponse = SuccessResponse | ErrorResponse;
+
+// Intersection type: combine multiple types into one
+type WithTimestamp = { createdAt: Date };
+type Auditable = { createdBy: string };
+type Record = WithTimestamp & Auditable;   // has both createdAt and createdBy
+
+// Generics: reusable, type-safe containers
+function first<T>(arr: T[]): T | undefined {
+    return arr[0];
+}
+const n = first<number>([1, 2, 3]);        // n is number | undefined
+
+// Optional properties
+type Config = { host: string; port?: number };   // port may be absent → undefined
+```
+
+- **Union types** (`A | B`): a value of type `A | B` is either an `A` or a `B`. Great for tagged unions / sum types and for modeling "success or error" responses.
+- **Intersection types** (`A & B`): a value of type `A & B` has all properties of both. Used to compose types (mixin pattern) — the TS analog of multiple inheritance.
+- **Generics** (`<T>`): define a type once, use it with many concrete types. The compiler enforces type safety at each use site. More flexible than `any` and catches bugs at compile time.
+- **Optional properties** (`prop?`): the property may be absent; accessing it yields `undefined`. Required for modeling partial updates and config objects.
+
+### 2.15 TypeScript Enums and Type Guards
+
+```typescript
+enum Color { Red, Green, Blue }          // numeric enum (0, 1, 2)
+enum Status { Ok = "OK", Err = "ERR" }   // string enum (preferred for logs)
+
+// Type guards narrow a union at runtime
+function format(v: string | number) {
+    if (typeof v === "string") {
+        return v.toUpperCase();          // TS knows v is string here
+    }
+    return v.toFixed(2);                 // TS knows v is number here
+}
+
+class Cat { meow(): void {} }
+class Dog { bark(): void {} }
+function speak(p: Cat | Dog) {
+    if (p instanceof Cat) { p.meow(); }  // instanceof narrows to Cat
+    else { p.bark(); }
+}
+
+// `in` operator narrows by property presence
+function getName(x: { name?: string }): string {
+    if ("name" in x && x.name) return x.name;
+    return "anonymous";
+}
+
+// User-defined type predicate
+function isUser(x: unknown): x is { id: string } {
+    return typeof x === "object" && x !== null && "id" in x;
+}
+```
+
+- **Enums**: named constants. String enums are preferred for readability in serialized output (logs, JSON); numeric enums support reverse mapping.
+- **`typeof` guard**: narrows primitive unions (`string | number`).
+- **`instanceof` guard**: narrows class unions — checks the prototype chain.
+- **`in` guard**: checks for a property, narrowing object shapes (structural narrowing).
+- **User-defined guards** (`x is T`): a predicate function the compiler trusts for narrowing — the bridge between runtime checks and compile-time types.
+
+### 2.16 React Basics: Function Components, Props, Hooks
+
+```tsx
+// Function component with typed Props
+type Props = { title: string; count?: number };
+function Card({ title, count = 0 }: Props) {
+    return <div>{title}: {count}</div>;
+}
+
+// useState: local state
+function Counter() {
+    const [n, setN] = useState(0);
+    return <button onClick={() => setN(n + 1)}>{n}</button>;
+}
+
+// useEffect: side effects (fetching, subscriptions, timers)
+function Profile({ id }: { id: string }) {
+    const [user, setUser] = useState<User | null>(null);
+    useEffect(() => {
+        fetch(`/api/users/${id}`).then(r => r.json()).then(setUser);
+    }, [id]);   // re-run only when id changes; [] runs once on mount
+    return <div>{user?.name ?? "loading"}</div>;
+}
+```
+
+- **Function components**: the modern React style (class components are legacy). A component is a pure function from Props to JSX.
+- **Props**: read-only inputs passed from the parent. Destructure with defaults for optional ones. Props flow down; events flow up via callbacks.
+- **`useState`**: a hook that gives a component local state. Returns `[value, setter]` — calling the setter triggers a re-render.
+- **`useEffect`**: a hook for side effects. The dependency array `[id]` controls when it re-runs; `[]` runs only once on mount; omitting it runs after every render (usually wrong).
+- TitanKV's Next.js console (Module 12) uses these hooks in client components like `LiveMetrics`, where `useState` holds metrics and `useEffect` opens an SSE stream.
+
 ## 3. Thinking Questions
 
 1. What are the essential differences between goroutines, C++ `std::thread`, and `std::coroutine`?

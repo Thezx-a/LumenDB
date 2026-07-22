@@ -828,6 +828,25 @@ Requirements:
 
 ## 5. Self-Check
 
+1. In Gin's middleware onion model, `c.Next()` separates the ____ phase from the ____ phase.
+2. JWT cannot support true logout because it is ____ (stateful/stateless); the fix is a ____ blacklist stored in Redis.
+3. bcrypt cost+1 approximately ____ (doubles/halves) the computation time; TitanKV uses cost ____.
+4. The Redis token-bucket rate limiter must use a Lua script because the read-compute-write sequence must be ____.
+5. SSE is preferred over WebSocket for the live dashboard because the data flow is ____ (one-way/bidirectional), and SSE is plain ____ friendly.
+
+<details>
+<summary>Reference Answers</summary>
+
+1. request; response
+2. stateless; `jti`
+3. doubles; 12
+4. atomic (Redis executes Lua single-threaded, guaranteeing no concurrent interleaving)
+5. one-way; HTTP (CDN/reverse-proxy)
+
+</details>
+
+### Detailed Answers to Reflection Questions
+
 <details>
 <summary>Answer 1</summary>
 

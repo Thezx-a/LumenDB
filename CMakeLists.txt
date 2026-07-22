@@ -6,9 +6,8 @@ project(TitanKV VERSION 0.1.0 LANGUAGES CXX)
 # Top-level CMake entry.
 #
 # Components:
-#   - storage-engine   : C++17/20 LSM-Tree KV engine (core system)
-#   - skynet            : C++20 coroutine network library
-#   - (gRPC server)     : added in Phase 2 (storage-engine/grpc-server/)
+#   - minikv   : C++17 LSM-Tree KV engine (core storage engine)
+#   - skynet   : C++20 coroutine network library (standalone)
 # =========================================================
 
 set(CMAKE_CXX_STANDARD 17)
@@ -23,9 +22,8 @@ option(ENABLE_TESTS "Enable unit tests" OFF)
 option(ENABLE_BENCHMARKS "Enable benchmarks" OFF)
 option(ENABLE_SANITIZERS "Enable Address/Thread sanitizers" OFF)
 
-# Storage engine (MiniKV is the LSM core; HNSW collection lives in deepvector/)
+# Storage engine (MiniKV LSM-Tree core).
 add_subdirectory(minikv)
-add_subdirectory(deepvector)
 
 # SkyNet: C++20 coroutine network library (kept as standalone, linked by gRPC server later)
 if(TARGET skynet)
@@ -34,7 +32,7 @@ endif()
 
 # =========================================================
 # Course module hands-on unit tests (TitanKV curriculum).
-# Independent of minikv/deepvector — fetches GoogleTest itself.
+# Independent of minikv — fetches GoogleTest itself.
 # =========================================================
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/course/CMakeLists.txt")
     enable_testing()

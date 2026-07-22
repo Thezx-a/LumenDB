@@ -841,6 +841,25 @@ Follow REFACTORING.md Phase 1-6: run minikv + skynet + Gateway + console (mock G
 
 ## 5. Self-Check
 
+1. The whiteboard four steps are: clarify → ____ → ____ → test cases.
+2. In Raft, a 5-node cluster tolerates ____ failures; the quorum is ____.
+3. LeetCode ____ is the SkipList design problem; LeetCode ____ is the LRU Cache problem.
+4. LSM-Tree write path: Put → ____ append → ____ insert → flush to SSTable.
+5. epoll stores registered fds in a ____ and ready fds in a ____ (data structure).
+
+<details>
+<summary>Reference Answers</summary>
+
+1. design (pick data structure & algorithm + estimate complexity); code (write code, signature first)
+2. 2; 3 (⌊5/2⌋ = 2 failures tolerated, ⌊5/2⌋+1 = 3 quorum)
+3. 1206; 146
+4. WAL; MemTable
+5. red-black tree; ready list (doubly-linked list)
+
+</details>
+
+### Detailed Answers to Reflection Questions
+
 <details>
 <summary>Answer 1</summary>
 

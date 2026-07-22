@@ -7,10 +7,9 @@
 
 ## Phase 0 — Cleanup and restructure
 
-- [x] Remove AI / Python agent layer (`deepvector/agent/`, `deepvector/python/`, examples, course notes)
-- [x] Remove AI-flavored docs (ARCHITECTURE, PRODUCTION_QA, OPERATIONS, etc.)
-- [x] Keep `deepvector/{src,include,tests,benchmarks,cmake}` (C++ HNSW server) — to be re-organized in Phase 1
-- [x] Keep `minikv/` — will become `storage-engine/` core in Phase 1
+- [x] Remove legacy layers and old project code
+- [x] Remove outdated docs (ARCHITECTURE, PRODUCTION_QA, OPERATIONS, etc.)
+- [x] Keep `minikv/` — C++17 LSM-Tree storage engine core
 - [x] Keep `skynet/` — C++20 coroutine network library
 - [x] Add top-level skeleton: `gateway/ services/ distributed/ client-go/ client-cli/ web/ proto/ deploy/ docs/`
 - [x] New `.gitignore`, `go.mod`, top-level `CMakeLists.txt`, `README.md`, `Makefile`

@@ -176,7 +176,7 @@ git clone https://github.com/Thezx-a/LumenDB.git
 cd LumenDB
 ```
 
-> Note: the GitHub repo is named `LumenDB` (the project is being refactored from a vector DB into a KV platform, see `docs/REFACTORING.md`); internally the module name is `titan` (Go module path: `github.com/titan-kv/titan`). Both refer to the same project.
+> Note: the GitHub repo is named `LumenDB` (a distributed KV platform built from scratch, see `docs/REFACTORING.md`); internally the module name is `titan` (Go module path: `github.com/titan-kv/titan`). Both refer to the same project.
 
 After cloning, the project root looks like this:
 
@@ -184,7 +184,6 @@ After cloning, the project root looks like this:
 LumenDB/
 ├── minikv/              # C++17 LSM-Tree storage engine (star of Modules 05-08)
 ├── skynet/              # C++20 coroutine network library (star of Modules 09-10)
-├── deepvector/          # HNSW vector index (to be refactored into a secondary index)
 ├── gateway/             # Go API gateway (Gin + middleware chain)
 ├── services/            # Go microservices
 │   ├── auth/            #   Auth service (JWT + APIKey + RBAC)
@@ -196,7 +195,7 @@ LumenDB/
 ├── tests/course/        # Course unit tests (7 files, standalone build)
 ├── deploy/dev/          # Docker Compose local dev stack
 ├── docs/course/         # Bilingual course (the one you're reading)
-├── CMakeLists.txt       # Top-level CMake (aggregates minikv + deepvector + course tests)
+├── CMakeLists.txt       # Top-level CMake (aggregates minikv + course tests)
 ├── go.mod               # Go module root
 └── Makefile             # Unified build/test/run entry
 ```
@@ -374,7 +373,7 @@ cmake --build build -j
 
 `-DENABLE_TESTS=ON` enables building `tests/course/`. GoogleTest is fetched automatically via FetchContent (needs network the first time).
 
-> Pitfall heads-up: the top-level CMake option is `ENABLE_TESTS` (not `ENABLE_COURSE_TESTS`). `tests/course/CMakeLists.txt` is a standalone subproject — even if minikv/deepvector fail to compile, the course tests can run on their own.
+> Pitfall heads-up: the top-level CMake option is `ENABLE_TESTS` (not `ENABLE_COURSE_TESTS`). `tests/course/CMakeLists.txt` is a standalone subproject — even if minikv fails to compile, the course tests can run on their own.
 
 ### 8.2 Run tests
 

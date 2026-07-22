@@ -32,7 +32,7 @@ minikv/
 │   ├── manifest.{h,cpp}    Durable record of Version edits (append-only)
 │   ├── compression.{h,cpp} Snappy / Zstd wrapper for block payload
 │   └── internal_key.{h,cpp} [user_key | seq | type] codec + comparator
-└── src/network/            Legacy HTTP server (kept from earlier MiniKV)
+└── src/network/            HTTP server (kept from earlier MiniKV)
 ```
 
 ---
@@ -107,7 +107,7 @@ read even if the engine's default `Options.compression` later changes.
 Block payload (after decompression) uses LevelDB-style prefix-shared entries
 with a restart array at the tail (`BlockBuilder::add` / `BlockReader::get`).
 
-**Index block:** legacy 8-byte `[crc(4)][size(4)]` header followed by
+**Index block:** 8-byte `[crc(4)][size(4)]` header followed by
 `[varint last_user_key_len][last_user_key][offset(8)][size(8)]` entries — one
 per data block. Used to binary-search the block containing a key.
 
@@ -158,7 +158,7 @@ LSM topology is durably logged before the WAL is truncated.
 ## 4. Internal Key Codec (WP 1.2.2 Phase A)
 
 `core/internal_key.h` provides the future internal-key encoding while the
-legacy hash-based MemTable remains in use:
+hash-based MemTable remains in use:
 
 ```
 internal_key = user_key_bytes || trailer(8 bytes LE)
