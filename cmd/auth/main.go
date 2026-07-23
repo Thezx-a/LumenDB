@@ -1,6 +1,6 @@
-// TitanKV Auth 服务入口 (Phase 3).
-// 启动: go run ./services/auth
-// 端口: 8082 (默认)
+// TitanKV Auth service entry (Phase 3).
+// Start: go run ./cmd/auth
+// Port: 8082 (default)
 package main
 
 import (
@@ -39,7 +39,7 @@ func main() {
 	r.Use(gin.Recovery())
 	svc.RegisterRoutes(r)
 
-	// 内部 API Key 签发路由 (需 Gateway 注入鉴权, 这里简化直接暴露)
+	// Internal API Key issue route (gateway injects auth in production).
 	r.POST("/api/auth/apikey", svc.IssueAPIKey)
 
 	srv := &http.Server{Addr: addr, Handler: r}

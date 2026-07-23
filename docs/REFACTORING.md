@@ -122,4 +122,4 @@
 
 - [ ] Unified Makefile target (build/test/lint/proto/docker-up)
 - [ ] Benchmark regression tracking
-- [ ] Repo-rename: GitHub repo `LumenDB` → `TitanKV`
+- [x] Repo-rename: GitHub repo `LumenDB` → `TitanKV`

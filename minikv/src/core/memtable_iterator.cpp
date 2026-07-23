@@ -24,7 +24,7 @@ void MemTableIterator::seekToFirst() {
 void MemTableIterator::seek(const Slice& target) {
     index_ = 0;
     while (index_ < entries_.size() &&
-           InternalKeyCompare(Slice(entries_[index_.internal_key]), target) < 0) {
+           InternalKeyCompare(Slice(entries_[index_].internal_key), target) < 0) {
         ++index_;
     }
 }

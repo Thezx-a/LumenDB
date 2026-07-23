@@ -5,12 +5,11 @@
 //   - Health Rollup (汇总各服务健康状态)
 //   - SSE 实时推送 (给控制台仪表盘用)
 //
-// 启动: go run ./services/observability
+// 启动: go run ./cmd/observability
 // 端口: 8084 (默认)
 package observability
 
 import (
-	"net/http"
 	"sync"
 	"time"
 )

@@ -1,14 +1,14 @@
-// TitanKV Data 服务入口 (Phase 4).
-// 启动: go run ./services/data
-// 端口: 8081 (默认)
+// TitanKV Data service entry (Phase 4).
+// Start: go run ./cmd/data
+// Port: 8081 (default)
 //
-// 接口:
+// Routes:
 //
-//	POST   /api/data/kv            写入 KV
-//	GET    /api/data/kv?key=xxx    读取 KV
-//	DELETE /api/data/kv?key=xxx    删除 KV
-//	GET    /api/data/scan?start=&end=  SSE 流式扫描
-//	GET    /healthz                健康检查
+//	POST   /api/data/kv
+//	GET    /api/data/kv?key=xxx
+//	DELETE /api/data/kv?key=xxx
+//	GET    /api/data/scan?start=&end=
+//	GET    /healthz
 package main
 
 import (

@@ -75,19 +75,24 @@ else()
     endif()
 endif()
 
-if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+# Build server/tests when this is the top-level project, OR when the monorepo
+# root (TitanKV) enables them via ENABLE_TESTS / explicit options.
+option(MINIKV_BUILD_SERVER "Build minikv_server executable" ON)
+option(MINIKV_BUILD_TESTS "Build MiniKV unit tests" ${ENABLE_TESTS})
+
+if(MINIKV_BUILD_SERVER AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")
     add_executable(minikv_server src/main.cpp)
     target_link_libraries(minikv_server PRIVATE minikv)
 endif()
 
-if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    if(ENABLE_TESTS)
+if(MINIKV_BUILD_TESTS)
+    if(NOT TARGET GTest::gtest_main)
         include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FetchGoogleTest.cmake)
-        enable_testing()
-        add_subdirectory(tests)
     endif()
+    enable_testing()
+    add_subdirectory(tests)
+endif()
 
-    if(ENABLE_BENCHMARKS)
-        add_subdirectory(benches)
-    endif()
+if(ENABLE_BENCHMARKS AND CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    add_subdirectory(benches)
 endif()

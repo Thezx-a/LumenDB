@@ -41,8 +41,10 @@ help: ## Show available targets
 # ---------------------------------------------------------
 .PHONY: cmake-configure cmake-build cpp-test cpp-lint
 cmake-configure: ## Configure CMake build
-	cmake -B $(CMAKE_BUILD_DIR) -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) \
-		-DENABLE_TESTS=ON -DENABLE_BENCHMARKS=OFF
+	cmake -B $(CMAKE_BUILD_DIR) -G Ninja -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) \
+		-DENABLE_TESTS=ON -DENABLE_BENCHMARKS=OFF \
+		-DCMAKE_CXX_COMPILER=g++-12 \
+		-DCMAKE_POLICY_VERSION_MINIMUM=3.5
 
 cmake-build: cmake-configure ## Build all C++ targets
 	cmake --build $(CMAKE_BUILD_DIR) -j $(JOBS)
@@ -79,27 +81,27 @@ go-lint: ## Run golangci-lint on all Go code
 # ---------------------------------------------------------
 .PHONY: run-gateway run-auth run-data run-meta run-observ run-all
 run-gateway: ## Run gateway service (Phase 3, port 8080)
-	$(GO) run ./gateway
+	$(GO) run ./cmd/gateway
 
 run-auth: ## Run auth service (Phase 3, port 8082)
-	$(GO) run ./services/auth
+	$(GO) run ./cmd/auth
 
 run-data: ## Run data service (Phase 4, port 8081)
-	$(GO) run ./services/data
+	$(GO) run ./cmd/data
 
 run-meta: ## Run meta service (Phase 4, port 8083)
-	$(GO) run ./services/meta
+	$(GO) run ./cmd/meta
 
 run-observ: ## Run observability service (Phase 4, port 8084)
-	$(GO) run ./services/observability
+	$(GO) run ./cmd/observability
 
 run-all: ## Run all 5 Go services in parallel (use Ctrl+C to stop all)
 	@echo "Starting all services. Press Ctrl+C to stop."
-	@$(GO) run ./services/auth &
-	@$(GO) run ./services/data &
-	@$(GO) run ./services/meta &
-	@$(GO) run ./services/observability &
-	@$(GO) run ./gateway
+	@$(GO) run ./cmd/auth &
+	@$(GO) run ./cmd/data &
+	@$(GO) run ./cmd/meta &
+	@$(GO) run ./cmd/observability &
+	@$(GO) run ./cmd/gateway
 	@wait
 
 # ---------------------------------------------------------
@@ -118,8 +120,8 @@ web-build: ## Build the Next.js admin console
 web-lint: ## Lint frontend
 	cd web && npm run lint
 
-web-test: ## Run frontend tests
-	cd web && npm run test -- --run || true
+web-test: ## Run frontend tests (optional; no test suite yet)
+	@echo "web has no unit test script yet; run make web-lint / web-build instead"
 
 # ---------------------------------------------------------
 # Top-level aggregated targets

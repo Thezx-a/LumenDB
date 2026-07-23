@@ -40,7 +40,8 @@ inline void encodeVariant32(std::string& dst, uint32_t val) {
     dst.push_back(static_cast<char>(val));
 }
 
-inline bool decodeVariant32(const char*& p, const char* limit, uint32_t& value, uint32_t& consumed) {
+// Does not advance `p`; callers must do `p += consumed` after a successful decode.
+inline bool decodeVariant32(const char* p, const char* limit, uint32_t& value, uint32_t& consumed) {
     value = 0;
     consumed = 0;
     uint32_t shift = 0;

@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <cstdio>
 #include <cstring>
 #include <string>
 
@@ -38,8 +39,11 @@ void cleanup(const std::string& path) {
 
 void buildSample(const std::string& path, CompressionType type) {
     SSTableBuilder b(path, /*block_size=*/256, type);
+    // Zero-pad so user keys are in ascending order (SSTable requires sorted adds).
     for (int i = 0; i < 100; ++i) {
-        std::string userKey = "key" + std::to_string(i);
+        char buf[16];
+        std::snprintf(buf, sizeof(buf), "key%03d", i);
+        std::string userKey(buf);
         std::string value   = "value" + std::to_string(i) +
                               std::string(64, static_cast<char>('a' + i % 26));
         std::string ikey = InternalKeyEncode(userKey, static_cast<uint64_t>(i), ValueType::kValue);
@@ -135,7 +139,7 @@ TEST(SSTableCompressionTest, PointLookupByUserKey) {
     auto r = SSTableReader::open(path);
     ASSERT_NE(r, nullptr);
 
-    auto v = r->get(Slice("key50"));
+    auto v = r->get(Slice("key050"));
     ASSERT_TRUE(v.has_value());
     EXPECT_TRUE(v->find("value50") == 0);
 
@@ -150,12 +154,13 @@ TEST(SSTableCompressionTest, PointLookupReturnsNewestVersion) {
 
     SSTableBuilder b(path, /*block_size=*/256, CompressionType::kNone);
     std::string userKey = "dup";
+    // Internal keys for the same user key must be added in descending seq order.
     std::string ikey1 = InternalKeyEncode(userKey, 1, ValueType::kValue);
     std::string ikey2 = InternalKeyEncode(userKey, 2, ValueType::kValue);
     std::string ikey3 = InternalKeyEncode(userKey, 3, ValueType::kDeletion);
-    b.add(Slice(ikey1), Slice(userKey), Slice("old"));
-    b.add(Slice(ikey2), Slice(userKey), Slice("new"));
     b.add(Slice(ikey3), Slice(userKey), Slice(""));
+    b.add(Slice(ikey2), Slice(userKey), Slice("new"));
+    b.add(Slice(ikey1), Slice(userKey), Slice("old"));
     auto s = b.finish();
     ASSERT_TRUE(s.ok()) << s.message();
 

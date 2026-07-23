@@ -56,11 +56,15 @@ ValueType InternalKeyType(const Slice& internal_key) {
 }
 
 int InternalKeyCompare(const Slice& a, const Slice& b) {
+    // Corrupt / non-internal keys (< trailer): fall back to raw byte order so
+    // callers never read past the end of a short buffer.
+    if (a.size() < kTrailerBytes || b.size() < kTrailerBytes) {
+        return a.compare(b);
+    }
     Slice ua = InternalKeyUserKey(a);
     Slice ub = InternalKeyUserKey(b);
     int r = ua.compare(ub);
     if (r != 0) return r;  // user_key ascending
-    if (a.empty() || b.empty()) return r;
     const char* pa = a.data() + a.size() - kTrailerBytes;
     const char* pb = b.data() + b.size() - kTrailerBytes;
     uint64_t ta = utils::decodeFixed64(pa);

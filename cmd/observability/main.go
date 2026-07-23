@@ -1,6 +1,6 @@
-// TitanKV Observability 服务入口 (Phase 4).
-// 启动: go run ./services/observability
-// 端口: 8084 (默认)
+// TitanKV Observability service entry (Phase 4).
+// Start: go run ./cmd/observability
+// Port: 8084 (default)
 package main
 
 import (

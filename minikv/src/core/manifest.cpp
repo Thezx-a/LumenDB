@@ -134,7 +134,6 @@ Status Manifest::writeRecord(RecordType type, int level,
     return Status::Ok();
 }
 
-const std::vector<std::vector<SSTableMeta>>& Manifest::levels() const { return levels_; }
 size_t Manifest::totalFiles() const {
     size_t s = 0;
     for (const auto& v : levels_) s += v.size();

@@ -13,13 +13,13 @@ namespace core {
 
 // SSTable on-disk format (post Phase 1 WP 1.2.1):
 //
-//   /-----------------------------\
+//   +-----------------------------+
 //   | data block #0               |     each block: [crc(4)]
 //   |   ...                       |                [physical_size(4)]
 //   | data block #N               |                [uncompressed_size(4)]
 //   | index block                 |                [type(1)  = CompressionType]
 //   | footer (48 bytes)           |                [payload(physical_size)]
-//   \-----------------------------/
+//   +-----------------------------+
 //
 // The index block keeps the legacy [crc(4)][size(4)][entries...] header so it
 // can be parsed without decompression.

@@ -28,6 +28,8 @@ private:
     size_t block_size_;
     std::string last_key_;
     bool finished_;
+    std::vector<uint32_t> restarts_;
+    int restart_counter_;
 };
 
 class BlockReader {

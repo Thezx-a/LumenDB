@@ -44,24 +44,33 @@ target_include_directories(skynet PUBLIC
 target_link_libraries(skynet PUBLIC Threads::Threads)
 target_compile_features(skynet PUBLIC cxx_std_20)
 
-if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+option(SKYNET_BUILD_GATEWAY "Build skynet_gateway executable" ON)
+option(SKYNET_BUILD_TESTS "Build SkyNet unit tests" ${ENABLE_TESTS})
+option(SKYNET_BUILD_EXAMPLES "Build SkyNet examples" OFF)
+
+if(SKYNET_BUILD_GATEWAY AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/gateway/main.cpp")
     add_executable(skynet_gateway gateway/main.cpp)
     target_link_libraries(skynet_gateway PRIVATE skynet)
+endif()
 
+if(SKYNET_BUILD_EXAMPLES AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/examples/CMakeLists.txt")
     add_subdirectory(examples)
+endif()
 
-    if(ENABLE_TESTS)
+if(SKYNET_BUILD_TESTS)
+    if(NOT TARGET GTest::gtest_main)
         include(FetchContent)
         FetchContent_Declare(googletest
             GIT_REPOSITORY https://github.com/google/googletest.git
             GIT_TAG v1.14.0
         )
+        set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
         FetchContent_MakeAvailable(googletest)
-        enable_testing()
-        add_subdirectory(tests)
     endif()
+    enable_testing()
+    add_subdirectory(tests)
+endif()
 
-    if(ENABLE_BENCHMARKS)
-        add_subdirectory(benches)
-    endif()
+if(ENABLE_BENCHMARKS AND CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    add_subdirectory(benches)
 endif()

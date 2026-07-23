@@ -218,9 +218,10 @@ titan-kv/
 三步跑起来：
 
 ```bash
-git clone https://github.com/Thezx-a/LumenDB.git
-cd LumenDB
+git clone https://github.com/Thezx-a/TitanKV.git
+cd TitanKV
 
+# 详细步骤见 RUN.md（推荐 WSL Ubuntu 22.04）
 # 1. 启动 5 个 Go 服务（auth/data/meta/observability/gateway）
 make run-all
 
@@ -231,6 +232,8 @@ make web-dev
 #    http://localhost:3000
 ```
 
+完整 C++ / Go / Web 编译说明：[RUN.md](./RUN.md)
+
 ### English
 
 Environment requirements are in [`docs/course/en/01-overview.md`](docs/course/en/01-overview.md): CMake 3.20+, GCC 12+ / Clang 15+, Go 1.23+, Node 20+, Docker 24+.
@@ -238,9 +241,10 @@ Environment requirements are in [`docs/course/en/01-overview.md`](docs/course/en
 Three steps to run:
 
 ```bash
-git clone https://github.com/Thezx-a/LumenDB.git
-cd LumenDB
+git clone https://github.com/Thezx-a/TitanKV.git
+cd TitanKV
 
+# Full WSL guide: RUN.md
 # 1. Start the 5 Go services (auth/data/meta/observability/gateway)
 make run-all
 
@@ -250,6 +254,8 @@ make web-dev
 # 3. Open in your browser
 #    http://localhost:3000
 ```
+
+C++ / Go / Web build details: [RUN.md](./RUN.md)
 
 ---
 
@@ -272,10 +278,15 @@ make web-dev
 ### C++（minikv + skynet）
 
 ```bash
-cmake -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=ON
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=ON \
+  -DCMAKE_CXX_COMPILER=g++-12 -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 cmake --build build -j
 ctest --test-dir build --output-on-failure
 ```
+
+产物示例：`build/minikv/libminikv.a`、`build/minikv/minikv_server`、`build/skynet/libskynet.a`、`build/skynet/skynet_gateway`。
+
+详见 [RUN.md](./RUN.md)。
 
 ### Go（gateway + services + SDK）
 

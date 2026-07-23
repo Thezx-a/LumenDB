@@ -1,6 +1,6 @@
-// TitanKV Meta 服务入口 (Phase 4).
-// 启动: go run ./services/meta
-// 端口: 8083 (默认)
+// TitanKV Meta service entry (Phase 4).
+// Start: go run ./cmd/meta
+// Port: 8083 (default)
 package main
 
 import (
@@ -25,7 +25,6 @@ func main() {
 	store := meta.NewStore()
 	svc := meta.NewService(store)
 
-	// 连 etcd (可选: 连不上则降级为纯内存)
 	etcdCli, err := clientv3.New(clientv3.Config{
 		Endpoints:   []string{etcdAddr},
 		DialTimeout: 2 * time.Second,
@@ -56,7 +55,6 @@ func main() {
 		}
 	}()
 
-	// 启动 etcd watch goroutine
 	ctxWatch, cancelWatch := context.WithCancel(context.Background())
 	if etcdCli != nil {
 		go svc.WatchEtcd(ctxWatch, etcdCli)

@@ -11,13 +11,19 @@ namespace core {
 static const int kRestartInterval = 16;
 
 BlockBuilder::BlockBuilder(size_t block_size)
-    : block_size_(block_size), finished_(false) {}
+    : block_size_(block_size), finished_(false), restart_counter_(0) {
+    restarts_.push_back(0);
+}
 
 void BlockBuilder::add(const Slice& key, const Slice& value) {
     size_t shared = 0;
-    if (!last_key_.empty()) {
+    if (restart_counter_ < kRestartInterval && !last_key_.empty()) {
         size_t minLen = std::min(last_key_.size(), key.size());
         while (shared < minLen && last_key_[shared] == key[shared]) ++shared;
+    } else if (restart_counter_ >= kRestartInterval) {
+        restarts_.push_back(static_cast<uint32_t>(buffer_.size()));
+        restart_counter_ = 0;
+        shared = 0;
     }
     size_t non_shared = key.size() - shared;
     std::string header;
@@ -28,9 +34,19 @@ void BlockBuilder::add(const Slice& key, const Slice& value) {
     buffer_.append(key.data() + shared, non_shared);
     buffer_.append(value.data(), value.size());
     last_key_ = key.toString();
+    ++restart_counter_;
 }
 
 Slice BlockBuilder::finish() {
+    // LevelDB-compatible trailer: restart offsets[], then restart count.
+    for (uint32_t off : restarts_) {
+        char buf[4];
+        utils::encodeFixed32(buf, off);
+        buffer_.append(buf, 4);
+    }
+    char cnt[4];
+    utils::encodeFixed32(cnt, static_cast<uint32_t>(restarts_.size()));
+    buffer_.append(cnt, 4);
     finished_ = true;
     return Slice(buffer_);
 }

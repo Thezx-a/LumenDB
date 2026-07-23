@@ -1,27 +1,41 @@
 ﻿#include <gtest/gtest.h>
+
 #include <random>
+#include <string>
+#include <vector>
+
 #include "core/skip_list.h"
+
 using namespace minikv::core;
+
+namespace {
+
+std::string ik(const std::string& user, uint64_t seq = 1,
+               ValueType type = ValueType::kValue) {
+    return InternalKeyEncode(user, seq, type);
+}
+
+}  // namespace
 
 TEST(SkipListTest, PutAndGet) {
     SkipList sl;
-    sl.put("key1", "one");
-    sl.put("key2", "two");
-    EXPECT_EQ(sl.get("key1").value(), "one");
-    EXPECT_EQ(sl.get("key2").value(), "two");
+    sl.put(ik("key1"), "one");
+    sl.put(ik("key2"), "two");
+    EXPECT_EQ(sl.get(ik("key1")).value(), "one");
+    EXPECT_EQ(sl.get(ik("key2")).value(), "two");
 }
 
 TEST(SkipListTest, GetMissing) {
     SkipList sl;
-    sl.put("key1", "one");
-    EXPECT_FALSE(sl.get("key99").has_value());
+    sl.put(ik("key1"), "one");
+    EXPECT_FALSE(sl.get(ik("key99")).has_value());
 }
 
 TEST(SkipListTest, Del) {
     SkipList sl;
-    sl.put("key1", "one");
-    sl.del("key1");
-    EXPECT_FALSE(sl.get("key1").has_value());
+    sl.put(ik("key1"), "one");
+    sl.del(ik("key1"));
+    EXPECT_FALSE(sl.get(ik("key1")).has_value());
 }
 
 TEST(SkipListTest, LargeInsert) {
@@ -30,25 +44,25 @@ TEST(SkipListTest, LargeInsert) {
     std::vector<std::string> keys;
     for (int i = 0; i < 10000; ++i) {
         std::string k = "key_" + std::to_string(rng() % 100000);
-        sl.put(k, "val_" + k);
+        sl.put(ik(k), "val_" + k);
         keys.push_back(k);
     }
     for (const auto& k : keys) {
-        auto v = sl.get(k);
+        auto v = sl.get(ik(k));
         ASSERT_TRUE(v.has_value()) << "key=" << k;
     }
 }
 
 TEST(SkipListTest, EntriesOrdered) {
     SkipList sl;
-    sl.put("c", "val_c");
-    sl.put("a", "val_a");
-    sl.put("b", "val_b");
+    sl.put(ik("c"), "val_c");
+    sl.put(ik("a"), "val_a");
+    sl.put(ik("b"), "val_b");
     auto entries = sl.entries();
     ASSERT_EQ(entries.size(), 3u);
-    EXPECT_EQ(entries[0].first, "a");
-    EXPECT_EQ(entries[1].first, "b");
-    EXPECT_EQ(entries[2].first, "c");
+    EXPECT_EQ(InternalKeyUserKey(entries[0].first).toString(), "a");
+    EXPECT_EQ(InternalKeyUserKey(entries[1].first).toString(), "b");
+    EXPECT_EQ(InternalKeyUserKey(entries[2].first).toString(), "c");
 }
 
 TEST(SkipListTest, InternalKeyOrdering) {
@@ -70,8 +84,8 @@ TEST(SkipListTest, InternalKeyOrdering) {
 
 TEST(SkipListTest, UpdateOverwrites) {
     SkipList sl;
-    sl.put("key1", "old");
-    sl.put("key1", "new");
-    EXPECT_EQ(sl.get("key1").value(), "new");
+    sl.put(ik("key1"), "old");
+    sl.put(ik("key1"), "new");
+    EXPECT_EQ(sl.get(ik("key1")).value(), "new");
     EXPECT_EQ(sl.entries().size(), 1u);
 }

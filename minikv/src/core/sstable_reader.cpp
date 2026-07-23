@@ -10,6 +10,7 @@
 #include "core/sstable_builder.h"
 #include "core/compression.h"
 #include "utils/coding.h"
+#include "utils/crc32.h"
 
 namespace minikv {
 namespace core {
@@ -104,15 +105,14 @@ std::optional<std::string> SSTableReader::get(const Slice& userKey) const {
     if (index_entries_.empty()) return std::nullopt;
     if (bloom_ && !bloom_->mightContain(userKey)) return std::nullopt;
 
-    std::string searchKey = userKey.toString();
-    auto it = std::upper_bound(
-        index_entries_.begin(), index_entries_.end(), searchKey,
-        [](const std::string& k, const IndexEntry& e) {
+    // First index entry whose last user key is >= search key.
+    auto it = std::lower_bound(
+        index_entries_.begin(), index_entries_.end(), userKey.toString(),
+        [](const IndexEntry& e, const std::string& k) {
             Slice lastUK = InternalKeyUserKey(Slice(e.last_key));
-            return k.compare(lastUK.toString()) < 0;
+            return lastUK.compare(Slice(k)) < 0;
         });
-    if (it == index_entries_.begin()) return std::nullopt;
-    --it;
+    if (it == index_entries_.end()) return std::nullopt;
 
     std::string block;
     Status s = readBlock(it->handle, &block);

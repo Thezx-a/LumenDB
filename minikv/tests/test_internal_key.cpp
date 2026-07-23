@@ -5,7 +5,9 @@
 #include <vector>
 
 #include "core/internal_key.h"
+#include "minikv/slice.h"
 
+using namespace minikv;
 using namespace minikv::core;
 
 TEST(InternalKeyTest, EncodeDecodeRoundTrip) {

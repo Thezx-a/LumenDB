@@ -1,8 +1,8 @@
-# Module 14 ‚Äî Reproduce the Full Project from Scratch
+# Module 14 ‚Ä?Reproduce the Full Project from Scratch
 
-> Goal: chain together everything learned in Modules 01‚Äì13 and go from `git clone` to an end-to-end working distributed KV platform.
+> Goal: chain together everything learned in Modules 01‚Ä?3 and go from `git clone` to an end-to-end working distributed KV platform.
 > Prerequisites: Module 01 (environment setup), Module 12 (Go microservices + Next.js console).
-> How to read: open two windows ‚Äî this tutorial on the left, a terminal on the right ‚Äî and follow along.
+> How to read: open two windows ‚Ä?this tutorial on the left, a terminal on the right ‚Ä?and follow along.
 
 ---
 
@@ -10,15 +10,15 @@
 
 ### 1.1 What "reproduce" means
 
-In engineering, "reproduce" has a plain definition: **given a clean machine, follow the instructions and end up with a system that runs exactly like the author's**. It is not "reading the code", nor "running a demo" ‚Äî it is the whole process: cloning, installing dependencies, compiling, starting services, and verifying end-to-end, all by yourself.
+In engineering, "reproduce" has a plain definition: **given a clean machine, follow the instructions and end up with a system that runs exactly like the author's**. It is not "reading the code", nor "running a demo" ‚Ä?it is the whole process: cloning, installing dependencies, compiling, starting services, and verifying end-to-end, all by yourself.
 
 Think of it like cooking a dish:
 
-- **Reading the code** ‚âà reading the recipe, knowing how much salt to add.
-- **Running a demo** ‚âà borrowing a friend's kitchen to make one serving.
-- **Reproducing the project** ‚âà going home, buying ingredients, prepping, firing the stove, cooking, seasoning, and serving the whole meal yourself.
+- **Reading the code** ‚â?reading the recipe, knowing how much salt to add.
+- **Running a demo** ‚â?borrowing a friend's kitchen to make one serving.
+- **Reproducing the project** ‚â?going home, buying ingredients, prepping, firing the stove, cooking, seasoning, and serving the whole meal yourself.
 
-This Module is the third one ‚Äî we're serving TitanKV from scratch.
+This Module is the third one ‚Ä?we're serving TitanKV from scratch.
 
 ### 1.2 Signs of a successful reproduction
 
@@ -39,7 +39,7 @@ All 8 green = reproduction succeeded.
 
 ### 1.3 Why this step matters
 
-The previous 13 Modules were learned "in blocks" ‚Äî skip list here, LSM there, Raft over there. But a real system is these modules **composed**: browser request ‚Üí Gateway auth ‚Üí Data service ‚Üí storage engine ‚Üí response. Reproducing it once makes you truly understand "what each layer does, why it's designed that way, and how to debug when things break". That's the confidence to talk about the project in interviews, and the scaffold for building your own wheels later.
+The previous 13 Modules were learned "in blocks" ‚Ä?skip list here, LSM there, Raft over there. But a real system is these modules **composed**: browser request ‚Ü?Gateway auth ‚Ü?Data service ‚Ü?storage engine ‚Ü?response. Reproducing it once makes you truly understand "what each layer does, why it's designed that way, and how to debug when things break". That's the confidence to talk about the project in interviews, and the scaffold for building your own wheels later.
 
 ---
 
@@ -52,7 +52,7 @@ flowchart TD
     Browser[Browser<br/>Chrome / Edge] -->|HTTP| Web[Next.js Console<br/>App Router + TanStack Query<br/>port 3000]
     Web -->|REST + SSE<br/>cookie: titan_token| Gateway
 
-    Gateway[Gin Gateway<br/>middleware chain: RequestID ‚Üí Logger ‚Üí Recover<br/>‚Üí RateLimit ‚Üí Auth ‚Üí RBAC<br/>port 8080] -->|/api/auth/*| Auth
+    Gateway[Gin Gateway<br/>middleware chain: RequestID ‚Ü?Logger ‚Ü?Recover<br/>‚Ü?RateLimit ‚Ü?Auth ‚Ü?RBAC<br/>port 8080] -->|/api/auth/*| Auth
     Gateway -->|/api/data/*| Data
     Gateway -->|/api/meta/*| Meta
     Gateway -->|/api/observability/*| Observ
@@ -79,11 +79,11 @@ flowchart TD
 
 Three things to read from the diagram:
 
-1. **Request path**: Browser ‚Üí Next.js (3000) ‚Üí Gateway (8080) ‚Üí four business services. The Gateway is the only externally exposed entry point; business services are never accessed directly by the browser.
+1. **Request path**: Browser ‚Ü?Next.js (3000) ‚Ü?Gateway (8080) ‚Ü?four business services. The Gateway is the only externally exposed entry point; business services are never accessed directly by the browser.
 2. **Storage layer**: The current MVP uses in-memory (MemoryDB) + Redis (rate limiting). In the future the Data service will back onto minikv's LSM-Tree, and Meta onto etcd.
 3. **Observation path**: The Observability service pushes metrics to the frontend dashboard via SSE for real-time refresh.
 
-> Pitfall heads-up: Redis and etcd are both "optional" ‚Äî services degrade gracefully without them (rate limit becomes a no-op, refresh token feature disabled) and won't fail to start. So on your first run you can skip Redis, get the main flow working, then add it.
+> Pitfall heads-up: Redis and etcd are both "optional" ‚Ä?services degrade gracefully without them (rate limit becomes a no-op, refresh token feature disabled) and won't fail to start. So on your first run you can skip Redis, get the main flow working, then add it.
 
 ---
 
@@ -127,7 +127,7 @@ Stage notes:
 7. **Start frontend**: `make web-dev`.
 8. **E2E verification**: curl through everything + click through the browser.
 
-> Why this order? Backend services depend on Go compilation, frontend depends on npm packages ‚Äî the two can be prepared in parallel (stages 3, 4). C++ tests are independent; running them or not doesn't affect the backend. Finally, stage 8 needs both frontend and backend up to do end-to-end.
+> Why this order? Backend services depend on Go compilation, frontend depends on npm packages ‚Ä?the two can be prepared in parallel (stages 3, 4). C++ tests are independent; running them or not doesn't affect the backend. Finally, stage 8 needs both frontend and backend up to do end-to-end.
 
 ---
 
@@ -165,31 +165,32 @@ cmake version 3.28.3
 git version 2.44.0
 ```
 
-> Pitfall heads-up: Windows users should run backend services (Go + Redis) in WSL2; the frontend can run in PowerShell. macOS users install via Homebrew. If `go version` says "command not found", your PATH isn't set ‚Äî review Module 01's install steps.
+> Pitfall heads-up: Windows users should run backend services (Go + Redis) in WSL2; the frontend can run in PowerShell. macOS users install via Homebrew. If `go version` says "command not found", your PATH isn't set ‚Ä?review Module 01's install steps.
 
 ---
 
 ## 5. Stage 2: Clone the Code
 
 ```bash
-git clone https://github.com/Thezx-a/LumenDB.git
-cd LumenDB
+git clone https://github.com/Thezx-a/TitanKV.git
+cd TitanKV
 ```
 
-> Note: the GitHub repo is named `LumenDB` (a distributed KV platform built from scratch, see `docs/REFACTORING.md`); internally the module name is `titan` (Go module path: `github.com/titan-kv/titan`). Both refer to the same project.
+> Note: the GitHub repo is `TitanKV`; the Go module path is `github.com/titan-kv/titan`. See root [RUN.md](../../../RUN.md) for the full WSL guide.
+
 
 After cloning, the project root looks like this:
 
 ```
-LumenDB/
+TitanKV/
 ‚îú‚îÄ‚îÄ minikv/              # C++17 LSM-Tree storage engine (star of Modules 05-08)
 ‚îú‚îÄ‚îÄ skynet/              # C++20 coroutine network library (star of Modules 09-10)
 ‚îú‚îÄ‚îÄ gateway/             # Go API gateway (Gin + middleware chain)
 ‚îú‚îÄ‚îÄ services/            # Go microservices
-‚îÇ   ‚îú‚îÄ‚îÄ auth/            #   Auth service (JWT + APIKey + RBAC)
-‚îÇ   ‚îú‚îÄ‚îÄ data/            #   Data service (KV CRUD + SSE Scan)
-‚îÇ   ‚îú‚îÄ‚îÄ meta/            #   Meta service (Collection CRUD)
-‚îÇ   ‚îî‚îÄ‚îÄ observability/   #   Observability service (metrics + SSE)
+‚î?  ‚îú‚îÄ‚îÄ auth/            #   Auth service (JWT + APIKey + RBAC)
+‚î?  ‚îú‚îÄ‚îÄ data/            #   Data service (KV CRUD + SSE Scan)
+‚î?  ‚îú‚îÄ‚îÄ meta/            #   Meta service (Collection CRUD)
+‚î?  ‚îî‚îÄ‚îÄ observability/   #   Observability service (metrics + SSE)
 ‚îú‚îÄ‚îÄ client-go/titan/     # Go SDK
 ‚îú‚îÄ‚îÄ web/                 # Next.js console
 ‚îú‚îÄ‚îÄ tests/course/        # Course unit tests (7 files, standalone build)
@@ -214,7 +215,7 @@ Key directory explanations:
 | `web/app/` | Next.js App Router pages | 12 |
 | `tests/course/` | 7 hand-write exercise tests | 05, 06, 03 |
 
-> Pitfall heads-up: if `ls services/` shows only `auth/ meta/ observability/` and no `data/`, the data service is still under development. In that case `make run-all` will error when starting the data service ‚Äî you can skip the data service and verify the auth/meta/observability flows. See section 13 for troubleshooting.
+> Pitfall heads-up: if `ls services/` shows only `auth/ meta/ observability/` and no `data/`, the data service is still under development. In that case `make run-all` will error when starting the data service ‚Ä?you can skip the data service and verify the auth/meta/observability flows. See section 13 for troubleshooting.
 
 ---
 
@@ -244,7 +245,7 @@ go build ./...
 
 `./...` means compile all packages. No errors = all 5 services' `main.go` compile.
 
-Expected output: **no output means success** (Go convention ‚Äî successful compilation prints nothing).
+Expected output: **no output means success** (Go convention ‚Ä?successful compilation prints nothing).
 
 ### 6.4 Possible errors
 
@@ -292,7 +293,7 @@ go build -o /tmp/meta ./services/meta
 go build -o /tmp/observ ./services/observability
 ```
 
-Each command succeeding is enough. You can `rm` the `/tmp/*` binaries ‚Äî we'll use `go run` later.
+Each command succeeding is enough. You can `rm` the `/tmp/*` binaries ‚Ä?we'll use `go run` later.
 
 ---
 
@@ -329,13 +330,13 @@ cd ..
 `npm run build` does a production build (type checking + static generation). Passing means the frontend code is fine. Expected:
 
 ```
- ‚úì Compiled successfully
- ‚úì Linting and checking validity of types
- ‚úì Generating static pages (5/5)
+ ‚ú?Compiled successfully
+ ‚ú?Linting and checking validity of types
+ ‚ú?Generating static pages (5/5)
  Route (app)                              Size     First Load JS
- ‚îå ‚óã /                                    1.2 kB         88 kB
- ‚îú ‚óã /dashboard                           2.1 kB         92 kB
- ‚îî ‚óã /login                               1.5 kB         89 kB
+ ‚î?‚ó?/                                    1.2 kB         88 kB
+ ‚î?‚ó?/dashboard                           2.1 kB         92 kB
+ ‚î?‚ó?/login                               1.5 kB         89 kB
 ```
 
 ### 7.3 Configure environment variables
@@ -362,7 +363,7 @@ What the two variables do:
 
 ## 8. Stage 5: C++ Unit Tests (Optional)
 
-This stage is optional ‚Äî it doesn't affect the backend services, but it verifies your C++ toolchain and corresponds to the hand-write exercises in Modules 03/05/06.
+This stage is optional ‚Ä?it doesn't affect the backend services, but it verifies your C++ toolchain and corresponds to the hand-write exercises in Modules 03/05/06.
 
 ### 8.1 Build
 
@@ -373,7 +374,7 @@ cmake --build build -j
 
 `-DENABLE_TESTS=ON` enables building `tests/course/`. GoogleTest is fetched automatically via FetchContent (needs network the first time).
 
-> Pitfall heads-up: the top-level CMake option is `ENABLE_TESTS` (not `ENABLE_COURSE_TESTS`). `tests/course/CMakeLists.txt` is a standalone subproject ‚Äî even if minikv fails to compile, the course tests can run on their own.
+> Pitfall heads-up: the top-level CMake option is `ENABLE_TESTS` (not `ENABLE_COURSE_TESTS`). `tests/course/CMakeLists.txt` is a standalone subproject ‚Ä?even if minikv fails to compile, the course tests can run on their own.
 
 ### 8.2 Run tests
 
@@ -415,7 +416,7 @@ Test project /path/to/build
 | `test_bloom_filter_math.cpp` | course_bloom_filter_math | 06 | Bloom filter false-positive math |
 | `test_murmurhash.cpp` | course_murmurhash | 06 | MurmurHash hash function |
 
-These tests **don't depend on minikv source** ‚Äî they're pure hand-written implementations, so even without a C++ compiler your backend reproduction is unaffected.
+These tests **don't depend on minikv source** ‚Ä?they're pure hand-written implementations, so even without a C++ compiler your backend reproduction is unaffected.
 
 ---
 
@@ -441,64 +442,64 @@ sequenceDiagram
 
     U->>M: make run-all
     par parallel start
-        M->>A: go run ./services/auth &
+        M->>A: go run ./cmd/auth &
         A-->>A: [INFO] auth listening on :8082
     and
-        M->>D: go run ./services/data &
+        M->>D: go run ./cmd/data &
         D-->>D: [INFO] data listening on :8081
     and
-        M->>Me: go run ./services/meta &
+        M->>Me: go run ./cmd/meta &
         Me-->>Me: [INFO] meta listening on :8083
     and
-        M->>O: go run ./services/observability &
+        M->>O: go run ./cmd/observability &
         O-->>O: [INFO] observability listening on :8084
     end
-    M->>G: go run ./gateway
+    M->>G: go run ./cmd/gateway
     G-->>G: [INFO] gateway listening on :8080
-    Note over G: Gateway proxies /api/data ‚Üí :8081<br/>/api/meta ‚Üí :8083<br/>/api/observability ‚Üí :8084
+    Note over G: Gateway proxies /api/data ‚Ü?:8081<br/>/api/meta ‚Ü?:8083<br/>/api/observability ‚Ü?:8084
     U->>G: curl localhost:8080/ping
     G-->>U: {"pong":true}
 ```
 
-> Pitfall heads-up: `make run-all` runs in the foreground and is blocking; `Ctrl+C` stops all services. Logs are interleaved and hard to read ‚Äî when debugging, prefer option B (separate terminals).
+> Pitfall heads-up: `make run-all` runs in the foreground and is blocking; `Ctrl+C` stops all services. Logs are interleaved and hard to read ‚Ä?when debugging, prefer option B (separate terminals).
 
 ### 9.2 Option B: start manually in 5 terminals
 
 Open 5 terminal windows and run each:
 
-**Terminal 1 ‚Äî Auth service (8082)**
+**Terminal 1 ‚Ä?Auth service (8082)**
 
 ```bash
 make run-auth
-# or: go run ./services/auth
+# or: go run ./cmd/auth
 ```
 
-**Terminal 2 ‚Äî Data service (8081)**
+**Terminal 2 ‚Ä?Data service (8081)**
 
 ```bash
 make run-data
-# or: go run ./services/data
+# or: go run ./cmd/data
 ```
 
-**Terminal 3 ‚Äî Meta service (8083)**
+**Terminal 3 ‚Ä?Meta service (8083)**
 
 ```bash
 make run-meta
-# or: go run ./services/meta
+# or: go run ./cmd/meta
 ```
 
-**Terminal 4 ‚Äî Observability service (8084)**
+**Terminal 4 ‚Ä?Observability service (8084)**
 
 ```bash
 make run-observ
-# or: go run ./services/observability
+# or: go run ./cmd/observability
 ```
 
-**Terminal 5 ‚Äî Gateway (8080, start last)**
+**Terminal 5 ‚Ä?Gateway (8080, start last)**
 
 ```bash
 make run-gateway
-# or: go run ./gateway
+# or: go run ./cmd/gateway
 ```
 
 > Order matters: when the Gateway starts it pings each service's health check (not a hard dependency, but best to have business services up first). Auth/Meta/Observ can run in parallel; Gateway goes last.
@@ -537,7 +538,7 @@ Expected:
 {"status":"ok","version":"0.1.0"}
 ```
 
-> Pitfall heads-up: if you see `[WARN] redis not available`, don't panic ‚Äî this is normal. Without Redis, rate limiting degrades to a no-op and refresh token / jti blacklist features are disabled, but the register/login main flow works fine. To install Redis: `make docker-up` or `docker run -d -p 6379:6379 redis:7`.
+> Pitfall heads-up: if you see `[WARN] redis not available`, don't panic ‚Ä?this is normal. Without Redis, rate limiting degrades to a no-op and refresh token / jti blacklist features are disabled, but the register/login main flow works fine. To install Redis: `make docker-up` or `docker run -d -p 6379:6379 redis:7`.
 
 ---
 
@@ -553,11 +554,11 @@ make web-dev
 Expected output:
 
 ```
-   ‚ñ≤ Next.js 14.2.5
+   ‚ñ?Next.js 14.2.5
    - Local:        http://localhost:3000
    - Environments: .env.local
 
- ‚úì Ready in 1200 ms
+ ‚ú?Ready in 1200 ms
 ```
 
 ### 10.2 Open the console
@@ -578,7 +579,7 @@ Seeing the login form means it's working.
 
 ## 11. Stage 8: End-to-End Verification
 
-This section is the heart of the reproduction ‚Äî we verify all 8 success signs one by one. **Every curl command is copy-paste ready**.
+This section is the heart of the reproduction ‚Ä?we verify all 8 success signs one by one. **Every curl command is copy-paste ready**.
 
 ### 11.1 Register a user
 
@@ -621,13 +622,13 @@ Expected (HTTP 200):
 }
 ```
 
-Save the `access_token` to an env var ‚Äî all authenticated requests need it:
+Save the `access_token` to an env var ‚Ä?all authenticated requests need it:
 
 ```bash
 TOKEN="paste the access_token value here"
 ```
 
-> Why two tokens: the access token is short-lived (15 min), the refresh token long-lived. When the access token expires, use the refresh token to get a new one, avoiding repeated password entry. This is the JWT dual-token pattern ‚Äî see Module 12.
+> Why two tokens: the access token is short-lived (15 min), the refresh token long-lived. When the access token expires, use the refresh token to get a new one, avoiding repeated password entry. This is the JWT dual-token pattern ‚Ä?see Module 12.
 
 ### 11.3 Create a Collection
 
@@ -638,7 +639,7 @@ curl -X POST http://localhost:8080/api/meta/collections \
   -d '{"name":"user_profile","ttl_seconds":3600,"schema":{"user_id":"string","age":"int"}}'
 ```
 
-> Why Collections exist: TitanKV uses a "namespace" model ‚Äî every KV belongs to a Collection, which defines the schema and TTL. The Meta service manages Collection metadata; the Data service manages KV data.
+> Why Collections exist: TitanKV uses a "namespace" model ‚Ä?every KV belongs to a Collection, which defines the schema and TTL. The Meta service manages Collection metadata; the Data service manages KV data.
 
 Expected (HTTP 201):
 
@@ -679,7 +680,7 @@ curl -X POST http://localhost:8080/api/data/kv \
   -d '{"key":"user:001","value":"{\"name\":\"Alice\",\"age\":30}"}'
 ```
 
-> Why the key uses the `user:001` colon form: this is a common KV convention (RocksDB / Redis Hash all do this) ‚Äî the colon acts as a namespace separator, making prefix-range scans convenient.
+> Why the key uses the `user:001` colon form: this is a common KV convention (RocksDB / Redis Hash all do this) ‚Ä?the colon acts as a namespace separator, making prefix-range scans convenient.
 
 Expected (HTTP 200):
 
@@ -709,7 +710,7 @@ curl -N "http://localhost:8080/api/data/scan?start=user:000&end=user:999" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-> Why `-N`: `curl -N` disables output buffering; otherwise the SSE stream gets batched and you can't see the "stream" effect. Scan uses SSE because the result set may be large ‚Äî streaming avoids blocking and OOM.
+> Why `-N`: `curl -N` disables output buffering; otherwise the SSE stream gets batched and you can't see the "stream" effect. Scan uses SSE because the result set may be large ‚Ä?streaming avoids blocking and OOM.
 
 Expected (one KV per line, starting with `data:`):
 
@@ -769,13 +770,13 @@ Press `Ctrl+C` to exit.
 Back in the browser at http://localhost:3000/login, log in with the `admin / admin123` you just registered. After a successful login:
 
 1. The page redirects to `/dashboard`.
-2. At the top you'll see live metric cards (QPS / P50 / P99 / Storage) refreshing every second ‚Äî that's SSE at work.
+2. At the top you'll see live metric cards (QPS / P50 / P99 / Storage) refreshing every second ‚Ä?that's SSE at work.
 3. Go to `/dashboard/collections` to see the `user_profile` Collection you created.
 4. Go to `/dashboard/users` to manage users (admin role).
 
-> Pitfall heads-up: browser login uses a cookie (`titan_token`), not the `Authorization` header. In `web/lib/api.ts`, `apiFetch` automatically reads the token from the cookie and puts it in the `Authorization` header when calling the Gateway. So in the Network panel you'll see requests with both a cookie and an Authorization header ‚Äî that's by design.
+> Pitfall heads-up: browser login uses a cookie (`titan_token`), not the `Authorization` header. In `web/lib/api.ts`, `apiFetch` automatically reads the token from the cookie and puts it in the `Authorization` header when calling the Gateway. So in the Network panel you'll see requests with both a cookie and an Authorization header ‚Ä?that's by design.
 
-At this point all 8 success signs are verified ‚Äî reproduction complete! üéâ
+At this point all 8 success signs are verified ‚Ä?reproduction complete! üéâ
 
 ---
 
@@ -810,9 +811,9 @@ flowchart LR
 
 Key takeaways:
 
-1. **The Gateway is the single entry point**: all external requests go through 8080; business services (8081‚Äì8084) are never exposed directly. This is the "BFF / API Gateway" pattern.
+1. **The Gateway is the single entry point**: all external requests go through 8080; business services (8081‚Ä?084) are never exposed directly. This is the "BFF / API Gateway" pattern.
 2. **Auth is centralized at the Gateway**: the Auth middleware verifies JWT / APIKey, the RBAC middleware checks permissions (`kv:get` / `kv:put` / `collection:create`, etc.). Business services don't repeat auth.
-3. **Reverse proxy routes by path**: `/api/data/*` ‚Üí Data, `/api/meta/*` ‚Üí Meta, `/api/observability/*` ‚Üí Observ. The Gateway uses `httput.ReverseProxy`.
+3. **Reverse proxy routes by path**: `/api/data/*` ‚Ü?Data, `/api/meta/*` ‚Ü?Meta, `/api/observability/*` ‚Ü?Observ. The Gateway uses `httput.ReverseProxy`.
 4. **SSE has two channels**: Data's Scan and Observ's metrics are both SSE, but with different event types (`data:` vs `event: metrics`), and the frontend parses them differently.
 5. **The storage layer is replaceable**: currently in-memory; in the future Data backs onto minikv (LSM-Tree), Meta onto etcd. Because the Data service has a storage abstraction, swapping the backend doesn't affect the upper API.
 
@@ -872,7 +873,7 @@ r.Use(func(c *gin.Context) {
 
 **Cause**: the cookie's `SameSite=Lax` isn't sent across origins.
 
-**Fix**: `web/app/login/page.tsx` currently sets `SameSite=Lax`, which works for same-site (3000 ‚Üí 8080 both on localhost = same site). If you use different domains, change to `SameSite=None; Secure` (requires HTTPS).
+**Fix**: `web/app/login/page.tsx` currently sets `SameSite=Lax`, which works for same-site (3000 ‚Ü?8080 both on localhost = same site). If you use different domains, change to `SameSite=None; Secure` (requires HTTPS).
 
 ### 13.4 SSE not firing
 
@@ -893,20 +894,20 @@ curl -i -N http://localhost:8080/api/metrics/stream -H "Authorization: Bearer $T
 
 ### 13.5 Go service won't start
 
-**Symptom**: `go run ./gateway` throws a bunch of errors.
+**Symptom**: `go run ./cmd/gateway` throws a bunch of errors.
 
 **Checklist**:
 
 - Is 8080 already in use (see 13.1)?
 - Has `go.mod` been tidied (`go mod tidy`)?
-- No Redis? No problem ‚Äî it degrades with a warning, no error.
+- No Redis? No problem ‚Ä?it degrades with a warning, no error.
 - data service directory missing? `make run-all` will hang on the data line. Fix: start only the existing services:
 
 ```bash
-go run ./services/auth &
-go run ./services/meta &
-go run ./services/observability &
-go run ./gateway
+go run ./cmd/auth &
+go run ./cmd/meta &
+go run ./cmd/observability &
+go run ./cmd/gateway
 ```
 
 ### 13.6 npm install is slow
@@ -937,7 +938,7 @@ cd web && npm install
 1. Skip the data service and start the other 4 services (see 13.5).
 2. KV-related APIs (`/api/data/kv`, `/api/data/scan`) will return 502 (the Gateway can't find the upstream).
 3. The auth / meta / observability flows can still be verified normally.
-4. Track Phase 4 progress in `docs/REFACTORING.md` ‚Äî once the data service lands, the full reproduction works end-to-end.
+4. Track Phase 4 progress in `docs/REFACTORING.md` ‚Ä?once the data service lands, the full reproduction works end-to-end.
 
 > This is the "be realistic" step: in the MVP phase some services may not be implemented yet. Get the existing ones running first, then fill in the gaps as the repo updates.
 
@@ -1047,8 +1048,8 @@ Reproduction is "breadth" coverage; next, pick a "point" to go deep:
 | Microservice architecture | 12 | Add a new service (e.g. notification) |
 | Interview prep | 13 | Grind problems + system design practice |
 
-Every Module maps to real, modifiable code in the project ‚Äî change it, run it, understand why. That's the core of "project-driven learning": **don't just read it once; change a line, run it, and figure out why**.
+Every Module maps to real, modifiable code in the project ‚Ä?change it, run it, understand why. That's the core of "project-driven learning": **don't just read it once; change a line, run it, and figure out why**.
 
 ---
 
-‚Üê [Module 13 ‚Äî System Design & Interview Q&A](./13-interview.md) | [Back to Course Outline](./README.md) ‚Üí
+‚Ü?[Module 13 ‚Ä?System Design & Interview Q&A](./13-interview.md) | [Back to Course Outline](./README.md) ‚Ü?

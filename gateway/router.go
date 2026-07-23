@@ -4,7 +4,7 @@
 //   RequestID → Logger → Recover → RateLimit → Auth → RBAC → Handler
 //
 // 启动:
-//   go run ./gateway
+//   go run ./cmd/gateway
 //
 // 路由:
 //   GET  /ping              - 健康检查 (无鉴权)
@@ -118,19 +118,22 @@ func Run() {
 		authClient.IssueAPIKeyHandler)
 
 	// 业务路由 (需鉴权 + RBAC + 反向代理)
+	// 注意: 不能用 /api/* 通配, 会与上面的 /api/auth 冲突 (Gin 路由树限制).
 	rp, err := handler.NewReverseProxy(map[string]string{
-		"/api/data":       cfg.DataServiceURL,
-		"/api/meta":       cfg.MetaServiceURL,
+		"/api/data":          cfg.DataServiceURL,
+		"/api/meta":          cfg.MetaServiceURL,
 		"/api/observability": cfg.ObservURL,
 	})
 	if err != nil {
 		log.Fatalf("new reverse proxy: %v", err)
 	}
 
-	biz := r.Group("/api",
-		middleware.Auth(middleware.AuthConfig{JWTSecret: cfg.JWTSecret, Redis: rdb, APIKeyVerify: apiKeyVerify}))
-	// 细粒度 RBAC (按方法 + 路径). 这里简化: 所有 /api/data 需要 kv:get 或 kv:put.
-	biz.Use(func(c *gin.Context) {
+	authMW := middleware.Auth(middleware.AuthConfig{
+		JWTSecret:    cfg.JWTSecret,
+		Redis:        rdb,
+		APIKeyVerify: apiKeyVerify,
+	})
+	rbacMW := func(c *gin.Context) {
 		switch c.Request.Method {
 		case http.MethodGet:
 			middleware.RBAC(middleware.PermKVGet)(c)
@@ -143,8 +146,13 @@ func Run() {
 			return
 		}
 		c.Next()
-	})
-	biz.Any("/*proxyPath", rp.Handle)
+	}
+
+	for _, prefix := range []string{"/api/data", "/api/meta", "/api/observability"} {
+		g := r.Group(prefix, authMW, rbacMW)
+		g.Any("/*proxyPath", rp.Handle)
+		g.Any("", rp.Handle)
+	}
 
 	srv := &http.Server{
 		Addr:    cfg.Addr,
